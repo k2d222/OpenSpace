@@ -293,13 +293,12 @@ void DataViewer::render() {
 
     // This is the main view
     renderTable();
-    ImGui::Spacing();
 
-    // TEST
-    if (_selection.size() > 0) {
-        ImGui::SameLine();
-        renderTSMRadarPlot(_data[_selection[0]]); // For now just the first
-    }
+    //// TEST
+    //if (_selection.size() > 0) {
+    //    ImGui::SameLine();
+    //    renderTSMRadarPlot(_data[_selection[0]]); // For now just the first
+    //}
 
     ImGui::End();
 }
