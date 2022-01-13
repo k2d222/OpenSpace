@@ -72,6 +72,7 @@ namespace {
 
     constexpr const glm::vec3 DefaultSelectedColor = { 0.2f, 0.8f, 1.f };
     constexpr const glm::vec4 NanPointColor = { 0.3f, 0.3f, 0.3f, 1.f };
+    constexpr const glm::vec4 DescriptiveTextColor = { 0.6f, 0.6f, 0.6f, 1.f };
 
     const ImVec2 DefaultWindowSize = ImVec2(350, 350);
 
@@ -503,7 +504,7 @@ void DataViewer::renderTable() {
 
     ImGui::Separator();
     ImGui::TextColored(
-        ImVec4(0.6f, 0.6f, 0.6f, 1.f),
+        toImVec4(DescriptiveTextColor),
         fmt::format(
             "Showing {} exoplanets out of a total {}", _filteredData.size(), _data.size()
         ).c_str()
@@ -751,8 +752,43 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
         ImGui::Unindent();
     }
 
-    ImGui::End(); // Filter settings window
+    // Number of rows with max TSM/ESM filter
+    ImGui::Separator();
+    static int nRows = 100;
+    static bool limitNumberOfRows = false;
+    static int nItemsWithoutRowLimit = _filteredData.size();
 
+    ImGui::Text("Limit number of rows");
+    ImGui::SameLine();
+    renderHelpMarker(
+        "Enable to only show the top X resulting rows with max ESM/TSM value"
+    );
+
+    bool rowLimitFilterChanged = false;
+    rowLimitFilterChanged |= ImGui::Checkbox("##RowLimit", &limitNumberOfRows);
+    ImGui::SameLine();
+    ImGui::Text("Show first");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(100);
+    rowLimitFilterChanged |= ImGui::InputInt("##nRows", &nRows);
+    ImGui::SameLine();
+    ImGui::Text(" rows with highest ");
+    ImGui::SameLine();
+
+    const char* metricChoices[] = { "TSM", "ESM" };
+    static int currentMetricChoiceIndex = 0;
+    ImGui::SetNextItemWidth(70);
+    rowLimitFilterChanged |= ImGui::Combo(
+        "##ESMorTSMcombo",
+        &currentMetricChoiceIndex,
+        metricChoices,
+        IM_ARRAYSIZE(metricChoices)
+    );
+    _filterChanged |= rowLimitFilterChanged;
+    const char* metricChoice = metricChoices[currentMetricChoiceIndex];
+    const ColumnID rowLimitCol = (metricChoice == "TSM") ? ColumnID::TSM : ColumnID::ESM;
+
+    // Filter the data
     bool selectionChanged = false;
 
     // Update the filtered data
@@ -818,24 +854,53 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
         }
         _filteredData.shrink_to_fit();
 
-        // Update the property in the module
-        auto mod = global::moduleEngine->module<ExoplanetsExpertToolModule>();
-        properties::Property* filteredRowsProperty = mod->property("FilteredDataRows");
-        if (filteredRowsProperty) {
-            std::vector<int> indices;
-            indices.reserve(_filteredData.size());
-            std::transform(_filteredData.begin(), _filteredData.end(), std::back_inserter(indices),
-                [&data = _data](size_t i) -> int { return data[i].id; });
+        nItemsWithoutRowLimit = _filteredData.size();
+    }
 
-            filteredRowsProperty->set(indices);
-        }
+    // Show how many values the filter corresponds to, without the limited rows
+    ImGui::TextColored(
+        toImVec4(DescriptiveTextColor),
+        fmt::format(
+            "Current filter corresponds to {} exoplanets", nItemsWithoutRowLimit
+        ).c_str()
+    );
 
-        if (selectionChanged) {
-            updateSelectionInRenderable();
-        }
+    ImGui::End(); // Filter settings window
+
+    // Limit the number of rows by first sorting based on the chosen metric
+    if (limitNumberOfRows && _filteredData.size() > nRows) {
+        auto compare = [&rowLimitCol, this](const size_t& lhs, const size_t& rhs) {
+            // We are interested in the largest, so flip the order
+            const ExoplanetItem& l = _data[rhs];
+            const ExoplanetItem& r = _data[lhs];
+            return compareColumnValues(rowLimitCol, l, r);
+        };
+
+        std::sort(_filteredData.begin(), _filteredData.end(), compare);
+        _filteredData.erase(_filteredData.begin() + nRows, _filteredData.end());
+    }
+
+    updateFilteredRowsProperty();
+
+    if (selectionChanged) {
+        updateSelectionInRenderable();
     }
 }
 
+void DataViewer::updateFilteredRowsProperty() {
+    auto mod = global::moduleEngine->module<ExoplanetsExpertToolModule>();
+    properties::Property* filteredRowsProperty = mod->property("FilteredDataRows");
+    if (filteredRowsProperty) {
+        std::vector<int> indices;
+        indices.reserve(_filteredData.size());
+        std::transform(_filteredData.begin(), _filteredData.end(), std::back_inserter(indices),
+            [&data = _data](size_t i) -> int { return data[i].id; });
+
+        filteredRowsProperty->set(indices);
+    }
+}
+
+// TODO: maybe remove
 void DataViewer::renderTSMRadarPlot(const ExoplanetItem& item) {
     if (std::isnan(item.tsm)) {
         // TODO: do something nice if it is null

@@ -82,6 +82,10 @@ private:
     void renderScatterPlotAndColormapWindow(bool* open);
     void renderFilterSettingsWindow(bool* open);
 
+    // Updates the property in the module so that it matches the filtered
+    // rows in the UI
+    void updateFilteredRowsProperty();
+
     void renderTSMRadarPlot(const ExoplanetItem& item);
 
     void renderColumnValue(ColumnID column, const char* format,
@@ -90,6 +94,8 @@ private:
     std::variant<const char*, float> valueFromColumn(ColumnID column,
         const ExoplanetItem& item) const;
 
+    // Compare the values of two Exoplanets items, given a specific column.
+    // The comparison made is (left < right)
     bool compareColumnValues(ColumnID column, const ExoplanetItem& left,
         const ExoplanetItem& right) const ;
 
