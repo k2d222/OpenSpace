@@ -10,11 +10,37 @@ import os
 from datetime import datetime
 from astropy import constants as const
 
+# T - temperature (Kelvin)
+# lam - wavelength (meter)
+# http://spiff.rit.edu/classes/phys317/lectures/planck.html
+def Plancks_function(T, lam):
+    h = const.h.value
+    c = const.c.value
+    kB = const.k_B.value
+    
+    # constant in the numerator of the equation
+    # num = 2.0 * h * c * c / (lam ** 5)
+
+    # Since we have a ratio, we don't actually care about the nominator. 
+    # We are rather interested in how the value related to the planet (here the temp)
+    # affects the final value. So, ignore the constant, to get more understandable values
+    num = 1.0 
+
+    res = num / (np.exp(h * c / (lam * kB * T)) - 1)
+    return res
+
+# The full Planck ratio used in the ESM computation. The division means that we can 
+# simplify the equation a bit, since some constants will take each other out. Also 
+# note that the division is flipped
+# Ts - stellar temmp
+# Tp - planet dayside temp
+# lam - wavelength (meter)
+# depth - (Rplanet / Rstar) ^2
 def Planck_ratio(depth, Ts, Tp, lam):
     h = const.h.value
     c = const.c.value
     kB = const.k_B.value
-    res = depth * 1e6 * (np.exp(h * c / (lam * kB * Ts)) - 1)/ (np.exp(h * c / (lam * kB * Tp)) - 1)
+    res = depth * 1e6 * (np.exp(h * c / (lam * kB * Ts)) - 1) / (np.exp(h * c / (lam * kB * Tp)) - 1)
     return res
 
 Rjup = const.R_jup/const.R_earth
@@ -153,8 +179,14 @@ df.loc[df['sy_kmag'] <= 5., 'efficiency_kmag'] = 0.3
 # df.pl_insol.fillna(df['st_teff']**4/df['pl_ratdor']**2*4.166e-11, inplace=True)
 
 print("Computing ESM")
-df['ed_ESM'] = Planck_ratio(df['pl_rprs2'], df['st_teff'], 1.1*df['pl_Teq'], 7.5e-6)
-df['ESM'] = 4.29 * df['ed_ESM'] * 10**(-0.2*df['sy_kmag'])
+# df['ed_ESM'] = Planck_ratio(df['pl_rprs2'], df['st_teff'], 1.1*df['pl_Teq'], 7.5e-6)
+# df['ESM'] = 4.29 * df['pl_rprs2'] * df['ed_ESM'] * 10**(-0.2*df['sy_kmag'])
+
+# Alteraitve verison from original script, to get the factors separately:
+df['pl_Tday'] = 1.1*df['pl_Teq']
+df['planck_pl_Tday'] = Plancks_function(df['pl_Tday'], 7.5e-6)
+df['planck_st_teff'] = Plancks_function(df['st_teff'], 7.5e-6)
+df['ESM'] = 4.29 * 1e6 * df['pl_rprs2'] * df['planck_pl_Tday'] / df['planck_st_teff'] * 10**(-0.2*df['sy_kmag'])
 
 # TODO: propagate errors, so we get uncertainties for ESM and TSM
 
