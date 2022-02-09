@@ -25,6 +25,7 @@
 #include <modules/exoplanetsexperttool/columnfilter.h>
 
 #include <modules/exoplanetsexperttool/datahelper.h>
+#include <ghoul/fmt.h>
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/exception.h>
 #include <ghoul/misc/misc.h>

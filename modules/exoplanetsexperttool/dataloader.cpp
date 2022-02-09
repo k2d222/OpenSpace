@@ -29,6 +29,7 @@
 #include <openspace/documentation/verifier.h>
 #include <openspace/util/coordinateconversion.h>
 #include <ghoul/filesystem/filesystem.h>
+#include <ghoul/fmt.h>
 #include <ghoul/misc/csvreader.h>
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/dictionary.h>
@@ -147,13 +148,13 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            }
            // System properties
            else if (column == "sy_snum") {
-               p.nStars = data::parseFloatData(data);
+               p.nStars = static_cast<int>(data::parseFloatData(data));
            }
            else if (column == "sy_pnum") {
-               p.nPlanets = data::parseFloatData(data);
+               p.nPlanets = static_cast<int>(data::parseFloatData(data));
            }
            else if (column == "disc_year") {
-               p.discoveryYear = data::parseFloatData(data);
+               p.discoveryYear = static_cast<int>(data::parseFloatData(data));
            }
            // Position
            else if (column == "ra") {

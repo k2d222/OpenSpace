@@ -29,7 +29,6 @@
 #include <openspace/engine/windowdelegate.h>
 #include <openspace/mission/missionmanager.h>
 #include <openspace/scripting/scriptengine.h>
-#include <ghoul/fmt.h>
 #include <ghoul/filesystem/cachemanager.h>
 #include <ghoul/filesystem/filesystem.h>
 #include <ghoul/logging/logmanager.h>
@@ -96,7 +95,7 @@ void Gui::initializeGL() {
 
         io.Fonts->AddFontFromFileTTF(absPath(GuiFont).string().c_str(), FontSize);
 
-        ImGuiStyle& style = ImGui::GetStyle();
+        //ImGuiStyle& style = ImGui::GetStyle();
         // TODO: can set style by altering this value
     }
 
@@ -118,7 +117,8 @@ void Gui::initializeGL() {
         }
         _fontTexture = std::make_unique<ghoul::opengl::Texture>(
             texData,
-            glm::uvec3(texSize.x, texSize.y, 1)
+            glm::uvec3(texSize.x, texSize.y, 1),
+            GL_TEXTURE_2D
         );
         _fontTexture->setName("ExoGui Text");
         _fontTexture->setDataOwnership(ghoul::opengl::Texture::TakeOwnership::No);
