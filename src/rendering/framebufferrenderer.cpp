@@ -1129,6 +1129,7 @@ void FramebufferRenderer::updateDownscaledVolume() {
     );
 }
 
+// @HANNA: Här är render-funktionen
 void FramebufferRenderer::render(Scene* scene, Camera* camera, float blackoutFactor) {
     ZoneScoped
     TracyGpuZone("FramebufferRenderer")
@@ -1257,12 +1258,18 @@ void FramebufferRenderer::render(Scene* scene, Camera* camera, float blackoutFac
         applyTMO(blackoutFactor, viewport);
     }
 
+    // @HANNA: Antingen lägga delningen här...
+
     if (_enableFXAA) {
         TracyGpuZone("Apply FXAA")
         GLDebugGroup group("Apply FXAA");
         glBindFramebuffer(GL_FRAMEBUFFER, _defaultFBO);
         applyFXAA(viewport);
+        // @HANNA: Spout-test börjar här:
+ 
+
     }
+    // @HANNA: ... eller här!
 }
 
 void FramebufferRenderer::performRaycasterTasks(const std::vector<RaycasterTask>& tasks,

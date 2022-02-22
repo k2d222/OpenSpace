@@ -513,6 +513,7 @@ void mainRenderFunc(const sgct::RenderData& data) {
         currentModelMatrix = modelMatrix;
         currentModelViewProjectionMatrix = modelMatrix * viewMatrix * projectionMatrix;
         global::openSpaceEngine->render(modelMatrix, viewMatrix, projectionMatrix);
+        // @HANNA: kall till rendering sker här!
     }
     catch (const ghoul::RuntimeError& e) {
         LERRORC(e.component, e.message);
@@ -1344,6 +1345,7 @@ int main(int argc, char* argv[]) {
 
 #ifdef OPENSPACE_HAS_SPOUT
     for (SpoutWindow& w : SpoutWindows) {
+        LDEBUG("!SPOUT - Release Receiver");
         if (w.leftOrMain.handle) {
             w.leftOrMain.handle->ReleaseReceiver();
             w.leftOrMain.handle->Release();

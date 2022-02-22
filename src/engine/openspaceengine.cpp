@@ -1277,6 +1277,8 @@ void OpenSpaceEngine::render(const glm::mat4& sceneMatrix, const glm::mat4& view
     TracyGpuZone("Render")
     LTRACE("OpenSpaceEngine::render(begin)");
 
+    // @HANNA: Här kan man även exportera utan GUI-element...
+
     const bool isGuiWindow =
         global::windowDelegate->hasGuiWindow() ?
         global::windowDelegate->isGuiWindow() :
@@ -1293,6 +1295,8 @@ void OpenSpaceEngine::render(const glm::mat4& sceneMatrix, const glm::mat4& view
 
         func();
     }
+
+
 
     LTRACE("OpenSpaceEngine::render(end)");
 }
