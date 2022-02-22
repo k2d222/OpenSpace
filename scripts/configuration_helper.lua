@@ -179,8 +179,8 @@ function generateWindow(result, fullScreen, msaa, border, monitor, tags, stereo,
   end
 
   if #(tags) > 0 then
-    local t = table.concat(arg["tags"], [[,]])
-    table.insert(result, [[          "tags": [ ]] .. t .. [[ ], ]])
+    local t = table.concat(tags, [[,]])
+    table.insert(result, [[          "tags": [ "]] .. t .. [[" ], ]])
   end
 
   if stereo then
