@@ -64,6 +64,19 @@ public:
         const std::string userConfigPath);
     ~SgctEdit();
     /**
+     * Obtains the version number of the window configuration json format
+     *
+     * \return int version of the version number
+    */
+    int configGeneratorVersion() const;
+    /**
+     * Obtains the minimum version number of the window configuration json format that
+     * can be edited. Files of an older (lower) version number will not open in editor.
+     *
+     * \return int version of the minimum supported version number
+    */
+    int configGeneratorMinimumSupportedVersion() const;
+    /**
      * Used to determine if the window configuration was saved to file, or canceled
      *
      * \return true if configuration was saved to file
@@ -75,6 +88,10 @@ public:
      * \return saved filename in std::string
     */
     std::string saveFilename();
+    //The configGenVersion will update when a breaking change is made to the format,
+    //or in the sgct code
+    static const int _configGenVersion = 1;
+    static const int _configGenMinimumSupportedVersion = 1;
 
 private:
     void addDisplayLayout(QHBoxLayout* layout);

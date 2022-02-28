@@ -79,6 +79,9 @@ public:
       */
     std::string selectedWindowConfig() const;
 
+private slots:
+    void previewSelectedConfigFileForVersion(int);
+
 private:
     QWidget* createCentralWidget();
     void setBackgroundImage(const std::string& syncPath);
@@ -104,5 +107,6 @@ private:
     QComboBox* _profileBox = nullptr;
     QComboBox* _windowConfigBox = nullptr;
     QLabel* _backgroundImage = nullptr;
+    QPushButton* _editWindowButton = nullptr;
 };
 #endif // __OPENSPACE_UI_LAUNCHER___LAUNCHERWINDOW___H__

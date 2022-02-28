@@ -143,9 +143,11 @@ namespace {
     }
 
     void saveWindowConfig(QWidget* parent, const std::string& path,
-                          sgct::config::Cluster& cluster)
+                          sgct::config::Cluster& cluster, int configGeneratorVersion)
     {
         std::ofstream outFile;
+        cluster.version = SgctEdit::_configGenVersion;
+        cluster.configGeneratorVersion = configGeneratorVersion;
         try {
             outFile.open(path, std::ofstream::out);
             outFile << sgct::serializeConfig(cluster);
@@ -253,6 +255,13 @@ QWidget* LauncherWindow::createCentralWidget() {
     _windowConfigBox->setObjectName("config");
     _windowConfigBox->setGeometry(geometry::WindowConfigBox);
 
+    connect(
+        _windowConfigBox,
+        qOverload<int>(&QComboBox::currentIndexChanged),
+        this,
+        &LauncherWindow::previewSelectedConfigFileForVersion
+    );
+
     QPushButton* startButton = new QPushButton("START", centralWidget);
     connect(
         startButton, &QPushButton::released,
@@ -310,7 +319,38 @@ QWidget* LauncherWindow::createCentralWidget() {
     newWindowButton->setGeometry(geometry::NewWindowButton);
     newWindowButton->setCursor(Qt::PointingHandCursor);
 
+    _editWindowButton = new QPushButton("Edit", centralWidget);
+    connect(
+        _editWindowButton,
+        &QPushButton::released,
+        [this]() {
+            openWindowEditor();
+        }
+    );
+    _editWindowButton->setVisible(false);
+    _editWindowButton->setObjectName("small");
+    _editWindowButton->setGeometry(geometry::EditWindowButton);
+    _editWindowButton->setCursor(Qt::PointingHandCursor);
+
     return centralWidget;
+}
+
+void LauncherWindow::previewSelectedConfigFileForVersion(int) {
+    std::filesystem::path pathSelected = absPath(selectedWindowConfig());
+    std::string fileSelected = pathSelected.u8string();
+    if (_windowConfigBox->currentIndex() > 0
+        && std::filesystem::is_regular_file(fileSelected))
+    {
+        _editWindowButton->setVisible(false);
+        sgct::config::Cluster preview = sgct::readConfig(fileSelected, true);
+        if (preview.configGeneratorVersion.has_value()) {
+            if (preview.configGeneratorVersion.value()
+                >= SgctEdit::_configGenMinimumSupportedVersion)
+            {
+                _editWindowButton->setVisible(true);
+            }
+        }
+    }
 }
 
 void LauncherWindow::setBackgroundImage(const std::string& syncPath) {
@@ -526,7 +566,15 @@ void LauncherWindow::openProfileEditor(const std::string& profile, bool isUserPr
         }
     }
 
-    ProfileEdit editor(*p, profile, _assetPath, _userAssetPath, saveProfilePath, _readOnlyProfiles, this);
+    ProfileEdit editor(
+        *p,
+        profile,
+        _assetPath,
+        _userAssetPath,
+        saveProfilePath,
+        _readOnlyProfiles,
+        this
+    );
     editor.exec();
     if (editor.wasSaved()) {
         if (editor.specifiedFilename() != profile) {
@@ -569,7 +617,7 @@ void LauncherWindow::openWindowEditor() {
         for (auto w : windowList) {
             cluster.nodes[0].windows.push_back(w);
         }
-        saveWindowConfig(this, savePath, cluster);
+        saveWindowConfig(this, savePath, cluster, editor.configGeneratorVersion());
         //Truncate path to convert this back to path relative to _userConfigPath
         savePath = savePath.substr(_userConfigPath.size());
         populateWindowConfigsList(savePath);

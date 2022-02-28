@@ -126,6 +126,14 @@ void SgctEdit::addDisplayLayout(QHBoxLayout* layout) {
     layout->addWidget(_displayFrame);
 }
 
+int SgctEdit::configGeneratorVersion() const {
+    return _configGenVersion;
+}
+
+int SgctEdit::configGeneratorMinimumSupportedVersion() const {
+    return _configGenMinimumSupportedVersion;
+}
+
 bool SgctEdit::wasSaved() const {
     return _saveSelected;
 }
