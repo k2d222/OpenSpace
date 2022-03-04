@@ -514,6 +514,17 @@ void DataViewer::renderTable() {
         ).c_str()
     );
 
+    constexpr int MaxItemsToRender = 1000;
+    if (_filteredData.size() > MaxItemsToRender) {
+        ImGui::SameLine();
+        ImGui::TextColored(
+            toImVec4(DescriptiveTextColor),
+            fmt::format(
+                "   (OBS! Only rendering first {}, for performance reasons)", MaxItemsToRender
+            ).c_str()
+        );
+    }
+
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags)) {
         // Header
         for (auto c : _columns) {
@@ -550,8 +561,7 @@ void DataViewer::renderTable() {
 
         // Rows
         for (size_t row = 0; row < _filteredData.size(); row++) {
-            if (row > 1000) {
-                // TODO: show a hint about the number of rendered rows somewhere in the UI
+            if (row > MaxItemsToRender) {
                 break; // cap the maximum number of rows we render
             }
 
