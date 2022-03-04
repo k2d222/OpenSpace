@@ -101,6 +101,19 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
                p.hostName = data;
                // TODO: create identifier matching exoplanets module?
            }
+           // Discovery
+           else if (column == "disc_year") {
+               p.discoveryYear = static_cast<int>(data::parseFloatData(data));
+           }
+           else if (column == "discoverymethod") {
+               p.discoveryMethod = data;
+           }
+           else if (column == "disc_telescope") {
+               p.discoveryTelescope = data;
+           }
+           else if (column == "disc_instrument") {
+               p.discoveryInstrument = data;
+           }
            // Planet properties
            else if (column == "pl_rade") {
                p.radius.value = data::parseFloatData(data);
@@ -152,9 +165,6 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            }
            else if (column == "sy_pnum") {
                p.nPlanets = static_cast<int>(data::parseFloatData(data));
-           }
-           else if (column == "disc_year") {
-               p.discoveryYear = static_cast<int>(data::parseFloatData(data));
            }
            // Position
            else if (column == "ra") {

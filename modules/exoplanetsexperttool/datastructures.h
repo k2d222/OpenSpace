@@ -47,6 +47,12 @@ struct ExoplanetItem {
     int id; // Id used for UI (same as row number in data file)
     std::string planetName;
     std::string hostName;
+
+    int discoveryYear;
+    std::string discoveryMethod;
+    std::string discoveryTelescope;
+    std::string discoveryInstrument;
+
     DataPoint radius; // in Earth radii
     DataPoint mass; // in Earth mass
     DataPoint eqilibriumTemp;  // in Kelvin
@@ -59,7 +65,6 @@ struct ExoplanetItem {
     bool multiSystemFlag;
     int nStars;
     int nPlanets;
-    int discoveryYear;
     DataPoint surfaceGravity;
     DataPoint starEffectiveTemp; // in Kelvin
     DataPoint starAge; // in Gyr

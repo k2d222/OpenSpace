@@ -137,7 +137,11 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         { "MagK", ColumnID::MagnitudeK, "%.2f" },
         { "Distance (pc)", ColumnID::Distance, "%.2f" },
         { "Metallicity (dex)", ColumnID::Metallicity, "%.2f" },
-        { "Metallicity ratio", ColumnID::MetallicityRatio }
+        { "Metallicity ratio", ColumnID::MetallicityRatio },
+        // Discovery
+        { "Discovery method", ColumnID::DiscoveryMethod },
+        { "Telescope", ColumnID::DiscoveryTelescope },
+        { "Instrument", ColumnID::DiscoveryInstrument }
     };
 
     // Must match names in implot and customly added ones
@@ -626,6 +630,11 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
     static bool showSubJovians = false;
     static bool showLargerPlanets = false;
 
+    // Discovery methods
+    static bool showTransit = true;
+    static bool showRadialVelocity = true;
+    static bool showOther = true;
+
     // Filtering
     _filterChanged |= ImGui::Checkbox("Hide null TSM", &hideNanTsm);
     ImGui::SameLine();
@@ -645,6 +654,13 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
     _filterChanged |= ImGui::Checkbox("Large sub-Neptune (2.75 < Rp < 4.0)", &showLargeSubNeptunes);
     _filterChanged |= ImGui::Checkbox("Sub-Jovian (4.0 < Rp < 10)", &showSubJovians);
     _filterChanged |= ImGui::Checkbox("Larger (Rp > 10)", &showLargerPlanets);
+
+    ImGui::Text("Discovery method");
+    _filterChanged |= ImGui::Checkbox("Transit", &showTransit);
+    ImGui::SameLine();
+    _filterChanged |= ImGui::Checkbox("Radial Velocity", &showRadialVelocity);
+    ImGui::SameLine();
+    _filterChanged |= ImGui::Checkbox("Other", &showOther);
 
     // Per-column filtering
     static int filterColIndex = 0;
@@ -821,6 +837,29 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
                 }
                 filteredOut |= !matchesBinFilter;
             }
+
+            // Shortcut filter for discovery method
+            const char* value = std::get<const char*>(valueFromColumn(ColumnID::DiscoveryMethod, d));
+            bool passDiscoveryMethod = false;
+
+            bool isTransit = ColumnFilter(
+                "transit",
+                ColumnFilter::Type::Text
+            ).passFilter(d.discoveryMethod);
+
+            bool isRV = ColumnFilter(
+                "radial velocity",
+                ColumnFilter::Type::Text
+            ).passFilter(d.discoveryMethod);
+
+            if (showOther && !(isTransit || isRV)) {
+                passDiscoveryMethod = true;
+            }
+            else {
+                passDiscoveryMethod |= (showTransit && isTransit);
+                passDiscoveryMethod |= (showRadialVelocity && isRV);
+            }
+            filteredOut |= !passDiscoveryMethod;
 
             // Other filters
             for (const ColumnFilterEntry& f : _appliedFilters) {
@@ -1112,6 +1151,13 @@ std::variant<const char*, float> DataViewer::valueFromColumn(ColumnID column,
             return item.starMetallicity.value;
         case ColumnID::MetallicityRatio:
             return item.starMetallicityRatio.c_str();
+        // Discovery
+        case ColumnID::DiscoveryMethod:
+            return item.discoveryMethod.c_str();
+        case ColumnID::DiscoveryTelescope:
+            return item.discoveryTelescope.c_str();
+        case ColumnID::DiscoveryInstrument:
+            return item.discoveryInstrument.c_str();
         default:
             throw ghoul::MissingCaseException();
     }

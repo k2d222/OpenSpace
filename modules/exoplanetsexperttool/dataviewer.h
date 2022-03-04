@@ -58,7 +58,10 @@ enum ColumnID {
     MagnitudeK,
     Distance,
     Metallicity,
-    MetallicityRatio
+    MetallicityRatio,
+    DiscoveryMethod,
+    DiscoveryTelescope,
+    DiscoveryInstrument,
 };
 
 struct Column {
