@@ -101,6 +101,16 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
                p.hostName = data;
                // TODO: create identifier matching exoplanets module?
            }
+           else if (column == "pl_letter") {
+               if (data.size() == 1) {
+                   p.component = data.at(0);
+               }
+               else {
+                   LWARNING(fmt::format(
+                       "Could not read planet letter from data: '{}'", data
+                   ));
+               }
+           }
            // Discovery
            else if (column == "disc_year") {
                p.discoveryYear = static_cast<int>(data::parseFloatData(data));

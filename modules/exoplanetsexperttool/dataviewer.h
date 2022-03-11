@@ -134,6 +134,8 @@ private:
     std::vector<ColumnFilterEntry> _appliedFilters;
 
     bool _filterChanged = false;
+
+    bool _useGlyphRendering = true;
 };
 
 } // namespace openspace::exoplanets::gui

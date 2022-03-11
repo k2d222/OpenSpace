@@ -32,6 +32,7 @@ set(HEADER_FILES
     dataviewer.h
     exoplanetsexperttoolmodule.h
     gui.h
+    rendering/renderableexoplanetglyphcloud.h
     rendering/renderablepointdata.h
 )
 source_group("Header Files" FILES ${HEADER_FILES})
@@ -43,11 +44,15 @@ set(SOURCE_FILES
     dataviewer.cpp
     exoplanetsexperttoolmodule.cpp
     gui.cpp
+    rendering/renderableexoplanetglyphcloud.cpp
     rendering/renderablepointdata.cpp
 )
 source_group("Source Files" FILES ${SOURCE_FILES})
 
 set(SHADER_FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/shaders/glyphs_fs.glsl
+  ${CMAKE_CURRENT_SOURCE_DIR}/shaders/glyphs_gs.glsl
+  ${CMAKE_CURRENT_SOURCE_DIR}/shaders/glyphs_vs.glsl
   ${CMAKE_CURRENT_SOURCE_DIR}/shaders/gui_fs.glsl
   ${CMAKE_CURRENT_SOURCE_DIR}/shaders/gui_vs.glsl
   ${CMAKE_CURRENT_SOURCE_DIR}/shaders/points_fs.glsl

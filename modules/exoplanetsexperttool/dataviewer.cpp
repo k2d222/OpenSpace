@@ -241,7 +241,14 @@ void DataViewer::initializeRenderables() {
     std::filesystem::path dataFilePath = absPath(RenderDataFileName);
 
     ghoul::Dictionary renderable;
-    renderable.setValue("Type", "RenderablePointData"s);
+
+    if (_useGlyphRendering) {
+        renderable.setValue("Type", "RenderableExoplanetGlyphCloud"s);
+    }
+    else {
+        renderable.setValue("Type", "RenderablePointData"s);
+    }
+
     renderable.setValue("DataFile", dataFilePath.string());
     renderable.setValue("HighlightColor", glm::dvec3(DefaultSelectedColor));
     renderable.setValue("Size", 10.0);
@@ -1254,6 +1261,13 @@ void DataViewer::writeRenderDataToFile() {
         file.write(reinterpret_cast<const char*>(&color.y), sizeof(float));
         file.write(reinterpret_cast<const char*>(&color.z), sizeof(float));
         file.write(reinterpret_cast<const char*>(&color.w), sizeof(float));
+
+        // Other data used for rendering
+        if (_useGlyphRendering) {
+            // Get a number for the planetary component
+            int component = item.component - 'a';
+            file.write(reinterpret_cast<const char*>(&component), sizeof(int));
+        }
     }
 }
 

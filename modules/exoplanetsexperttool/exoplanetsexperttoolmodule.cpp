@@ -24,6 +24,7 @@
 
 #include <modules/exoplanetsexperttool/exoplanetsexperttoolmodule.h>
 
+#include <modules/exoplanetsexperttool/rendering/renderableexoplanetglyphcloud.h>
 #include <modules/exoplanetsexperttool/rendering/renderablepointdata.h>
 #include <openspace/engine/globals.h>
 #include <openspace/engine/globalscallbacks.h>
@@ -145,14 +146,17 @@ ExoplanetsExpertToolModule::ExoplanetsExpertToolModule()
 void ExoplanetsExpertToolModule::internalInitialize(const ghoul::Dictionary&) {
     auto fRenderable = FactoryManager::ref().factory<Renderable>();
     ghoul_assert(fRenderable, "No renderable factory existed");
+    fRenderable->registerClass<RenderableExoplanetGlyphCloud>(
+        "RenderableExoplanetGlyphCloud"
+    );
     fRenderable->registerClass<RenderablePointData>("RenderablePointData");
-
 }
 
 std::vector<documentation::Documentation>
 ExoplanetsExpertToolModule::documentations() const
 {
     return {
+        RenderableExoplanetGlyphCloud::Documentation(),
         RenderablePointData::Documentation()
     };
 }

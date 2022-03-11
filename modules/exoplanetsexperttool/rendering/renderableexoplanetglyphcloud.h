@@ -22,74 +22,72 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
-#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
+#ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___RENDERABLEEXOPLANETGLYPHCLOUD___H__
+#define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___RENDERABLEEXOPLANETGLYPHCLOUD___H__
 
-#include <optional>
-#include <string>
+#include <openspace/rendering/renderable.h>
 
-// @TODO: separate namespace
+#include <openspace/properties/list/intlistproperty.h>
+#include <openspace/properties/scalar/floatproperty.h>
+#include <openspace/properties/vector/vec3property.h>
+#include <ghoul/opengl/ghoul_gl.h>
+#include <ghoul/opengl/uniformcache.h>
+
+namespace openspace::documentation { struct Documentation; }
+
+namespace ghoul::filesystem { class File; }
+namespace ghoul::opengl { class ProgramObject; }
+
 namespace openspace::exoplanets {
 
-// Represent a data point with upper and lower uncertainty values
-struct DataPoint {
-    float value = std::numeric_limits<float>::quiet_NaN();
-    float errorUpper = 0.f;
-    float errorLower = 0.f;
+class RenderableExoplanetGlyphCloud : public Renderable {
+public:
+    RenderableExoplanetGlyphCloud(const ghoul::Dictionary& dictionary);
 
-    // TODO:move to a cpp file
-    bool hasValue() const {
-        return !std::isnan(value);
+    void initializeGL() override;
+    void deinitializeGL() override;
+
+    bool isReady() const override;
+
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
+    void update(const UpdateData& data) override;
+
+    void updateDataFromFile();
+
+    static documentation::Documentation Documentation();
+
+private:
+    bool _isDirty = true;
+    bool _selectionChanged = true;
+
+    std::unique_ptr<ghoul::opengl::ProgramObject> _shaderProgram = nullptr;
+    UniformCache(modelMatrix, cameraViewProjectionMatrix,
+        up, right, opacity, size) _uniformCache;
+
+    properties::Vec3Property _highlightColor;
+    properties::FloatProperty _size;
+    properties::FloatProperty _selectedSizeScale;
+    properties::IntListProperty _selectedIndices;
+
+    std::unique_ptr<ghoul::filesystem::File> _dataFile;
+
+    struct ExpolanetPoint {
+        float xyz[3];
+        float rgba[4];
+        float component;
     };
+    const unsigned int _nValuesPerPoint = 8;
+
+    std::vector<ExpolanetPoint> _fullPointData;
+    std::vector<int> _pointIndices; // indices of the points in the dataviewer
+
+    GLuint _primaryPointsVAO = 0;
+    GLuint _primaryPointsVBO = 0;
+
+    GLuint _selectedPointsVAO = 0;
+    GLuint _selectedPointsVBO = 0;
 };
 
-struct ExoplanetItem {
-    int id; // Id used for UI (same as row number in data file)
-    std::string planetName;
-    std::string hostName;
-    char component;
+}// namespace openspace::exoplanets
 
-    int discoveryYear;
-    std::string discoveryMethod;
-    std::string discoveryTelescope;
-    std::string discoveryInstrument;
-
-    DataPoint radius; // in Earth radii
-    DataPoint mass; // in Earth mass
-    DataPoint eqilibriumTemp;  // in Kelvin
-    DataPoint eccentricity;
-    DataPoint semiMajorAxis; // in AU
-    DataPoint period; // in days
-    DataPoint inclination;
-    float tsm = std::numeric_limits<float>::quiet_NaN();
-    float esm = std::numeric_limits<float>::quiet_NaN();
-    DataPoint surfaceGravity;
-
-    // System
-    bool multiSystemFlag;
-    int nStars;
-    int nPlanets;
-
-    // Star
-    DataPoint starEffectiveTemp; // in Kelvin
-    DataPoint starAge; // in Gyr
-    DataPoint starRadius; // in Solar radii
-    DataPoint starMetallicity; // in dex
-    std::string starMetallicityRatio;
-    DataPoint magnitudeJ; // apparent magnitude in the J band (star)
-    DataPoint magnitudeK; // apparent magnitude in the K band (star)
-
-    // Chemical abundances
-
-    // Position
-    DataPoint ra; // in decimal degrees
-    DataPoint dec; // in decimal degrees
-    DataPoint distance; // in Parsec
-
-    // in Parsec
-    std::optional<glm::dvec3> position = std::nullopt;
-};
-
-} // namespace openspace
-
-#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
+#endif // __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___RENDERABLEEXOPLANETGLYPHCLOUD___H__
