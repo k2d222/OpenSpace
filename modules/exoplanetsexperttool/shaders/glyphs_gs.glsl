@@ -30,8 +30,8 @@ layout(points) in;
 layout(triangle_strip, max_vertices = 4) out;
 
 flat in float vs_component[];
-in float vs_depthClipSpace[];
 in vec4 vs_color[];
+in dvec4 vs_dposWorld[];
 
 flat out float gs_component;
 out float gs_depthClipSpace;
@@ -41,7 +41,10 @@ out vec2 texCoord;
 
 uniform dmat4 modelMatrix;
 uniform dmat4 cameraViewProjectionMatrix;
-uniform float size;
+uniform float size; // Pixels
+uniform vec2 screenSize; // Pixels
+uniform float maxBillboardSize; // Pixels
+uniform float minBillboardSize; // Pixels
 
 const vec2 corners[4] = vec2[4](
     vec2(-1.0, -1.0),
@@ -51,41 +54,72 @@ const vec2 corners[4] = vec2[4](
 );
 
 void main() {
-    vec4 pos = gl_in[0].gl_Position; // model space
-
+//    vec4 pos = gl_in[0].gl_Position;
+//
     gs_component = vs_component[0];
-    gs_depthClipSpace = vs_depthClipSpace[0];
     gs_color = vs_color[0];
 
-    float scale = exp(size) * vs_component[0];
+    dvec4 dpos = vs_dposWorld[0]; //modelMatrix * dvec4(pos);
+    vec4 dposClip = vec4(cameraViewProjectionMatrix * dpos);
 
-    // Apply projection matrix as last step
-    mat4 MVPMatrix = mat4(cameraViewProjectionMatrix * modelMatrix);
+    float scale = size;
+    float screenRatio = screenSize.x / screenSize.y;
 
-    // The added vector needs to be in clip space
+    // TODO: make billboarding optional
+    vec4 scaledRightClip = scale * vec4(1.0, 0.0, 0.0, 0.0);
+    vec4 scaledUpClip = scale * screenRatio * vec4(0.0, 1.0, 0.0, 0.0);
+
+    // TODO: make it work in dome
+
+    // Limit size of billboards based on pixel size
+    vec2 halfViewSize = screenSize * 0.5;
+    vec4 lowerLeft =  z_normalization(dposClip - scaledRightClip - scaledUpClip);
+    vec4 upperRight = z_normalization(dposClip + scaledUpClip + scaledRightClip);
+
+    vec2 topRight = upperRight.xy / upperRight.w;
+    vec2 bottomLeft = lowerLeft.xy / lowerLeft.w;
+
+    vec2 sizes = abs(halfViewSize * (topRight.xy - bottomLeft.xy));
+    float diagonalSize = length(sizes);
+
+    float correctionScale = 1.0;
+    if (diagonalSize > maxBillboardSize) {
+        correctionScale = maxBillboardSize / diagonalSize;
+    }
+    else if (diagonalSize < minBillboardSize) {
+        correctionScale = minBillboardSize / diagonalSize;
+    }
+    scaledRightClip *= correctionScale;
+    scaledUpClip *= correctionScale;
+
+    // Apply component scaling lastly, to get comparable sizes
+    scaledRightClip *= vs_component[0];
+    scaledUpClip *= vs_component[0];
+
+    lowerLeft = dposClip - scaledRightClip - scaledUpClip;
+    vec4 lowerRight = dposClip + scaledRightClip - scaledUpClip;
+    vec4 upperLeft = dposClip + scaledUpClip - scaledRightClip;
+    upperRight = dposClip + scaledUpClip + scaledRightClip;
+    gs_depthClipSpace = lowerLeft.w;
 
     // Lower left
     texCoord = corners[0];
-    vec4 offset = vec4(corners[0], 0.0, 0.0);
-    gl_Position = z_normalization(MVPMatrix * (pos + scale * offset));
+    gl_Position = z_normalization(lowerLeft);
     EmitVertex();
 
     // Lower right
     texCoord = corners[1];
-    offset = vec4(corners[1], 0.0, 0.0);
-    gl_Position = z_normalization(MVPMatrix * (pos + scale * offset));
+    gl_Position = z_normalization(lowerRight);
     EmitVertex();
 
     // Upper left
     texCoord = corners[2];
-    offset = vec4(corners[2], 0.0, 0.0);
-    gl_Position = z_normalization(MVPMatrix * (pos + scale * offset));
+    gl_Position = z_normalization(upperLeft);
     EmitVertex();
 
     // Upper right
     texCoord = corners[3];
-    offset = vec4(corners[3], 0.0, 0.0);
-    gl_Position = z_normalization(MVPMatrix * (pos + scale * offset));
+    gl_Position = z_normalization(upperRight);
     EmitVertex();
 
     //gl_PointSize = scale;

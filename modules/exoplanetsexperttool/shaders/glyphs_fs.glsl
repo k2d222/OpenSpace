@@ -38,7 +38,7 @@ Fragment getFragment() {
         discard;
 
     float maxRadius = 1.0;
-    float width =  0.9 / gs_component;
+    float width =  0.8 / gs_component;
     float minRadius = 1.0 - width;
 
     float coord = (radius - minRadius) / (maxRadius - minRadius);

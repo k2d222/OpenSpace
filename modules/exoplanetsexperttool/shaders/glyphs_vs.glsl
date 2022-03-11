@@ -30,26 +30,19 @@ layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec4 in_color;
 layout(location = 2) in float in_component;
 
-out float vs_depthClipSpace;
-out vec4 vs_positionViewSpace;
 out vec4 vs_color;
 out float vs_component;
+out dvec4 vs_dposWorld;
 
 uniform dmat4 modelMatrix;
-uniform dmat4 cameraViewProjectionMatrix;
-//uniform float size;
-//
+
 void main() {
     dvec4 position = dvec4(in_position, 1.0);
-//    dvec4 positionViewSpace = modelViewTransform * position;
-    dvec4 positionClipSpace = cameraViewProjectionMatrix * modelMatrix * position;
 
-    positionClipSpace.z = 0.0;
-
-    vs_depthClipSpace = float(positionClipSpace.w);
     vs_color = in_color;
     vs_component = in_component;
+    vs_dposWorld = modelMatrix * position;
 
     //gl_PointSize = size;
-    gl_Position = vec4(position); // OBS! no transform applied yet
+//    gl_Position = vec4(position); // OBS! no transform applied yet
 }

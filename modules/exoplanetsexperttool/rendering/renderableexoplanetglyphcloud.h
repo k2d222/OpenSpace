@@ -29,6 +29,7 @@
 
 #include <openspace/properties/list/intlistproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
+#include <openspace/properties/vector/vec2property.h>
 #include <openspace/properties/vector/vec3property.h>
 #include <ghoul/opengl/ghoul_gl.h>
 #include <ghoul/opengl/uniformcache.h>
@@ -60,14 +61,16 @@ private:
     bool _isDirty = true;
     bool _selectionChanged = true;
 
-    std::unique_ptr<ghoul::opengl::ProgramObject> _shaderProgram = nullptr;
-    UniformCache(modelMatrix, cameraViewProjectionMatrix,
-        up, right, opacity, size) _uniformCache;
+    std::unique_ptr<ghoul::opengl::ProgramObject> _program = nullptr;
+    UniformCache(modelMatrix, cameraViewProjectionMatrix, opacity, size,
+        screenSize, minBillboardSize, maxBillboardSize
+    ) _uniformCache;
 
     properties::Vec3Property _highlightColor;
     properties::FloatProperty _size;
     properties::FloatProperty _selectedSizeScale;
     properties::IntListProperty _selectedIndices;
+    properties::Vec2Property _billboardMinMaxSize;
 
     std::unique_ptr<ghoul::filesystem::File> _dataFile;
 

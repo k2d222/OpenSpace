@@ -244,14 +244,16 @@ void DataViewer::initializeRenderables() {
 
     if (_useGlyphRendering) {
         renderable.setValue("Type", "RenderableExoplanetGlyphCloud"s);
+        renderable.setValue("Size", 100.0);
+        renderable.setValue("BillboardMinMaxSize", glm::dvec2(20.0, 70.0));
     }
     else {
         renderable.setValue("Type", "RenderablePointData"s);
+        renderable.setValue("Size", 10.0);
     }
 
     renderable.setValue("DataFile", dataFilePath.string());
     renderable.setValue("HighlightColor", glm::dvec3(DefaultSelectedColor));
-    renderable.setValue("Size", 10.0);
 
     ghoul::Dictionary node;
     node.setValue("Identifier", _pointsIdentifier);
@@ -910,7 +912,7 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
         }
         _filteredData.shrink_to_fit();
 
-        nItemsWithoutRowLimit = _filteredData.size();
+        nItemsWithoutRowLimit = static_cast<int>(_filteredData.size());
     }
 
     // Show how many values the filter corresponds to, without the limited rows

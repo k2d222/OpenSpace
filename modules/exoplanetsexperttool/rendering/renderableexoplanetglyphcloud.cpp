@@ -40,8 +40,9 @@
 namespace {
     constexpr const char* _loggerCat = "ExoplanetGlyphCloud";
 
-    constexpr const std::array<const char*, 6> UniformNames = {
-        "modelMatrix", "cameraViewProjectionMatrix", "up", "right", "opacity", "size",
+    constexpr const std::array<const char*, 7> UniformNames = {
+        "modelMatrix", "cameraViewProjectionMatrix",
+        "opacity", "size", "screenSize", "minBillboardSize", "maxBillboardSize"
     };
 
     constexpr openspace::properties::Property::PropertyInfo HighlightColorInfo = {
@@ -68,6 +69,12 @@ namespace {
         "A list of indices of selected points to be highlighted."
     };
 
+    constexpr openspace::properties::Property::PropertyInfo BillboardMinMaxSizeInfo = {
+        "BillboardMinMaxSize",
+        "Billboard Min/Max Size in Pixels",
+        "The minimum and maximum size (in pixels) for the glyph billboard."
+    };
+
     struct [[codegen::Dictionary(RenderablePointData)]] Parameters {
         // [[codegen::verbatim(HighlightColorInfo.description)]]
         std::optional<glm::vec3> highlightColor [[codegen::color()]];
@@ -80,6 +87,9 @@ namespace {
 
         // [[codegen::verbatim(SelectionInfo.description)]]
         std::optional<std::vector<int>> selection;
+
+        // [[codegen::verbatim(BillboardMinMaxSizeInfo.description)]]
+        std::optional<glm::vec2> billboardMinMaxSize;
 
         // The file to read the point data from
         std::filesystem::path dataFile;
@@ -99,9 +109,15 @@ RenderableExoplanetGlyphCloud::RenderableExoplanetGlyphCloud(
                                                      const ghoul::Dictionary& dictionary)
     : Renderable(dictionary)
     , _highlightColor(HighlightColorInfo, glm::vec3(1.f), glm::vec3(0.f), glm::vec3(1.f))
-    , _size(SizeInfo, 1.f, 0.f, 150.f)
+    , _size(SizeInfo, 100.f, 0.f, 500.f)
     , _selectedSizeScale(SelectedSizeScaleInfo, 2.f, 1.f, 5.f)
     , _selectedIndices(SelectionInfo)
+    , _billboardMinMaxSize(
+        BillboardMinMaxSizeInfo,
+        glm::vec2(0.f, 400.f),
+        glm::vec2(0.f),
+        glm::vec2(1000.f)
+    )
 {
     const Parameters p = codegen::bake<Parameters>(dictionary);
 
@@ -122,6 +138,10 @@ RenderableExoplanetGlyphCloud::RenderableExoplanetGlyphCloud(
     _selectedIndices.setReadOnly(true);
     addProperty(_selectedIndices);
 
+    _billboardMinMaxSize = p.billboardMinMaxSize.value_or(_billboardMinMaxSize);
+    _billboardMinMaxSize.setViewOption(properties::Property::ViewOptions::MinMaxRange);
+    addProperty(_billboardMinMaxSize);
+
     _dataFile = std::make_unique<ghoul::filesystem::File>(p.dataFile);
     _dataFile->setCallback([&]() { updateDataFromFile(); });
 
@@ -129,18 +149,18 @@ RenderableExoplanetGlyphCloud::RenderableExoplanetGlyphCloud(
 }
 
 bool RenderableExoplanetGlyphCloud::isReady() const {
-    return _shaderProgram != nullptr;
+    return _program != nullptr;
 }
 
 void RenderableExoplanetGlyphCloud::initializeGL() {
-    _shaderProgram = global::renderEngine->buildRenderProgram(
+    _program = global::renderEngine->buildRenderProgram(
         "ExoGlyphCloud",
         absPath("${MODULE_EXOPLANETSEXPERTTOOL}/shaders/glyphs_vs.glsl"),
         absPath("${MODULE_EXOPLANETSEXPERTTOOL}/shaders/glyphs_fs.glsl"),
         absPath("${MODULE_EXOPLANETSEXPERTTOOL}/shaders/glyphs_gs.glsl")
     );
 
-    ghoul::opengl::updateUniformLocations(*_shaderProgram, _uniformCache, UniformNames);
+    ghoul::opengl::updateUniformLocations(*_program, _uniformCache, UniformNames);
 }
 
 void RenderableExoplanetGlyphCloud::deinitializeGL() {
@@ -156,9 +176,9 @@ void RenderableExoplanetGlyphCloud::deinitializeGL() {
     glDeleteBuffers(1, &_selectedPointsVBO);
     _selectedPointsVBO = 0;
 
-    if (_shaderProgram) {
-        global::renderEngine->removeRenderProgram(_shaderProgram.get());
-        _shaderProgram = nullptr;
+    if (_program) {
+        global::renderEngine->removeRenderProgram(_program.get());
+        _program = nullptr;
     }
 }
 
@@ -167,38 +187,30 @@ void RenderableExoplanetGlyphCloud::render(const RenderData& data, RendererTasks
         return;
     }
 
-    _shaderProgram->activate();
+    _program->activate();
 
     glm::dmat4 modelTransform =
         glm::translate(glm::dmat4(1.0), data.modelTransform.translation) * // Translation
         glm::dmat4(data.modelTransform.rotation) *  // Spice rotation
         glm::scale(glm::dmat4(1.0), glm::dvec3(data.modelTransform.scale));
 
-    _shaderProgram->setUniform(_uniformCache.modelMatrix, modelTransform);
-    _shaderProgram->setUniform(
+    _program->setUniform(_uniformCache.modelMatrix, modelTransform);
+    _program->setUniform(
         _uniformCache.cameraViewProjectionMatrix,
         glm::dmat4(data.camera.projectionMatrix()) * data.camera.combinedViewMatrix()
     );
 
-    glm::dvec3 cameraViewDirectionWorld = -data.camera.viewDirectionWorldSpace();
-    glm::dvec3 cameraUpDirectionWorld = data.camera.lookUpVectorWorldSpace();
-    glm::dvec3 orthoRight = glm::normalize(
-        glm::cross(cameraUpDirectionWorld, cameraViewDirectionWorld)
-    );
-    if (orthoRight == glm::dvec3(0.0)) {
-        glm::dvec3 otherVector(
-            cameraUpDirectionWorld.y,
-            cameraUpDirectionWorld.x,
-            cameraUpDirectionWorld.z
-        );
-        orthoRight = glm::normalize(glm::cross(otherVector, cameraViewDirectionWorld));
-    }
-    glm::dvec3 orthoUp = glm::normalize(glm::cross(cameraViewDirectionWorld, orthoRight));
-    _shaderProgram->setUniform(_uniformCache.up, glm::vec3(orthoUp));
-    _shaderProgram->setUniform(_uniformCache.right, glm::vec3(orthoRight));
+    _program->setUniform(_uniformCache.opacity, _opacity);
+    _program->setUniform(_uniformCache.size, _size);
 
-    _shaderProgram->setUniform(_uniformCache.opacity, _opacity);
-    _shaderProgram->setUniform(_uniformCache.size, _size);
+    const float minBillboardSize = _billboardMinMaxSize.value().x; // in pixels
+    const float maxBillboardSize = _billboardMinMaxSize.value().y; // in pixels
+    _program->setUniform(_uniformCache.minBillboardSize, minBillboardSize);
+    _program->setUniform(_uniformCache.maxBillboardSize, maxBillboardSize);
+
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    _program->setUniform(_uniformCache.screenSize, glm::vec2(viewport[2], viewport[3]));
 
     // Changes GL state:
     glEnablei(GL_BLEND, 0);
@@ -212,13 +224,13 @@ void RenderableExoplanetGlyphCloud::render(const RenderData& data, RendererTasks
     // Selected points
     const size_t nSelected = _selectedIndices.value().size();
     if (nSelected > 0) {
-        _shaderProgram->setUniform(_uniformCache.size, _selectedSizeScale * _size);
+        _program->setUniform(_uniformCache.size, _selectedSizeScale * _size);
         glBindVertexArray(_selectedPointsVAO);
         glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(nSelected));
     }
 
     glBindVertexArray(0);
-    _shaderProgram->deactivate();
+    _program->deactivate();
 
     // Restores GL State
     global::renderEngine->openglStateCache().resetBlendState();
@@ -226,10 +238,10 @@ void RenderableExoplanetGlyphCloud::render(const RenderData& data, RendererTasks
 }
 
 void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
-    if (_shaderProgram->isDirty()) {
-        _shaderProgram->rebuildFromFile();
+    if (_program->isDirty()) {
+        _program->rebuildFromFile();
         ghoul::opengl::updateUniformLocations(
-            *_shaderProgram,
+            *_program,
             _uniformCache,
             UniformNames
         );
@@ -256,7 +268,7 @@ void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
             GL_STATIC_DRAW
         );
 
-        GLint positionAttribute = _shaderProgram->attributeLocation("in_position");
+        GLint positionAttribute = _program->attributeLocation("in_position");
         glEnableVertexAttribArray(positionAttribute);
         glVertexAttribPointer(
             positionAttribute,
@@ -267,7 +279,7 @@ void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
             nullptr
         );
 
-        GLint colorAttribute = _shaderProgram->attributeLocation("in_color");
+        GLint colorAttribute = _program->attributeLocation("in_color");
         glEnableVertexAttribArray(colorAttribute);
         glVertexAttribPointer(
             colorAttribute,
@@ -278,7 +290,7 @@ void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
             reinterpret_cast<void*>(3 * sizeof(float))
         );
 
-        GLint componentAttribute = _shaderProgram->attributeLocation("in_component");
+        GLint componentAttribute = _program->attributeLocation("in_component");
         glEnableVertexAttribArray(componentAttribute);
         glVertexAttribPointer(
             componentAttribute,
@@ -318,7 +330,7 @@ void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
                 std::find(_pointIndices.begin(), _pointIndices.end(), i);
 
             if (pos != _pointIndices.end()) {
-                const int index = pos - _pointIndices.begin();
+                const int index = static_cast<int>(pos - _pointIndices.begin());
                 const ExpolanetPoint& p = _fullPointData.at(index);
                 ExpolanetPoint newP = {
                     p.xyz[0], p.xyz[1], p.xyz[2], color.r, color.g, color.b, 1.f, p.component
@@ -344,7 +356,7 @@ void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
                 GL_STATIC_DRAW
             );
 
-            GLint positionAttribute = _shaderProgram->attributeLocation("in_position");
+            GLint positionAttribute = _program->attributeLocation("in_position");
             glEnableVertexAttribArray(positionAttribute);
             glVertexAttribPointer(
                 positionAttribute,
@@ -355,7 +367,7 @@ void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
                 nullptr
             );
 
-            GLint colorAttribute = _shaderProgram->attributeLocation("in_color");
+            GLint colorAttribute = _program->attributeLocation("in_color");
             glEnableVertexAttribArray(colorAttribute);
             glVertexAttribPointer(
                 colorAttribute,
@@ -366,7 +378,7 @@ void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
                 reinterpret_cast<void*>(3 * sizeof(float))
             );
 
-            GLint componentAttribute = _shaderProgram->attributeLocation("in_component");
+            GLint componentAttribute = _program->attributeLocation("in_component");
             glEnableVertexAttribArray(componentAttribute);
             glVertexAttribPointer(
                 componentAttribute,
