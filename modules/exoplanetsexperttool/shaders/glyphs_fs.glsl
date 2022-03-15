@@ -47,6 +47,10 @@ Fragment getFragment() {
     }
 
     vec4 color = gs_color;
+    if (coord > 0.87 || coord < 0.13) {
+        color *= vec4(0.0, 0.0, 0.0, 1.0); // black border
+    }
+
     color.a *= opacity;
 
     Fragment frag;
