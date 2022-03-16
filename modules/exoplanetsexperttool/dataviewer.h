@@ -105,7 +105,7 @@ private:
     // Check if a column is numeric. If it isn't, then it is text based
     bool isNumericColumn(ColumnID id) const;
 
-    glm::vec4 colorFromColormap(const ExoplanetItem& item);
+    glm::vec4 colorFromColormap(const ExoplanetItem& item, int index);
 
     // Write the information about the rendered points to a file
     void writeRenderDataToFile();
@@ -121,11 +121,15 @@ private:
 
     std::vector<Column> _columns;
     std::vector<const char*> _colormaps;
-    int _currentColormapIndex;
-    int _columnForColormap; // index
-    float _colorScaleMin;
-    float _colorScaleMax;
     bool _colormapWasChanged = true;
+
+    struct ColorMappedVariable {
+        int colormapIndex;
+        int columnIndex;
+        float colorScaleMin;
+        float colorScaleMax;
+    };
+    std::vector<ColorMappedVariable> _variableSelection;
 
     struct ColumnFilterEntry {
         int columnIndex;

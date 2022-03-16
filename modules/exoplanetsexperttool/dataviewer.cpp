@@ -77,6 +77,8 @@ namespace {
 
     const ImVec2 DefaultWindowSize = ImVec2(350, 350);
 
+    constexpr const int DefaultColormapIndex = 0;
+    constexpr const int DeafultColumnForColormap = 5; // ESM
     constexpr const float DefaultColorScaleMinValue = 0.f;
     constexpr const float DefaultColorScaleMaxValue = 100.f;
 
@@ -103,8 +105,6 @@ namespace openspace::exoplanets::gui {
 DataViewer::DataViewer(std::string identifier, std::string guiName)
     : properties::PropertyOwner({ std::move(identifier), std::move(guiName) })
     , _pointsIdentifier("ExoplanetDataPoints")
-    , _colorScaleMin(DefaultColorScaleMinValue)
-    , _colorScaleMax(DefaultColorScaleMaxValue)
 {
     _data = _dataLoader.loadData();
 
@@ -166,8 +166,13 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
     };
 
     // TODO: make sure that settings are preserved between sessions?
-    _columnForColormap = 5; // ESM
-    _currentColormapIndex = 0;
+    ColorMappedVariable defaultMappedVariable;
+    _variableSelection.push_back({
+        DefaultColormapIndex,
+        DeafultColumnForColormap,
+        DefaultColorScaleMinValue,
+        DefaultColorScaleMaxValue
+    });
 }
 
 void DataViewer::initializeGL() {
@@ -329,8 +334,6 @@ void DataViewer::renderHelpMarker(const char* text) {
 }
 
 void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
-    _colormapWasChanged = false;
-
     ImGui::SetNextWindowSize(ImVec2(430, 450), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Colormap and Ra/Dec Plot", open)) {
         ImGui::End();
@@ -367,87 +370,147 @@ void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
         }
     }
 
-    // Colormap
-    ImGui::Text("Colormap Settings");
-    ImGui::SetNextItemWidth(100);
-    if (ImGui::BeginCombo("Column", _columns[_columnForColormap].name)) {
-        for (int i = 0; i < _columns.size(); ++i) {
-            // Ignore non-numeric columns
-            if (!isNumericColumn(_columns[i].id)) {
-                continue;
-            }
+    // Start variable group
+    ImGui::BeginGroup();
 
-            const char* name = _columns[i].name;
-            if (ImGui::Selectable(name, _columnForColormap == i)) {
-                _columnForColormap = i;
-                _colormapWasChanged = true;
-            }
-        }
-        ImGui::EndCombo();
-    }
-
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(200);
-    if (ImGui::BeginCombo("Colormap", _colormaps[_currentColormapIndex])) {
-        for (int i = 0; i < _colormaps.size(); ++i) {
-            const char* name = _colormaps[i];
-            ImPlot::ColormapIcon(ImPlot::GetColormapIndex(name));
-            ImGui::SameLine();
-            if (ImGui::Selectable(name, _currentColormapIndex == i)) {
-                _currentColormapIndex = i;
-                _colormapWasChanged = true;
-            }
-        }
-        ImGui::EndCombo();
-    }
-
-    const ColumnID colormapColumn = _columns[_columnForColormap].id;
-
-    // Min/max values for color range
-    ImGui::SetNextItemWidth(200);
-    if (ImGui::DragFloatRange2("Min / Max", &_colorScaleMin, &_colorScaleMax, 1.f)) {
-        _colormapWasChanged = true;
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Set from current table data")) {
-        float newMin = std::numeric_limits<float>::max();
-        float newMax = std::numeric_limits<float>::lowest();
-
-        for (size_t i : _filteredData) {
-            const ExoplanetItem& item = _data[i];
-            auto value = valueFromColumn(colormapColumn, item);
-            if (std::holds_alternative<float>(value)) {
-                float val = std::get<float>(value);
-                if (std::isnan(val)) {
-                    continue;
-                }
-                if (val > newMax) {
-                    newMax = static_cast<float>(val);
-                }
-                if (val < newMin) {
-                    newMin = static_cast<float>(val);
-                }
-            }
-            else {
-                // Shouldn't be possible to try to use non numbers
-                throw;
-            }
-        }
-
-        _colorScaleMin = newMin;
-        _colorScaleMax = newMax;
-        _colormapWasChanged = true;
+    // Colormap for each selected variable
+    if (ImGui::Button("+ Add variable")) {
+        _variableSelection.push_back({
+            DefaultColormapIndex,
+            DeafultColumnForColormap,
+            DefaultColorScaleMinValue,
+            DefaultColorScaleMaxValue
+        });
     };
+    ImGui::Spacing();
+
+    _colormapWasChanged = false;
+
+    constexpr const int InputWidth = 110;
+    constexpr const int GroupHeight = 150;
+    const ImVec2 groupSize = ImVec2(2.3f * InputWidth, 1.11f * GroupHeight);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
+
+    for (int index = 0; index < _variableSelection.size(); ++index) {
+        ColorMappedVariable& variable = _variableSelection[index];
+
+        ImGui::PushID(fmt::format("##variable{}", index).c_str());
+        ImGui::BeginChild("RaDecChild", groupSize, true);
+        ImGui::BeginGroup();
+        {
+            ImGui::SetNextItemWidth(InputWidth);
+            if (ImGui::BeginCombo("Column", _columns[variable.columnIndex].name)) {
+                for (int i = 0; i < _columns.size(); ++i) {
+                    // Ignore non-numeric columns
+                    if (!isNumericColumn(_columns[i].id)) {
+                        continue;
+                    }
+
+                    const char* name = _columns[i].name;
+                    if (ImGui::Selectable(name, variable.columnIndex == i)) {
+                        variable.columnIndex = i;
+                        _colormapWasChanged = true;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::SetNextItemWidth(InputWidth);
+            if (ImGui::BeginCombo("Colormap", _colormaps[variable.colormapIndex])) {
+                for (int i = 0; i < _colormaps.size(); ++i) {
+                    const char* name = _colormaps[i];
+                    ImPlot::ColormapIcon(ImPlot::GetColormapIndex(name));
+                    ImGui::SameLine();
+                    if (ImGui::Selectable(name, variable.colormapIndex == i)) {
+                        variable.colormapIndex = i;
+                        _colormapWasChanged = true;
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            const ColumnID colormapColumn = _columns[variable.columnIndex].id;
+
+            // Min/max values for color range
+            ImGui::SetNextItemWidth(InputWidth);
+            if (ImGui::DragFloatRange2("Min / Max", &variable.colorScaleMin, &variable.colorScaleMax, 1.f)) {
+                _colormapWasChanged = true;
+            }
+
+            if (ImGui::Button("Set from current table data")) {
+                float newMin = std::numeric_limits<float>::max();
+                float newMax = std::numeric_limits<float>::lowest();
+
+                for (size_t i : _filteredData) {
+                    const ExoplanetItem& item = _data[i];
+                    auto value = valueFromColumn(colormapColumn, item);
+                    if (std::holds_alternative<float>(value)) {
+                        float val = std::get<float>(value);
+                        if (std::isnan(val)) {
+                            continue;
+                        }
+                        if (val > newMax) {
+                            newMax = static_cast<float>(val);
+                        }
+                        if (val < newMin) {
+                            newMin = static_cast<float>(val);
+                        }
+                    }
+                    else {
+                        // Shouldn't be possible to try to use non numbers
+                        throw;
+                    }
+                }
+
+                variable.colorScaleMin = newMin;
+                variable.colorScaleMax = newMax;
+                _colormapWasChanged = true;
+            };
+
+            // TODO: add a remove button if we have more than one variable
+            ImGui::Spacing();
+            ImGui::Spacing();
+            if (_variableSelection.size() > 1 && ImGui::Button("Remove")) {
+                _variableSelection.erase(_variableSelection.begin() + index);
+            }
+        }
+        ImGui::EndGroup();
+        ImGui::PopID();
+
+        // Render visuals for colormap
+        ImGui::SameLine();
+        ImPlot::PushColormap(_colormaps[variable.colormapIndex]);
+        ImPlot::ColormapScale(
+            "##ColorScale",
+            variable.colorScaleMin,
+            variable.colorScaleMax,
+            ImVec2(60, GroupHeight)
+        );
+        ImPlot::PopColormap();
+
+        ImGui::EndChild();
+    }
+
+    ImGui::PopStyleVar();
+
+    ImGui::EndGroup(); // variable group
+
+    ImGui::SameLine();
+
+    // Ra dec plot
+    ImGui::BeginGroup();
 
     ImVec4 selectedColor =
         { DefaultSelectedColor.x, DefaultSelectedColor.y, DefaultSelectedColor.z, 1.f };
 
     ImGui::Spacing();
 
+    const ColorMappedVariable& first =  _variableSelection.front();
+
     // Scatterplot
     static float pointSize = 1.5f;
-    ImPlot::PushColormap(_colormaps[_currentColormapIndex]);
+    ImPlot::PushColormap(_colormaps[first.colormapIndex]);
     ImPlot::SetNextPlotLimits(0.0, 360.0, -90.0, 90.0, ImGuiCond_Always);
     if (ImPlot::BeginPlot("Star Coordinate", "Ra", "Dec", plotSize, plotFlags, axisFlags)) {
         ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, pointSize);
@@ -459,7 +522,7 @@ void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
                 continue;
             }
 
-            const ImVec4 pointColor = toImVec4(colorFromColormap(item));
+            const ImVec4 pointColor = toImVec4(colorFromColormap(item, 0)); // from first map
             const ImPlotPoint point = { item.ra.value, item.dec.value };
             const char* label = "Data " + i;
             ImPlot::PushStyleColor(ImPlotCol_MarkerFill, pointColor);
@@ -487,8 +550,8 @@ void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
         ImGui::SameLine();
         ImPlot::ColormapScale(
             "##ColorScale",
-            _colorScaleMin,
-            _colorScaleMax,
+            first.colorScaleMin,
+            first.colorScaleMax,
             ImVec2(60, plotSize.y)
         );
 
@@ -497,6 +560,7 @@ void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
 
         ImPlot::PopColormap();
     }
+    ImGui::EndGroup(); // ra dec plot group
 
     ImGui::End();
 }
@@ -1189,8 +1253,9 @@ bool DataViewer::isNumericColumn(ColumnID id) const {
     return std::holds_alternative<float>(aValue);
 }
 
-glm::vec4 DataViewer::colorFromColormap(const ExoplanetItem& item) {
-    const ColumnID colormapColumn = _columns[_columnForColormap].id;
+glm::vec4 DataViewer::colorFromColormap(const ExoplanetItem& item, int index) {
+    const ColorMappedVariable varable = _variableSelection[index];
+    const ColumnID colormapColumn = _columns[varable.columnIndex].id;
 
     std::variant<const char*, float> value = valueFromColumn(colormapColumn, item);
     float fValue = 0.0;
@@ -1209,11 +1274,13 @@ glm::vec4 DataViewer::colorFromColormap(const ExoplanetItem& item) {
     }
     else {
         // TODO: handle min > max
-        ImPlot::PushColormap(_colormaps[_currentColormapIndex]);
+        ImPlot::PushColormap(_colormaps[varable.colormapIndex]);
 
-        float minMaxDiff = std::abs(_colorScaleMax - _colorScaleMin);
+        float min = varable.colorScaleMin;
+        float max = varable.colorScaleMax;
+        float minMaxDiff = std::abs(max - min);
         float t = minMaxDiff > std::numeric_limits<float>::epsilon() ?
-                 (fValue - _colorScaleMin) / minMaxDiff : 0.f;
+                 (fValue - min) / minMaxDiff : 0.f;
 
         t = std::clamp(t, 0.f, 1.f);
         ImVec4 c = ImPlot::SampleColormap(t);
@@ -1258,7 +1325,7 @@ void DataViewer::writeRenderDataToFile() {
         file.write(reinterpret_cast<const char*>(&position.y), sizeof(double));
         file.write(reinterpret_cast<const char*>(&position.z), sizeof(double));
 
-        const ImVec4 color = toImVec4(colorFromColormap(item));
+        const ImVec4 color = toImVec4(colorFromColormap(item, 0)); // TODO: support multiple colors
         file.write(reinterpret_cast<const char*>(&color.x), sizeof(float));
         file.write(reinterpret_cast<const char*>(&color.y), sizeof(float));
         file.write(reinterpret_cast<const char*>(&color.z), sizeof(float));
