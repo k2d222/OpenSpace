@@ -26,12 +26,18 @@
 
 #include "PowerScaling/powerScaling_vs.hglsl"
 
-layout(location = 0) in vec3 in_position;
-layout(location = 1) in vec4 in_color;
-layout(location = 2) in float in_component;
+const int MaxColors = 8;
 
-out vec4 vs_color;
-out float vs_component;
+layout(location = 0) in vec3 in_position;
+layout(location = 1) in float in_component;
+layout(location = 2) in int in_nColors;
+
+// Always pass 8 colors
+layout(location = 3) in vec4 in_colors[MaxColors];
+
+flat out float vs_component;
+flat out int vs_nColors;
+flat out vec4 vs_colors[MaxColors];
 out dvec4 vs_dposWorld;
 
 uniform dmat4 modelMatrix;
@@ -39,10 +45,8 @@ uniform dmat4 modelMatrix;
 void main() {
     dvec4 position = dvec4(in_position, 1.0);
 
-    vs_color = in_color;
     vs_component = in_component;
+    vs_nColors = in_nColors;
+    vs_colors = in_colors;
     vs_dposWorld = modelMatrix * position;
-
-    //gl_PointSize = size;
-//    gl_Position = vec4(position); // OBS! no transform applied yet
 }

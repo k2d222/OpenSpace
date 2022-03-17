@@ -183,7 +183,7 @@ void RenderableExoplanetGlyphCloud::deinitializeGL() {
 }
 
 void RenderableExoplanetGlyphCloud::render(const RenderData& data, RendererTasks&) {
-    if (_fullPointData.empty()) {
+    if (_fullGlyphData.empty()) {
         return;
     }
 
@@ -219,15 +219,15 @@ void RenderableExoplanetGlyphCloud::render(const RenderData& data, RendererTasks
     glEnable(GL_PROGRAM_POINT_SIZE); // Enable gl_PointSize in vertex shader
 
     glBindVertexArray(_primaryPointsVAO);
-    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(_fullPointData.size()));
+    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(_fullGlyphData.size()));
 
-    // Selected points
-    const size_t nSelected = _selectedIndices.value().size();
-    if (nSelected > 0) {
-        _program->setUniform(_uniformCache.size, _selectedSizeScale * _size);
-        glBindVertexArray(_selectedPointsVAO);
-        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(nSelected));
-    }
+    //// Selected points
+    //const size_t nSelected = _selectedIndices.value().size();
+    //if (nSelected > 0) {
+    //    _program->setUniform(_uniformCache.size, _selectedSizeScale * _size);
+    //    glBindVertexArray(_selectedPointsVAO);
+    //    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(nSelected));
+    //}
 
     glBindVertexArray(0);
     _program->deactivate();
@@ -263,8 +263,8 @@ void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
         glBindBuffer(GL_ARRAY_BUFFER, _primaryPointsVBO);
         glBufferData(
             GL_ARRAY_BUFFER,
-            _fullPointData.size() * sizeof(ExpolanetPoint),
-            _fullPointData.data(),
+            _fullGlyphData.size() * sizeof(GlyphData),
+            _fullGlyphData.data(),
             GL_STATIC_DRAW
         );
 
@@ -275,19 +275,8 @@ void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
             3,
             GL_FLOAT,
             GL_FALSE,
-            _nValuesPerPoint * sizeof(float),
+            sizeof(GlyphData),
             nullptr
-        );
-
-        GLint colorAttribute = _program->attributeLocation("in_color");
-        glEnableVertexAttribArray(colorAttribute);
-        glVertexAttribPointer(
-            colorAttribute,
-            4,
-            GL_FLOAT,
-            GL_FALSE,
-            _nValuesPerPoint * sizeof(float),
-            reinterpret_cast<void*>(3 * sizeof(float))
         );
 
         GLint componentAttribute = _program->attributeLocation("in_component");
@@ -297,101 +286,124 @@ void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
             1,
             GL_FLOAT,
             GL_FALSE,
-            _nValuesPerPoint * sizeof(float),
-            reinterpret_cast<void*>(7 * sizeof(float))
+            sizeof(GlyphData),
+            reinterpret_cast<void*>(offsetof(GlyphData, component))
         );
+
+        GLint nColorsAttribute = _program->attributeLocation("in_nColors");
+        glEnableVertexAttribArray(nColorsAttribute);
+        glVertexAttribIPointer(
+            nColorsAttribute,
+            1,
+            GL_INT,
+            sizeof(GlyphData),
+            reinterpret_cast<void*>(offsetof(GlyphData, nColors))
+        );
+
+        GLint colorAttribute = _program->attributeLocation("in_colors");
+        for (int i = 0; i < MaxNumberColors; i++) {
+            glEnableVertexAttribArray(colorAttribute + i);
+            glVertexAttribPointer(
+                colorAttribute + i,
+                4,
+                GL_FLOAT,
+                GL_FALSE,
+                sizeof(GlyphData),
+                reinterpret_cast<void*>(offsetof(GlyphData, colors) + i * 4 * sizeof(float))
+            );
+        }
 
         glBindVertexArray(0);
     }
 
-    if (_selectionChanged) {
-        if (_selectedPointsVAO == 0) {
-            glGenVertexArrays(1, &_selectedPointsVAO);
-            LDEBUG(fmt::format("Generating Vertex Array id '{}'", _selectedPointsVAO));
-        }
-        if (_selectedPointsVBO == 0) {
-            glGenBuffers(1, &_selectedPointsVBO);
-            LDEBUG(fmt::format(
-                "Generating Vertex Buffer Object id '{}'", _selectedPointsVBO
-            ));
-        }
+    //if (_selectionChanged) {
+    //    if (_selectedPointsVAO == 0) {
+    //        glGenVertexArrays(1, &_selectedPointsVAO);
+    //        LDEBUG(fmt::format("Generating Vertex Array id '{}'", _selectedPointsVAO));
+    //    }
+    //    if (_selectedPointsVBO == 0) {
+    //        glGenBuffers(1, &_selectedPointsVBO);
+    //        LDEBUG(fmt::format(
+    //            "Generating Vertex Buffer Object id '{}'", _selectedPointsVBO
+    //        ));
+    //    }
 
-        const glm::vec3 color = _highlightColor;
+        //const glm::vec3 color = _highlightColor;
 
-        const int nSelected = static_cast<int>(_selectedIndices.value().size());
-        std::vector<ExpolanetPoint> selectedPoints;
-        std::vector<int> newIndices;
-        selectedPoints.reserve(nSelected);
-        newIndices.reserve(nSelected);
+        //const int nSelected = static_cast<int>(_selectedIndices.value().size());
+        //std::vector<GlyphData> selectedPoints;
+        //std::vector<int> newIndices;
+        //selectedPoints.reserve(nSelected);
+        //newIndices.reserve(nSelected);
 
-        // For each of the selected indices, find the corresponding point
-        for (int i : _selectedIndices.value()) {
-            std::vector<int>::iterator pos =
-                std::find(_pointIndices.begin(), _pointIndices.end(), i);
+        //// For each of the selected indices, find the corresponding point
+        //for (int i : _selectedIndices.value()) {
+        //    std::vector<int>::iterator pos =
+        //        std::find(_glyphIndices.begin(), _glyphIndices.end(), i);
 
-            if (pos != _pointIndices.end()) {
-                const int index = static_cast<int>(pos - _pointIndices.begin());
-                const ExpolanetPoint& p = _fullPointData.at(index);
-                ExpolanetPoint newP = {
-                    p.xyz[0], p.xyz[1], p.xyz[2], color.r, color.g, color.b, 1.f, p.component
-                };
-                selectedPoints.push_back(newP);
-                newIndices.push_back(i);
-            }
-            else {
-                LINFO(fmt::format("No 3D point matching selected index '{}'", i));
-            }
-        }
-        selectedPoints.shrink_to_fit();
+        //    if (pos != _glyphIndices.end()) {
+        //        const int index = static_cast<int>(pos - _glyphIndices.begin());
+        //        const GlyphData& p = _fullGlyphData.at(index);
+        //        GlyphData newP = {
+        //            p.xyz[0], p.xyz[1], p.xyz[2], color.r, color.g, color.b, 1.f, p.component
+        //        };
+        //        selectedPoints.push_back(newP);
+        //        newIndices.push_back(i);
+        //    }
+        //    else {
+        //        LINFO(fmt::format("No 3D point matching selected index '{}'", i));
+        //    }
+        //}
+        //selectedPoints.shrink_to_fit();
 
-        _selectedIndices = newIndices;
+        //_selectedIndices = newIndices;
 
-        if (selectedPoints.size() > 0) {
-            glBindVertexArray(_selectedPointsVAO);
-            glBindBuffer(GL_ARRAY_BUFFER, _selectedPointsVBO);
-            glBufferData(
-                GL_ARRAY_BUFFER,
-                selectedPoints.size() * _nValuesPerPoint * sizeof(float),
-                selectedPoints.data(),
-                GL_STATIC_DRAW
-            );
+        //if (selectedPoints.size() > 0) {
+        //    glBindVertexArray(_selectedPointsVAO);
+        //    glBindBuffer(GL_ARRAY_BUFFER, _selectedPointsVBO);
+        //    glBufferData(
+        //        GL_ARRAY_BUFFER,
+        //        selectedPoints.size() * _nValuesPerPoint * sizeof(float),
+        //        selectedPoints.data(),
+        //        GL_STATIC_DRAW
+        //    );
 
-            GLint positionAttribute = _program->attributeLocation("in_position");
-            glEnableVertexAttribArray(positionAttribute);
-            glVertexAttribPointer(
-                positionAttribute,
-                3,
-                GL_FLOAT,
-                GL_FALSE,
-                _nValuesPerPoint * sizeof(float),
-                nullptr
-            );
+        //    GLint positionAttribute = _program->attributeLocation("in_position");
+        //    glEnableVertexAttribArray(positionAttribute);
+        //    glVertexAttribPointer(
+        //        positionAttribute,
+        //        3,
+        //        GL_FLOAT,
+        //        GL_FALSE,
+        //        _nValuesPerPoint * sizeof(float),
+        //        nullptr
+        //    );
 
-            GLint colorAttribute = _program->attributeLocation("in_color");
-            glEnableVertexAttribArray(colorAttribute);
-            glVertexAttribPointer(
-                colorAttribute,
-                4,
-                GL_FLOAT,
-                GL_FALSE,
-                _nValuesPerPoint * sizeof(float),
-                reinterpret_cast<void*>(3 * sizeof(float))
-            );
+        //    GLint colorAttribute = _program->attributeLocation("in_color");
+        //    glEnableVertexAttribArray(colorAttribute);
+        //    glVertexAttribPointer(
+        //        colorAttribute,
+        //        4,
+        //        GL_FLOAT,
+        //        GL_FALSE,
+        //        _nValuesPerPoint * sizeof(float),
+        //        reinterpret_cast<void*>(3 * sizeof(float))
+        //    );
 
-            GLint componentAttribute = _program->attributeLocation("in_component");
-            glEnableVertexAttribArray(componentAttribute);
-            glVertexAttribPointer(
-                componentAttribute,
-                1,
-                GL_FLOAT,
-                GL_FALSE,
-                _nValuesPerPoint * sizeof(float),
-                reinterpret_cast<void*>(7 * sizeof(float))
-            );
+        //    GLint componentAttribute = _program->attributeLocation("in_component");
+        //    glEnableVertexAttribArray(componentAttribute);
+        //    glVertexAttribPointer(
+        //        componentAttribute,
+        //        1,
+        //        GL_FLOAT,
+        //        GL_FALSE,
+        //        _nValuesPerPoint * sizeof(float),
+        //        reinterpret_cast<void*>(7 * sizeof(float))
+        //    );
 
-            glBindVertexArray(0);
-        }
-    }
+        //    glBindVertexArray(0);
+        //}
+    //}
 
     _isDirty = false;
     _selectionChanged = false;
@@ -406,47 +418,52 @@ void RenderableExoplanetGlyphCloud::updateDataFromFile() {
         return;
     }
 
-    _fullPointData.clear();
-    _pointIndices.clear();
+    _fullGlyphData.clear();
+    _glyphIndices.clear();
 
     // Read number of data points
     unsigned int nPoints;
     file.read(reinterpret_cast<char*>(&nPoints), sizeof(unsigned int));
 
-    _fullPointData.reserve(nPoints);
-    _pointIndices.reserve(nPoints);
+    _fullGlyphData.reserve(nPoints);
+    _glyphIndices.reserve(nPoints);
 
     // OBS: this reading must match the writing in the dataviewer
-    for (int i = 0; i < nPoints; i++) {
+    for (unsigned int i = 0; i < nPoints; i++) {
+        GlyphData d;
+
         size_t index;
         file.read(reinterpret_cast<char*>(&index), sizeof(size_t));
+
+        size_t nColors;
+        file.read(reinterpret_cast<char*>(&nColors), sizeof(size_t));
+        d.nColors = static_cast<int>(nColors);
 
         glm::dvec3 position;
         file.read(reinterpret_cast<char*>(&position.x), sizeof(double));
         file.read(reinterpret_cast<char*>(&position.y), sizeof(double));
         file.read(reinterpret_cast<char*>(&position.z), sizeof(double));
+        const glm::vec3 scaledPos = glm::vec3(position * distanceconstants::Parsec);
 
-        glm::vec4 color;
-        file.read(reinterpret_cast<char*>(&color.x), sizeof(float));
-        file.read(reinterpret_cast<char*>(&color.y), sizeof(float));
-        file.read(reinterpret_cast<char*>(&color.z), sizeof(float));
-        file.read(reinterpret_cast<char*>(&color.w), sizeof(float));
+        d.position = scaledPos;
+
+        size_t temp = nColors > MaxNumberColors ? MaxNumberColors : nColors;
+
+        for (size_t j = 0; j < temp; j++) {
+            glm::vec4 color;
+            file.read(reinterpret_cast<char*>(&color.r), sizeof(float));
+            file.read(reinterpret_cast<char*>(&color.g), sizeof(float));
+            file.read(reinterpret_cast<char*>(&color.b), sizeof(float));
+            file.read(reinterpret_cast<char*>(&color.a), sizeof(float));
+            d.colors[j] = color;
+        }
 
         int component;
         file.read(reinterpret_cast<char*>(&component), sizeof(int));
+        d.component = static_cast<float>(component);
 
-        const glm::vec3 scaledPos = glm::vec3(position * distanceconstants::Parsec);
-        _fullPointData.push_back({
-            scaledPos.x,
-            scaledPos.y,
-            scaledPos.z,
-            color.x,
-            color.y,
-            color.z,
-            color.w,
-            static_cast<float>(component)
-        });
-        _pointIndices.push_back(static_cast<int>(index));
+        _fullGlyphData.push_back(std::move(d));
+        _glyphIndices.push_back(static_cast<int>(index));
     }
 
     _isDirty = true;

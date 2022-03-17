@@ -29,14 +29,18 @@
 layout(points) in;
 layout(triangle_strip, max_vertices = 4) out;
 
+const int MaxColors = 8;
+
 flat in float vs_component[];
-in vec4 vs_color[];
+flat in int vs_nColors[];
+flat in vec4 vs_colors[][MaxColors];
 in dvec4 vs_dposWorld[];
 
 flat out float gs_component;
 out float gs_depthClipSpace;
 out vec4 gs_positionViewSpace;
-out vec4 gs_color;
+flat out int gs_nColors;
+flat out vec4 gs_colors[MaxColors];
 out vec2 texCoord;
 
 uniform dmat4 modelMatrix;
@@ -54,10 +58,9 @@ const vec2 corners[4] = vec2[4](
 );
 
 void main() {
-//    vec4 pos = gl_in[0].gl_Position;
-//
     gs_component = vs_component[0];
-    gs_color = vs_color[0];
+    gs_colors = vs_colors[0];
+    gs_nColors = vs_nColors[0];
 
     dvec4 dpos = vs_dposWorld[0]; //modelMatrix * dvec4(pos);
     vec4 dposClip = vec4(cameraViewProjectionMatrix * dpos);

@@ -24,12 +24,17 @@
 
 #include "fragment.glsl"
 
+const int MaxColors = 8;
+
 in float gs_depthClipSpace;
-in vec4 gs_color;
+flat in int gs_nColors;
+flat in vec4 gs_colors[MaxColors];
 in float gs_component;
-in vec2 texCoord;
+in vec2 texCoord; // [-1, 1]
 
 uniform float opacity;
+
+const float M_PI = 3.141592657;
 
 Fragment getFragment() {
     float radius = length(texCoord);
@@ -46,7 +51,19 @@ Fragment getFragment() {
         discard;
     }
 
-    vec4 color = gs_color;
+    // Find what color corresponds to the given angle
+    float angleSlice = 2.0 * M_PI / gs_nColors;
+    vec2 up = vec2(0.0, 1.0);
+    float angle = acos(dot(up, normalize(texCoord)));
+
+    // left half of circleuadrant
+    if (texCoord.x < 0) {
+      angle = M_PI + (M_PI - angle);
+    }
+
+    int colorIndex = int(floor(angle / angleSlice));
+
+    vec4 color = gs_colors[colorIndex];
     if (coord > 0.87 || coord < 0.13) {
         color *= vec4(0.0, 0.0, 0.0, 1.0); // black border
     }

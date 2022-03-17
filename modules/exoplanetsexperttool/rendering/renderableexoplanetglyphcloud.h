@@ -41,6 +41,8 @@ namespace ghoul::opengl { class ProgramObject; }
 
 namespace openspace::exoplanets {
 
+constexpr const int MaxNumberColors = 8;
+
 class RenderableExoplanetGlyphCloud : public Renderable {
 public:
     RenderableExoplanetGlyphCloud(const ghoul::Dictionary& dictionary);
@@ -74,15 +76,15 @@ private:
 
     std::unique_ptr<ghoul::filesystem::File> _dataFile;
 
-    struct ExpolanetPoint {
-        float xyz[3];
-        float rgba[4];
+    struct GlyphData {
+        glm::vec3 position;
         float component;
+        int nColors;
+        glm::vec4 colors[MaxNumberColors];
     };
-    const unsigned int _nValuesPerPoint = 8;
 
-    std::vector<ExpolanetPoint> _fullPointData;
-    std::vector<int> _pointIndices; // indices of the points in the dataviewer
+    std::vector<GlyphData> _fullGlyphData;
+    std::vector<int> _glyphIndices; // indices of the points in the dataviewer
 
     GLuint _primaryPointsVAO = 0;
     GLuint _primaryPointsVBO = 0;

@@ -166,7 +166,6 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
     };
 
     // TODO: make sure that settings are preserved between sessions?
-    ColorMappedVariable defaultMappedVariable;
     _variableSelection.push_back({
         DefaultColormapIndex,
         DeafultColumnForColormap,
@@ -373,6 +372,8 @@ void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
     // Start variable group
     ImGui::BeginGroup();
 
+    _colormapWasChanged = false;
+
     // Colormap for each selected variable
     if (ImGui::Button("+ Add variable")) {
         _variableSelection.push_back({
@@ -381,13 +382,13 @@ void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
             DefaultColorScaleMinValue,
             DefaultColorScaleMaxValue
         });
+        _colormapWasChanged = true;
     };
     ImGui::Spacing();
 
-    _colormapWasChanged = false;
 
-    constexpr const int InputWidth = 110;
-    constexpr const int GroupHeight = 150;
+    constexpr const int InputWidth = 120;
+    constexpr const int GroupHeight = 160;
     const ImVec2 groupSize = ImVec2(2.3f * InputWidth, 1.11f * GroupHeight);
 
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
@@ -399,6 +400,8 @@ void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
         ImGui::BeginChild("RaDecChild", groupSize, true);
         ImGui::BeginGroup();
         {
+            ImGui::Text(fmt::format("Variable {}", index + 1).c_str());
+
             ImGui::SetNextItemWidth(InputWidth);
             if (ImGui::BeginCombo("Column", _columns[variable.columnIndex].name)) {
                 for (int i = 0; i < _columns.size(); ++i) {
@@ -473,6 +476,7 @@ void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
             ImGui::Spacing();
             if (_variableSelection.size() > 1 && ImGui::Button("Remove")) {
                 _variableSelection.erase(_variableSelection.begin() + index);
+                _colormapWasChanged = true;
             }
         }
         ImGui::EndGroup();
@@ -573,7 +577,7 @@ void DataViewer::renderTable() {
         | ImGuiTableFlags_Sortable | ImGuiTableFlags_Resizable
         | ImGuiTableFlags_RowBg;
 
-    const ImGuiTableColumnFlags hide = ImGuiTableColumnFlags_DefaultHide;
+    //const ImGuiTableColumnFlags hide = ImGuiTableColumnFlags_DefaultHide;
 
     const int nColumns = static_cast<int>(_columns.size());
 
@@ -855,7 +859,7 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
     ImGui::Separator();
     static int nRows = 100;
     static bool limitNumberOfRows = false;
-    static int nItemsWithoutRowLimit = _filteredData.size();
+    static int nItemsWithoutRowLimit = static_cast<int>(_filteredData.size());
 
     ImGui::Text("Limit number of rows");
     ImGui::SameLine();
@@ -922,7 +926,6 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
             }
 
             // Shortcut filter for discovery method
-            const char* value = std::get<const char*>(valueFromColumn(ColumnID::DiscoveryMethod, d));
             bool passDiscoveryMethod = false;
 
             bool isTransit = ColumnFilter(
@@ -1134,7 +1137,7 @@ void DataViewer::renderTSMRadarPlot(const ExoplanetItem& item) {
         ys[nAxes] = ys[0];
 
         ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle);
-        ImPlot::SetNextLineStyle(ImVec4(0.0, 0.7, 0.7, 1.0), 1.0);
+        ImPlot::SetNextLineStyle(ImVec4(0.f, 0.7f, 0.7f, 1.f), 1.f);
         ImPlot::PlotLine(item.planetName.c_str(), xs.data(), ys.data(), nAxes + 1);
 
         ImPlot::EndPlot();
@@ -1311,6 +1314,8 @@ void DataViewer::writeRenderDataToFile() {
     }
     indicesWithPositions.shrink_to_fit();
 
+    // TODO: use size_t instead of unsigned int
+
     // Write number of points
     unsigned int nPoints = static_cast<unsigned int>(indicesWithPositions.size());
     file.write(reinterpret_cast<const char*>(&nPoints), sizeof(unsigned int));
@@ -1320,16 +1325,25 @@ void DataViewer::writeRenderDataToFile() {
 
         file.write(reinterpret_cast<const char*>(&index), sizeof(size_t));
 
+        size_t nVariables = _variableSelection.size();
+        file.write(reinterpret_cast<const char*>(&nVariables), sizeof(size_t));
+
         const glm::dvec3 position = *item.position;
         file.write(reinterpret_cast<const char*>(&position.x), sizeof(double));
         file.write(reinterpret_cast<const char*>(&position.y), sizeof(double));
         file.write(reinterpret_cast<const char*>(&position.z), sizeof(double));
 
-        const ImVec4 color = toImVec4(colorFromColormap(item, 0)); // TODO: support multiple colors
-        file.write(reinterpret_cast<const char*>(&color.x), sizeof(float));
-        file.write(reinterpret_cast<const char*>(&color.y), sizeof(float));
-        file.write(reinterpret_cast<const char*>(&color.z), sizeof(float));
-        file.write(reinterpret_cast<const char*>(&color.w), sizeof(float));
+        if (!_useGlyphRendering) {
+            nVariables = 1; // If not glyph, just use first variable
+        }
+
+        for (int i = 0; i < nVariables; ++i) {
+            const ImVec4 color = toImVec4(colorFromColormap(item, i));
+            file.write(reinterpret_cast<const char*>(&color.x), sizeof(float));
+            file.write(reinterpret_cast<const char*>(&color.y), sizeof(float));
+            file.write(reinterpret_cast<const char*>(&color.z), sizeof(float));
+            file.write(reinterpret_cast<const char*>(&color.w), sizeof(float));
+        }
 
         // Other data used for rendering
         if (_useGlyphRendering) {
