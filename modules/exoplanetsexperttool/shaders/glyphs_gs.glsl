@@ -49,6 +49,7 @@ uniform float size; // Pixels
 uniform vec2 screenSize; // Pixels
 uniform float maxBillboardSize; // Pixels
 uniform float minBillboardSize; // Pixels
+uniform bool onTop;
 
 const vec2 corners[4] = vec2[4](
     vec2(-1.0, -1.0),
@@ -103,7 +104,7 @@ void main() {
     vec4 lowerRight = dposClip + scaledRightClip - scaledUpClip;
     vec4 upperLeft = dposClip + scaledUpClip - scaledRightClip;
     upperRight = dposClip + scaledUpClip + scaledRightClip;
-    gs_depthClipSpace = lowerLeft.w;
+    gs_depthClipSpace = lowerLeft.w * (1 - int(onTop));
 
     // Lower left
     texCoord = corners[0];

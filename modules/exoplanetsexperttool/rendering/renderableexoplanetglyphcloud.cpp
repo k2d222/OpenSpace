@@ -40,8 +40,8 @@
 namespace {
     constexpr const char* _loggerCat = "ExoplanetGlyphCloud";
 
-    constexpr const std::array<const char*, 7> UniformNames = {
-        "modelMatrix", "cameraViewProjectionMatrix",
+    constexpr const std::array<const char*, 8> UniformNames = {
+        "modelMatrix", "cameraViewProjectionMatrix", "onTop",
         "opacity", "size", "screenSize", "minBillboardSize", "maxBillboardSize"
     };
 
@@ -55,12 +55,6 @@ namespace {
         "Size",
         "Size",
         "The size of the points."
-    };
-
-    constexpr openspace::properties::Property::PropertyInfo SelectedSizeScaleInfo = {
-        "SelectedSizeScale",
-        "Selected Size Scale Factor",
-        "The scaling factor applied to the size of the higlighted/selected points."
     };
 
     constexpr openspace::properties::Property::PropertyInfo SelectionInfo = {
@@ -81,9 +75,6 @@ namespace {
 
         // [[codegen::verbatim(SizeInfo.description)]]
         std::optional<float> size;
-
-        // [[codegen::verbatim(SelectedSizeScaleInfo.description)]]
-        std::optional<float> selectedSizeScale;
 
         // [[codegen::verbatim(SelectionInfo.description)]]
         std::optional<std::vector<int>> selection;
@@ -110,7 +101,6 @@ RenderableExoplanetGlyphCloud::RenderableExoplanetGlyphCloud(
     : Renderable(dictionary)
     , _highlightColor(HighlightColorInfo, glm::vec3(1.f), glm::vec3(0.f), glm::vec3(1.f))
     , _size(SizeInfo, 100.f, 0.f, 500.f)
-    , _selectedSizeScale(SelectedSizeScaleInfo, 2.f, 1.f, 5.f)
     , _selectedIndices(SelectionInfo)
     , _billboardMinMaxSize(
         BillboardMinMaxSizeInfo,
@@ -128,10 +118,8 @@ RenderableExoplanetGlyphCloud::RenderableExoplanetGlyphCloud(
     _size = p.size.value_or(_size);
     addProperty(_size);
 
-    _selectedSizeScale = p.selectedSizeScale.value_or(_selectedSizeScale);
-    addProperty(_selectedSizeScale);
-
     addProperty(_opacity);
+    registerUpdateRenderBinFromOpacity();
 
     _selectedIndices = p.selection.value_or(_selectedIndices);
     _selectedIndices.onChange([this]() { _selectionChanged = true; });
@@ -202,6 +190,7 @@ void RenderableExoplanetGlyphCloud::render(const RenderData& data, RendererTasks
 
     _program->setUniform(_uniformCache.opacity, _opacity);
     _program->setUniform(_uniformCache.size, _size);
+    _program->setUniform(_uniformCache.onTop, false);
 
     const float minBillboardSize = _billboardMinMaxSize.value().x; // in pixels
     const float maxBillboardSize = _billboardMinMaxSize.value().y; // in pixels
@@ -216,18 +205,20 @@ void RenderableExoplanetGlyphCloud::render(const RenderData& data, RendererTasks
     glEnablei(GL_BLEND, 0);
     glDepthMask(true);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_PROGRAM_POINT_SIZE); // Enable gl_PointSize in vertex shader
+    //glEnable(GL_PROGRAM_POINT_SIZE); // Enable gl_PointSize in vertex shader
 
     glBindVertexArray(_primaryPointsVAO);
     glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(_fullGlyphData.size()));
 
-    //// Selected points
-    //const size_t nSelected = _selectedIndices.value().size();
-    //if (nSelected > 0) {
-    //    _program->setUniform(_uniformCache.size, _selectedSizeScale * _size);
-    //    glBindVertexArray(_selectedPointsVAO);
-    //    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(nSelected));
-    //}
+    // Selected points
+    const size_t nSelected = _selectedIndices.value().size();
+    if (nSelected > 0) {
+        _program->setUniform(_uniformCache.opacity, 1.f);
+        _program->setUniform(_uniformCache.onTop, true);
+        glBindVertexArray(_selectedPointsVAO);
+        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(nSelected));
+        // OBS!! Does not work if we are alreday rendering points. Why??
+    }
 
     glBindVertexArray(0);
     _program->deactivate();
@@ -316,94 +307,106 @@ void RenderableExoplanetGlyphCloud::update(const UpdateData&) {
         glBindVertexArray(0);
     }
 
-    //if (_selectionChanged) {
-    //    if (_selectedPointsVAO == 0) {
-    //        glGenVertexArrays(1, &_selectedPointsVAO);
-    //        LDEBUG(fmt::format("Generating Vertex Array id '{}'", _selectedPointsVAO));
-    //    }
-    //    if (_selectedPointsVBO == 0) {
-    //        glGenBuffers(1, &_selectedPointsVBO);
-    //        LDEBUG(fmt::format(
-    //            "Generating Vertex Buffer Object id '{}'", _selectedPointsVBO
-    //        ));
-    //    }
+    if (_selectionChanged) {
+        if (_selectedPointsVAO == 0) {
+            glGenVertexArrays(1, &_selectedPointsVAO);
+            LDEBUG(fmt::format("Generating Vertex Array id '{}'", _selectedPointsVAO));
+        }
+        if (_selectedPointsVBO == 0) {
+            glGenBuffers(1, &_selectedPointsVBO);
+            LDEBUG(fmt::format(
+                "Generating Vertex Buffer Object id '{}'", _selectedPointsVBO
+            ));
+        }
 
-        //const glm::vec3 color = _highlightColor;
 
-        //const int nSelected = static_cast<int>(_selectedIndices.value().size());
-        //std::vector<GlyphData> selectedPoints;
-        //std::vector<int> newIndices;
-        //selectedPoints.reserve(nSelected);
-        //newIndices.reserve(nSelected);
+        const int nSelected = static_cast<int>(_selectedIndices.value().size());
+        std::vector<GlyphData> selectedPoints;
+        std::vector<int> newIndices;
+        selectedPoints.reserve(nSelected);
+        newIndices.reserve(nSelected);
 
-        //// For each of the selected indices, find the corresponding point
-        //for (int i : _selectedIndices.value()) {
-        //    std::vector<int>::iterator pos =
-        //        std::find(_glyphIndices.begin(), _glyphIndices.end(), i);
+        // For each of the selected indices, find the corresponding point
+        for (int i : _selectedIndices.value()) {
+            std::vector<int>::iterator pos =
+                std::find(_glyphIndices.begin(), _glyphIndices.end(), i);
 
-        //    if (pos != _glyphIndices.end()) {
-        //        const int index = static_cast<int>(pos - _glyphIndices.begin());
-        //        const GlyphData& p = _fullGlyphData.at(index);
-        //        GlyphData newP = {
-        //            p.xyz[0], p.xyz[1], p.xyz[2], color.r, color.g, color.b, 1.f, p.component
-        //        };
-        //        selectedPoints.push_back(newP);
-        //        newIndices.push_back(i);
-        //    }
-        //    else {
-        //        LINFO(fmt::format("No 3D point matching selected index '{}'", i));
-        //    }
-        //}
-        //selectedPoints.shrink_to_fit();
+            if (pos != _glyphIndices.end()) {
+                const int index = static_cast<int>(pos - _glyphIndices.begin());
+                const GlyphData& p = _fullGlyphData.at(index);
+                GlyphData newP = p;
+                newP.colors[0] = glm::vec4(_highlightColor.value(), 1.f);
+                newP.nColors = 1;
 
-        //_selectedIndices = newIndices;
+                selectedPoints.push_back(newP);
+                newIndices.push_back(i);
+            }
+            else {
+                LINFO(fmt::format("No 3D point matching selected index '{}'", i));
+            }
+        }
+        selectedPoints.shrink_to_fit();
 
-        //if (selectedPoints.size() > 0) {
-        //    glBindVertexArray(_selectedPointsVAO);
-        //    glBindBuffer(GL_ARRAY_BUFFER, _selectedPointsVBO);
-        //    glBufferData(
-        //        GL_ARRAY_BUFFER,
-        //        selectedPoints.size() * _nValuesPerPoint * sizeof(float),
-        //        selectedPoints.data(),
-        //        GL_STATIC_DRAW
-        //    );
+        _selectedIndices = newIndices;
 
-        //    GLint positionAttribute = _program->attributeLocation("in_position");
-        //    glEnableVertexAttribArray(positionAttribute);
-        //    glVertexAttribPointer(
-        //        positionAttribute,
-        //        3,
-        //        GL_FLOAT,
-        //        GL_FALSE,
-        //        _nValuesPerPoint * sizeof(float),
-        //        nullptr
-        //    );
+        if (selectedPoints.size() > 0) {
+            glBindVertexArray(_selectedPointsVAO);
+            glBindBuffer(GL_ARRAY_BUFFER, _selectedPointsVBO);
+            glBufferData(
+                GL_ARRAY_BUFFER,
+                selectedPoints.size() * sizeof(GlyphData),
+                selectedPoints.data(),
+                GL_STATIC_DRAW
+            );
 
-        //    GLint colorAttribute = _program->attributeLocation("in_color");
-        //    glEnableVertexAttribArray(colorAttribute);
-        //    glVertexAttribPointer(
-        //        colorAttribute,
-        //        4,
-        //        GL_FLOAT,
-        //        GL_FALSE,
-        //        _nValuesPerPoint * sizeof(float),
-        //        reinterpret_cast<void*>(3 * sizeof(float))
-        //    );
+            GLint positionAttribute = _program->attributeLocation("in_position");
+            glEnableVertexAttribArray(positionAttribute);
+            glVertexAttribPointer(
+                positionAttribute,
+                3,
+                GL_FLOAT,
+                GL_FALSE,
+                sizeof(GlyphData),
+                nullptr
+            );
 
-        //    GLint componentAttribute = _program->attributeLocation("in_component");
-        //    glEnableVertexAttribArray(componentAttribute);
-        //    glVertexAttribPointer(
-        //        componentAttribute,
-        //        1,
-        //        GL_FLOAT,
-        //        GL_FALSE,
-        //        _nValuesPerPoint * sizeof(float),
-        //        reinterpret_cast<void*>(7 * sizeof(float))
-        //    );
+            GLint componentAttribute = _program->attributeLocation("in_component");
+            glEnableVertexAttribArray(componentAttribute);
+            glVertexAttribPointer(
+                componentAttribute,
+                1,
+                GL_FLOAT,
+                GL_FALSE,
+                sizeof(GlyphData),
+                reinterpret_cast<void*>(offsetof(GlyphData, component))
+            );
 
-        //    glBindVertexArray(0);
-        //}
-    //}
+            GLint nColorsAttribute = _program->attributeLocation("in_nColors");
+            glEnableVertexAttribArray(nColorsAttribute);
+            glVertexAttribIPointer(
+                nColorsAttribute,
+                1,
+                GL_INT,
+                sizeof(GlyphData),
+                reinterpret_cast<void*>(offsetof(GlyphData, nColors))
+            );
+
+            GLint colorAttribute = _program->attributeLocation("in_colors");
+            for (int i = 0; i < MaxNumberColors; i++) {
+                glEnableVertexAttribArray(colorAttribute + i);
+                glVertexAttribPointer(
+                    colorAttribute + i,
+                    4,
+                    GL_FLOAT,
+                    GL_FALSE,
+                    sizeof(GlyphData),
+                    reinterpret_cast<void*>(offsetof(GlyphData, colors) + i * 4 * sizeof(float))
+                );
+            }
+
+            glBindVertexArray(0);
+        }
+    }
 
     _isDirty = false;
     _selectionChanged = false;

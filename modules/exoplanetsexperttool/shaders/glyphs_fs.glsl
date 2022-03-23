@@ -33,11 +33,27 @@ in float gs_component;
 in vec2 texCoord; // [-1, 1]
 
 uniform float opacity;
+uniform bool onTop;
 
 const float M_PI = 3.141592657;
 
 Fragment getFragment() {
     float radius = length(texCoord);
+
+    float x = texCoord.x;
+    float y = texCoord.y;
+
+    if (onTop  && radius > 1.0 && (abs(x - y) < 0.2 || abs(-1.0 *x - y) < 0.2)) {
+        Fragment frag;
+        frag.color = vec4(1.0);
+        frag.depth = gs_depthClipSpace;
+        frag.gNormal = vec4(0.0, 0.0, -1.0, 1.0);
+        return frag;
+    }
+
+    if (onTop) {
+        discard;
+    }
 
     if (radius > 1.0)
         discard;
@@ -58,14 +74,16 @@ Fragment getFragment() {
 
     // left half of circleuadrant
     if (texCoord.x < 0) {
-      angle = M_PI + (M_PI - angle);
+        angle = M_PI + (M_PI - angle);
     }
 
     int colorIndex = int(floor(angle / angleSlice));
 
     vec4 color = gs_colors[colorIndex];
     if (coord > 0.87 || coord < 0.13) {
-        color *= vec4(0.0, 0.0, 0.0, 1.0); // black border
+        float v = float(int(onTop));
+        color = vec4(vec3(v), 1.0); // border
+        //color *= vec4(0.0, 0.0, 0.0, 1.0); // black border
     }
 
     color.a *= opacity;

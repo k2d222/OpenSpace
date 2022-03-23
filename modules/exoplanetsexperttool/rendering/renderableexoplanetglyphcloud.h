@@ -64,13 +64,12 @@ private:
     bool _selectionChanged = true;
 
     std::unique_ptr<ghoul::opengl::ProgramObject> _program = nullptr;
-    UniformCache(modelMatrix, cameraViewProjectionMatrix, opacity, size,
+    UniformCache(modelMatrix, cameraViewProjectionMatrix, onTop, opacity, size,
         screenSize, minBillboardSize, maxBillboardSize
     ) _uniformCache;
 
     properties::Vec3Property _highlightColor;
     properties::FloatProperty _size;
-    properties::FloatProperty _selectedSizeScale;
     properties::IntListProperty _selectedIndices;
     properties::Vec2Property _billboardMinMaxSize;
 
