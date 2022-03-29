@@ -28,6 +28,7 @@
 #include <openspace/rendering/renderable.h>
 
 #include <openspace/properties/list/intlistproperty.h>
+#include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
 #include <openspace/properties/vector/vec2property.h>
 #include <openspace/properties/vector/vec3property.h>
@@ -64,14 +65,15 @@ private:
     bool _selectionChanged = true;
 
     std::unique_ptr<ghoul::opengl::ProgramObject> _program = nullptr;
-    UniformCache(modelMatrix, cameraViewProjectionMatrix, onTop, opacity, size,
-        screenSize, minBillboardSize, maxBillboardSize
+    UniformCache(modelMatrix, cameraViewProjectionMatrix, onTop, useFixedRingWidth,
+        opacity, size, screenSize, minBillboardSize, maxBillboardSize
     ) _uniformCache;
 
     properties::Vec3Property _highlightColor;
     properties::FloatProperty _size;
     properties::IntListProperty _selectedIndices;
     properties::Vec2Property _billboardMinMaxSize;
+    properties::BoolProperty _useFixedRingWidth;
 
     std::unique_ptr<ghoul::filesystem::File> _dataFile;
 

@@ -40,8 +40,8 @@
 namespace {
     constexpr const char* _loggerCat = "ExoplanetGlyphCloud";
 
-    constexpr const std::array<const char*, 8> UniformNames = {
-        "modelMatrix", "cameraViewProjectionMatrix", "onTop",
+    constexpr const std::array<const char*, 9> UniformNames = {
+        "modelMatrix", "cameraViewProjectionMatrix", "onTop", "useFixedRingWidth",
         "opacity", "size", "screenSize", "minBillboardSize", "maxBillboardSize"
     };
 
@@ -69,6 +69,12 @@ namespace {
         "The minimum and maximum size (in pixels) for the glyph billboard."
     };
 
+    constexpr openspace::properties::Property::PropertyInfo UseFixedWidthInfo = {
+        "UseFixedWidth",
+        "Use Fixed Width",
+        "" // @TODO
+    };
+
     struct [[codegen::Dictionary(RenderablePointData)]] Parameters {
         // [[codegen::verbatim(HighlightColorInfo.description)]]
         std::optional<glm::vec3> highlightColor [[codegen::color()]];
@@ -84,6 +90,9 @@ namespace {
 
         // The file to read the point data from
         std::filesystem::path dataFile;
+
+        // [[codegen::verbatim(UseFixedWidthInfo.description)]]
+        std::optional<bool> useFixedWidth;
     };
 #include "renderableexoplanetglyphcloud_codegen.cpp"
 } // namespace
@@ -107,7 +116,8 @@ RenderableExoplanetGlyphCloud::RenderableExoplanetGlyphCloud(
         glm::vec2(0.f, 400.f),
         glm::vec2(0.f),
         glm::vec2(1000.f)
-    )
+    ),
+    _useFixedRingWidth(UseFixedWidthInfo, true)
 {
     const Parameters p = codegen::bake<Parameters>(dictionary);
 
@@ -129,6 +139,9 @@ RenderableExoplanetGlyphCloud::RenderableExoplanetGlyphCloud(
     _billboardMinMaxSize = p.billboardMinMaxSize.value_or(_billboardMinMaxSize);
     _billboardMinMaxSize.setViewOption(properties::Property::ViewOptions::MinMaxRange);
     addProperty(_billboardMinMaxSize);
+
+    _useFixedRingWidth = p.useFixedWidth.value_or(_useFixedRingWidth);
+    addProperty(_useFixedRingWidth);
 
     _dataFile = std::make_unique<ghoul::filesystem::File>(p.dataFile);
     _dataFile->setCallback([&]() { updateDataFromFile(); });
@@ -196,6 +209,8 @@ void RenderableExoplanetGlyphCloud::render(const RenderData& data, RendererTasks
     const float maxBillboardSize = _billboardMinMaxSize.value().y; // in pixels
     _program->setUniform(_uniformCache.minBillboardSize, minBillboardSize);
     _program->setUniform(_uniformCache.maxBillboardSize, maxBillboardSize);
+
+    _program->setUniform(_uniformCache.useFixedRingWidth, _useFixedRingWidth);
 
     GLint viewport[4];
     glGetIntegerv(GL_VIEWPORT, viewport);

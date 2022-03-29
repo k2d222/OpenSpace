@@ -50,6 +50,7 @@ uniform vec2 screenSize; // Pixels
 uniform float maxBillboardSize; // Pixels
 uniform float minBillboardSize; // Pixels
 uniform bool onTop;
+uniform bool useFixedRingWidth;
 
 const vec2 corners[4] = vec2[4](
     vec2(-1.0, -1.0),
@@ -97,8 +98,10 @@ void main() {
     scaledUpClip *= correctionScale;
 
     // Apply component scaling lastly, to get comparable sizes
-    scaledRightClip *= vs_component[0];
-    scaledUpClip *= vs_component[0];
+    float comp = vs_component[0];
+    float factor = useFixedRingWidth ? comp : sqrt(2.0 * comp);
+    scaledRightClip *= factor;
+    scaledUpClip *= factor;
 
     lowerLeft = dposClip - scaledRightClip - scaledUpClip;
     vec4 lowerRight = dposClip + scaledRightClip - scaledUpClip;

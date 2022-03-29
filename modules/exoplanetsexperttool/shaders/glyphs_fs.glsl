@@ -34,6 +34,7 @@ in vec2 texCoord; // [-1, 1]
 
 uniform float opacity;
 uniform bool onTop;
+uniform bool useFixedRingWidth;
 
 const float M_PI = 3.141592657;
 
@@ -43,7 +44,8 @@ Fragment getFragment() {
     float x = texCoord.x;
     float y = texCoord.y;
 
-    if (onTop  && radius > 1.0 && (abs(x - y) < 0.2 || abs(-1.0 *x - y) < 0.2)) {
+    // Selection
+    if (onTop && radius > 1.0 && (abs(x - y) < 0.2 || abs(-1.0 * x - y) < 0.2)) {
         Fragment frag;
         frag.color = vec4(1.0);
         frag.depth = gs_depthClipSpace;
@@ -51,15 +53,28 @@ Fragment getFragment() {
         return frag;
     }
 
-    if (onTop) {
+    if (onTop || radius > 1.0) {
         discard;
     }
 
-    if (radius > 1.0)
-        discard;
-
     float maxRadius = 1.0;
-    float width =  0.8 / gs_component;
+
+    // Old width
+    float width = 1.0 / gs_component;
+
+    if (!useFixedRingWidth) {
+        // Compute width from radius relationship instead
+        float underRoot = 1.0 - 1.0 / gs_component;
+        // Prevent problems with potentially taking square of negative value
+        if (underRoot < 0.0) {
+            underRoot = 0.0;
+        }
+        width = 1.0 - sqrt(underRoot); // r_n minus r_(n-1) divided by r_n
+    }
+
+    float widthFactor = 0.95;
+    width *= widthFactor;
+
     float minRadius = 1.0 - width;
 
     float coord = (radius - minRadius) / (maxRadius - minRadius);
@@ -72,7 +87,7 @@ Fragment getFragment() {
     vec2 up = vec2(0.0, 1.0);
     float angle = acos(dot(up, normalize(texCoord)));
 
-    // left half of circleuadrant
+    // left half of circl quadrant
     if (texCoord.x < 0) {
         angle = M_PI + (M_PI - angle);
     }
@@ -80,10 +95,10 @@ Fragment getFragment() {
     int colorIndex = int(floor(angle / angleSlice));
 
     vec4 color = gs_colors[colorIndex];
-    if (coord > 0.87 || coord < 0.13) {
-        float v = float(int(onTop));
-        color = vec4(vec3(v), 1.0); // border
-        //color *= vec4(0.0, 0.0, 0.0, 1.0); // black border
+
+    float borderWidth = 0.05;
+    if (coord > widthFactor - borderWidth || coord < 1.0 - widthFactor + borderWidth) {
+        color *= vec4(0.0, 0.0, 0.0, 1.0); // black border
     }
 
     color.a *= opacity;
