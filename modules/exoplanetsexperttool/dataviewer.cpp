@@ -272,7 +272,8 @@ void DataViewer::initializeRenderables() {
 
 void DataViewer::render() {
     static bool showFilterSettingsWindow = true;
-    static bool showScatterPlotAndColormapWindow = true;
+    static bool showColormapWindow = true;
+    static bool showScatterPlotWindow = true;
 
     ImGui::SetNextWindowSize(DefaultWindowSize, ImGuiCond_FirstUseEver);
     ImGui::Begin("ExoplanetExpertTool Gui", nullptr, ImGuiWindowFlags_MenuBar);
@@ -280,8 +281,11 @@ void DataViewer::render() {
     if (showFilterSettingsWindow) {
         renderFilterSettingsWindow(&showFilterSettingsWindow);
     }
-    if (showScatterPlotAndColormapWindow) {
-        renderScatterPlotAndColormapWindow(&showScatterPlotAndColormapWindow);
+    if (showColormapWindow) {
+        renderColormapWindow(&showColormapWindow);
+    }
+    if (showScatterPlotWindow) {
+        renderScatterPlotWindow(&showScatterPlotWindow);
     }
 
 #ifdef SHOW_IMGUI_HELPERS
@@ -300,7 +304,8 @@ void DataViewer::render() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("Windows")) {
             ImGui::MenuItem("Filters", NULL, &showFilterSettingsWindow);
-            ImGui::MenuItem("Colormap and Ra/Dec Plot", NULL, &showScatterPlotAndColormapWindow);
+            ImGui::MenuItem("Colormapped variables", NULL, &showColormapWindow);
+            ImGui::MenuItem("Scatter plot", NULL, &showScatterPlotWindow);
 #ifdef SHOW_IMGUI_HELPERS
             ImGui::MenuItem("ImGui Helpers", NULL, &showHelpers);
 #endif
@@ -332,41 +337,11 @@ void DataViewer::renderHelpMarker(const char* text) {
     }
 }
 
-void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
-    ImGui::SetNextWindowSize(ImVec2(430, 450), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Colormap and Ra/Dec Plot", open)) {
+void DataViewer::renderColormapWindow(bool* open) {
+    ImGui::SetNextWindowSize(ImVec2(350, 450), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Colormapped variables", open)) {
         ImGui::End();
         return;
-    }
-
-    static const ImVec2 plotSize = { 400, 300 };
-    auto plotFlags = ImPlotFlags_NoLegend;
-    auto axisFlags = ImPlotAxisFlags_None;
-
-    // TODO: make static varaibles and only update data if filter and/or selection changed
-
-    std::vector<float> ra, dec;
-    ra.reserve(_filteredData.size());
-    dec.reserve(_filteredData.size());
-
-    for (size_t i : _filteredData) {
-        const ExoplanetItem& item = _data[i];
-        if (item.ra.hasValue() && item.ra.hasValue()) {
-            ra.push_back(item.ra.value);
-            dec.push_back(item.dec.value);
-        }
-    }
-
-    std::vector<float> ra_selected, dec_selected;
-    ra_selected.reserve(_selection.size());
-    dec_selected.reserve(_selection.size());
-
-    for (size_t i : _selection) {
-        const ExoplanetItem& item = _data[i];
-        if (item.ra.hasValue() && item.ra.hasValue()) {
-            ra_selected.push_back(item.ra.value);
-            dec_selected.push_back(item.dec.value);
-        }
     }
 
     // Start variable group
@@ -385,7 +360,6 @@ void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
         _colormapWasChanged = true;
     };
     ImGui::Spacing();
-
 
     constexpr const int InputWidth = 120;
     constexpr const int GroupHeight = 160;
@@ -500,17 +474,55 @@ void DataViewer::renderScatterPlotAndColormapWindow(bool* open) {
 
     ImGui::EndGroup(); // variable group
 
-    ImGui::SameLine();
+    ImGui::End();
+}
+
+void DataViewer::renderScatterPlotWindow(bool* open) {
+    ImGui::SetNextWindowSize(ImVec2(450, 400), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Scatter plots", open)) {
+        ImGui::End();
+        return;
+    }
+
+    static const ImVec2 plotSize = { 400, 300 };
+    auto plotFlags = ImPlotFlags_NoLegend;
+    auto axisFlags = ImPlotAxisFlags_None;
+
+    // TODO: make static varaibles and only update data if filter and/or selection changed
+
+    std::vector<float> ra, dec;
+    ra.reserve(_filteredData.size());
+    dec.reserve(_filteredData.size());
+
+    for (size_t i : _filteredData) {
+        const ExoplanetItem& item = _data[i];
+        if (item.ra.hasValue() && item.ra.hasValue()) {
+            ra.push_back(item.ra.value);
+            dec.push_back(item.dec.value);
+        }
+    }
+
+    std::vector<float> ra_selected, dec_selected;
+    ra_selected.reserve(_selection.size());
+    dec_selected.reserve(_selection.size());
+
+    for (size_t i : _selection) {
+        const ExoplanetItem& item = _data[i];
+        if (item.ra.hasValue() && item.ra.hasValue()) {
+            ra_selected.push_back(item.ra.value);
+            dec_selected.push_back(item.dec.value);
+        }
+    }
 
     // Ra dec plot
     ImGui::BeginGroup();
 
     ImVec4 selectedColor =
-        { DefaultSelectedColor.x, DefaultSelectedColor.y, DefaultSelectedColor.z, 1.f };
+    { DefaultSelectedColor.x, DefaultSelectedColor.y, DefaultSelectedColor.z, 1.f };
 
     ImGui::Spacing();
 
-    const ColorMappedVariable& first =  _variableSelection.front();
+    const ColorMappedVariable& first = _variableSelection.front();
 
     // Scatterplot
     static float pointSize = 1.5f;

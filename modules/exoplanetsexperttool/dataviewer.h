@@ -82,7 +82,8 @@ private:
     void renderHelpMarker(const char* text);
     void renderTable();
 
-    void renderScatterPlotAndColormapWindow(bool* open);
+    void renderScatterPlotWindow(bool* open);
+    void renderColormapWindow(bool* open);
     void renderFilterSettingsWindow(bool* open);
 
     // Updates the property in the module so that it matches the filtered
