@@ -28,7 +28,6 @@
 #include <optional>
 #include <string>
 
-// @TODO: separate namespace
 namespace openspace::exoplanets {
 
 // Represent a data point with upper and lower uncertainty values
@@ -37,9 +36,34 @@ struct DataPoint {
     float errorUpper = 0.f;
     float errorLower = 0.f;
 
-    // TODO:move to a cpp file
+    // TODO:move all these to a cpp file
     bool hasValue() const {
         return !std::isnan(value);
+    };
+
+    float errorRange() const {
+        return errorUpper - errorLower;
+    };
+
+    float relativeErrorUpper() const {
+        if (!hasValue()) {
+            return std::numeric_limits<float>::quiet_NaN();
+        }
+        return 100.f * errorUpper / value;
+    };
+
+    float relativeErrorLower() const {
+        if (!hasValue()) {
+            return std::numeric_limits<float>::quiet_NaN();
+        }
+        return 100.f * errorLower / value;
+    };
+
+    float relativeErrorRange() const {
+        if (!hasValue()) {
+            return std::numeric_limits<float>::quiet_NaN();
+        }
+        return relativeErrorUpper() - relativeErrorLower();
     };
 };
 

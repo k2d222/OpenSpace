@@ -131,6 +131,8 @@ df = df[data_filter].groupby('pl_name', as_index = False).agg(agg_dict)
 # fill in columns where mass or radius are only in Jupiter units
 df.pl_rade.fillna(df.pl_radj*Rjup, inplace=True)
 df.pl_bmasse.fillna(df.pl_bmassj*Mjup, inplace=True)
+df.pl_bmasseerr1.fillna(df.pl_bmassjerr1*Mjup, inplace=True)
+df.pl_bmasseerr2.fillna(df.pl_bmassjerr2*Mjup, inplace=True)
 
 # ## Initialize new column for aggregate temperature
 # Try to use as few columns in the data as possible:

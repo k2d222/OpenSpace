@@ -36,6 +36,8 @@
 #include <charconv>
 #include <cmath>
 #include <fstream>
+#include <string>
+#include <string_view>
 
 namespace {
     constexpr const char _loggerCat[] = "ExoplanetsDataLoader";
@@ -72,6 +74,14 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
         );
         return std::vector<ExoplanetItem>();
     }
+
+    auto isPositiveErrorCol = [](const std::string& c) {
+        return c.find("err1") != std::string::npos;
+    };
+
+    auto isNegativeErrorCol = [](const std::string& c) {
+        return c.find("err2") != std::string::npos;
+    };
 
     // Write exoplanet records to file
    std::vector<std::string> columns = csvContent[0];
@@ -128,8 +138,17 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            else if (column == "pl_rade") {
                p.radius.value = data::parseFloatData(data);
            }
-           else if (column == "pl_bmasse") {
-               p.mass.value = data::parseFloatData(data);
+           else if (column.rfind("pl_bmasse") != std::string::npos) {
+               // TODO: generalize
+               if (isPositiveErrorCol(column)) {
+                   p.mass.errorUpper = data::parseFloatData(data);
+               }
+               else if (isNegativeErrorCol(column)) {
+                   p.mass.errorLower = data::parseFloatData(data);
+               }
+               else if (column == "pl_bmasse") {
+                   p.mass.value = data::parseFloatData(data);
+               }
            }
            // Orbital properties
            else if (column == "pl_orbsmax") {
@@ -204,24 +223,24 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            p.position = icrsToGalacticCartesian(ra, dec, p.distance.value);
        }
 
-       // If unknown, compute planet mass
-       // TODO: move to python
-       if ((!p.mass.hasValue()) && p.radius.hasValue()) {
-           float r = p.radius.value;
+       //// If unknown, compute planet mass
+       //// TODO: move to python
+       //if ((!p.mass.hasValue()) && p.radius.hasValue()) {
+       //    float r = p.radius.value;
 
-           // Mass radius relationship from Chen & Kipping (2017)
-           // See eq. (2) in https://arxiv.org/pdf/1805.03671.pdf
+       //    // Mass radius relationship from Chen & Kipping (2017)
+       //    // See eq. (2) in https://arxiv.org/pdf/1805.03671.pdf
 
-           if (r < 1.23f) { // Terran
-               p.mass.value = 0.9718f * glm::pow(r, 3.58f);
-           }
-           else if (r < 14.26) { // Neptunian
-               p.mass.value = 1.436f * glm::pow(r, 1.70f);
-           }
-           // TODO: constant for larger planets (Jovian & Stellar)
-           // Use their python package!
-           // Their paper: https://iopscience.iop.org/article/10.3847/1538-4357/834/1/17
-       }
+       //    if (r < 1.23f) { // Terran
+       //        p.mass.value = 0.9718f * glm::pow(r, 3.58f);
+       //    }
+       //    else if (r < 14.26) { // Neptunian
+       //        p.mass.value = 1.436f * glm::pow(r, 1.70f);
+       //    }
+       //    // TODO: constant for larger planets (Jovian & Stellar)
+       //    // Use their python package!
+       //    // Their paper: https://iopscience.iop.org/article/10.3847/1538-4357/834/1/17
+       //}
 
        // TODO: move to python
        if (p.radius.hasValue() && p.mass.hasValue()) {

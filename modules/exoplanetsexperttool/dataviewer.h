@@ -47,6 +47,7 @@ enum ColumnID {
     PlanetRadius,
     PlanetTemperature,
     PlanetMass,
+    PlanetMassError,
     SurfaceGravity,
     SemiMajorAxis,
     Eccentricity,

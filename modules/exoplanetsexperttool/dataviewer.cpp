@@ -124,6 +124,7 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         { "Planet radius (Earth radii)", ColumnID::PlanetRadius, "%.2f" },
         { "Planet equilibrium temp. (K)", ColumnID::PlanetTemperature, "%.0f" },
         { "Mass", ColumnID::PlanetMass, "%.2f" },
+        { "Mass Uncertainty (%)", ColumnID::PlanetMassError, "%.2f" },
         { "Surface gravity (m/s^2)", ColumnID::SurfaceGravity, "%.2f" },
         // Orbits
         { "Semi-major axis (AU)", ColumnID::SemiMajorAxis, "%.2f" },
@@ -1223,6 +1224,8 @@ std::variant<const char*, float> DataViewer::valueFromColumn(ColumnID column,
             return item.eqilibriumTemp.value;
         case ColumnID::PlanetMass:
             return item.mass.value;
+        case ColumnID::PlanetMassError:
+            return item.mass.relativeErrorRange(); // TODO: make it possible to change whicha and how errors are being shown
         case ColumnID::SurfaceGravity:
             return item.surfaceGravity.value;
         // Orbits
