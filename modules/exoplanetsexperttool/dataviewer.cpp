@@ -24,6 +24,7 @@
 
 #include <modules/exoplanetsexperttool/dataviewer.h>
 
+#include <modules/exoplanets/exoplanetshelper.h>
 #include <modules/exoplanetsexperttool/exoplanetsexperttoolmodule.h>
 #include <modules/exoplanetsexperttool/rendering/renderablepointdata.h>
 #include <modules/imgui/include/imgui_include.h>
@@ -649,6 +650,8 @@ void DataViewer::renderTable() {
             }
         }
 
+        ImGuiIO& io = ImGui::GetIO();
+
         // Rows
         for (size_t row = 0; row < _filteredData.size(); row++) {
             if (row > MaxItemsToRender) {
@@ -673,6 +676,11 @@ void DataViewer::renderTable() {
                         itemIsSelected,
                         selectableFlags
                     );
+
+                    // Check double click,  left mouse button
+                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                        addAndTarget(item);
+                    }
 
                     if (changed) {
                         if (ImGui::GetIO().KeyCtrl) {
@@ -1379,5 +1387,36 @@ void DataViewer::updateSelectionInRenderable() {
         scripting::ScriptEngine::RemoteScripting::Yes
     );
 }
+
+void DataViewer::addAndTarget(const ExoplanetItem& item) {
+    LINFO(fmt::format("Double click: {}", item.planetName));
+
+    // This is the identifier that the generates start will get
+    const std::string identifier = createIdentifier(item.hostName);
+
+    if (!sceneGraphNode(identifier)) {
+        openspace::global::scriptEngine->queueScript(
+            "openspace.exoplanets.addExoplanetSystem('" + item.hostName + "')",
+            scripting::ScriptEngine::RemoteScripting::Yes
+        );
+
+        openspace::global::scriptEngine->queueScript(
+            "openspace.setPropertyValueSingle('Modules.CefWebGui.Reload', nil)",
+            scripting::ScriptEngine::RemoteScripting::Yes
+        );
+    }
+
+    // TODO: make it celarer what is going on and improve usability!
+
+    // Rotate to look at the target
+    const std::string planetIdentifier = identifier + "_" + item.component;
+    openspace::global::scriptEngine->queueScript(
+        "openspace.setPropertyValueSingle('NavigationHandler.OrbitalNavigator.Anchor', '" + planetIdentifier + "');"
+        "openspace.setPropertyValueSingle('NavigationHandler.OrbitalNavigator.Aim', '');"
+        "openspace.setPropertyValueSingle('NavigationHandler.OrbitalNavigator.RetargetAnchor', nil);",
+        scripting::ScriptEngine::RemoteScripting::Yes
+    );
+}
+
 
 } // namespace openspace::gui

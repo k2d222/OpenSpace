@@ -114,6 +114,8 @@ private:
 
     void updateSelectionInRenderable();
 
+    void addAndTarget(const ExoplanetItem& item);
+
     DataLoader _dataLoader;
     std::vector<ExoplanetItem> _data;
     std::vector<size_t> _filteredData;  // The indices of the items which will be rendered
