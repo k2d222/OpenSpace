@@ -172,29 +172,29 @@ void NavigationHandler::updateCamera(double deltaTime) {
     OpenSpaceEngine::Mode mode = global::openSpaceEngine->currentMode();
     bool playbackMode = (mode == OpenSpaceEngine::Mode::SessionRecordingPlayback);
 
-    // If we're in session recording payback mode, the session recording is responsible
-    // for navigation. So don't do anything more here
-    if (playbackMode || !_camera) {
+    if (!_camera) {
         return;
     }
 
     // Handle navigation, based on what navigator is active
-    if (_useKeyFrameInteraction) {
+    if (!playbackMode && _useKeyFrameInteraction) {
         _keyframeNavigator.updateCamera(*_camera, playbackMode);
     }
-    else if (mode == OpenSpaceEngine::Mode::CameraPath) {
+    else if (!playbackMode && mode == OpenSpaceEngine::Mode::CameraPath) {
         _pathNavigator.updateCamera(deltaTime);
         updateCameraTransitions();
     }
     else { // orbital navigator
-        if (_disableJoystickInputs) {
-            clearGlobalJoystickStates();
+        if (!playbackMode) {
+            if (_disableJoystickInputs) {
+                clearGlobalJoystickStates();
+            }
+            _orbitalNavigator.updateStatesFromInput(
+                _mouseInputState,
+                _keyboardInputState,
+                deltaTime
+            );
         }
-        _orbitalNavigator.updateStatesFromInput(
-            _mouseInputState,
-            _keyboardInputState,
-            deltaTime
-        );
         _orbitalNavigator.updateCameraStateFromStates(deltaTime);
         updateCameraTransitions();
     }

@@ -52,6 +52,7 @@ public:
         glm::dvec3 position = glm::dvec3(0.0);
         glm::quat rotation = glm::quat(0.f, 0.f, 0.f, 0.f);
         std::string focusNode;
+        std::string aimNode;
         float scale = 1.f;
         bool followFocusNodeRotation = false;
 

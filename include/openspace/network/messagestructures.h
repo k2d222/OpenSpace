@@ -50,10 +50,11 @@ struct CameraKeyframe {
         deserialize(buffer);
     }
     CameraKeyframe(glm::dvec3&& pos, glm::dquat&& rot, std::string&& focusNode,
-        bool&& followNodeRot, float&& scale)
+        std::string&& aimNode, bool&& followNodeRot, float&& scale)
         : _position(pos)
         , _rotation(rot)
         , _followNodeRotation(followNodeRot)
+        , _aimNode(aimNode)
         , _focusNode(focusNode)
         , _scale(scale)
     {}
@@ -62,6 +63,7 @@ struct CameraKeyframe {
     glm::dquat _rotation = glm::dquat(1.0, 0.0, 0.0, 0.0);
     bool _followNodeRotation = false;
     std::string _focusNode;
+    std::string _aimNode;
     float _scale = 0.f;
 
     double _timestamp = 0.0;
@@ -101,6 +103,19 @@ struct CameraKeyframe {
             buffer.end(),
             _focusNode.data(),
             _focusNode.data() + nodeNameLength
+        );
+
+        // Add aim node
+        nodeNameLength = static_cast<int>(_aimNode.size());
+        buffer.insert(
+            buffer.end(),
+            reinterpret_cast<const char*>(&nodeNameLength),
+            reinterpret_cast<const char*>(&nodeNameLength) + sizeof(nodeNameLength)
+        );
+        buffer.insert(
+            buffer.end(),
+            _aimNode.data(),
+            _aimNode.data() + nodeNameLength
         );
 
         buffer.insert(
@@ -144,6 +159,14 @@ struct CameraKeyframe {
         _focusNode = std::string(buffer.data() + offset, buffer.data() + offset + size);
         offset += size;
 
+        // Aim node
+        size = sizeof(int);
+        std::memcpy(&nodeNameLength, buffer.data() + offset, size);
+        offset += size;
+        size = nodeNameLength;
+        _aimNode = std::string(buffer.data() + offset, buffer.data() + offset + size);
+        offset += size;
+
         // Scale
         size = sizeof(_scale);
         std::memcpy(&_scale, buffer.data() + offset, size);
@@ -179,6 +202,12 @@ struct CameraKeyframe {
         out.write(reinterpret_cast<const char*>(&nodeNameLength), sizeof(nodeNameLength));
         out.write(_focusNode.c_str(), _focusNode.size());
 
+        // Write aim node
+        nodeNameLength = static_cast<int>(_aimNode.size());
+        out.write(reinterpret_cast<const char*>(&nodeNameLength), sizeof(nodeNameLength));
+        out.write(_aimNode.c_str(), _aimNode.size());
+
+
         // Write scale
         out.write(reinterpret_cast<const char*>(&_scale), sizeof(_scale));
 
@@ -205,7 +234,7 @@ struct CameraKeyframe {
         else {
             out << "- ";
         }
-        out << _focusNode;
+        out << _focusNode << " " << _aimNode;
     };
 
     void read(std::istream* in) {
@@ -229,6 +258,15 @@ struct CameraKeyframe {
         temp[nodeNameLength] = '\0';
         _focusNode = temp.data();
 
+        // Read aim node
+        nodeNameLength = static_cast<int>(_aimNode.size());
+        in->read(reinterpret_cast<char*>(&nodeNameLength), sizeof(nodeNameLength));
+        std::vector<char> temp(static_cast<size_t>(nodeNameLength) + 1);
+        in->read(temp.data(), nodeNameLength);
+
+        temp[nodeNameLength] = '\0';
+        _aimNode = temp.data();
+
         // Read scale
         in->read(reinterpret_cast<char*>(&_scale), sizeof(_scale));
 
@@ -248,7 +286,8 @@ struct CameraKeyframe {
             >> _rotation.w
             >> _scale
             >> rotationFollowing
-            >> _focusNode;
+            >> _focusNode
+            >> _aimNode;
         _followNodeRotation = (rotationFollowing == "F");
     };
 };

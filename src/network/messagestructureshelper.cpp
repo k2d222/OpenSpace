@@ -39,6 +39,7 @@ CameraKeyframe generateCameraKeyframe() {
     interaction::NavigationHandler& navHandler = *global::navigationHandler;
     CameraKeyframe kf;
     const SceneGraphNode* focusNode = navHandler.orbitalNavigator().anchorNode();
+    const SceneGraphNode* aimNode = navHandler.orbitalNavigator().aimNode();
 
     if (!focusNode) {
         return kf;
@@ -57,6 +58,7 @@ CameraKeyframe generateCameraKeyframe() {
     }
 
     kf._focusNode = focusNode->identifier();
+    kf._aimNode = aimNode->identifier();
     kf._scale = navHandler.camera()->scaling();
 
     // Timestamp as current runtime of OpenSpace instance

@@ -294,6 +294,7 @@ void SessionRecording::stopRecording() {
                         std::move(kf.position),
                         std::move(kf.rotation),
                         std::move(kf.focusNode),
+                        std::move(kf.aimNode),
                         std::move(kf.followFocusNodeRotation),
                         std::move(kf.scale)
                     );
