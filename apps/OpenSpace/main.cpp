@@ -82,6 +82,10 @@
 #include "SpoutLibrary.h"
 #endif // OPENSPACE_HAS_SPOUT
 
+#ifdef SGCT_HAS_GSTREAMER
+#include <gstreamerWebRTC.h>
+#endif // SGCT_HAS_GSTREAMER
+
 #ifdef OPENSPACE_HAS_NVTOOLS
 #include "nvToolsExt.h"
 #endif // OPENSPACE_HAS_NVTOOLS
@@ -141,6 +145,10 @@ std::vector<SpoutWindow> SpoutWindows;
 #endif // OPENSPACE_HAS_SPOUT
 
 }
+
+#ifdef SGCT_HAS_GSTREAMER
+    const Window* hiddenWindow = nullptr;
+#endif
 
 //
 //  MiniDump generation
@@ -255,7 +263,9 @@ void mainInitFunc(GLFWwindow*) {
 #endif // __APPLE__
 
     currentWindow = Engine::instance().windows().front().get();
+    hiddenWindow = Engine::instance().windows().front().get();
     currentViewport = currentWindow->viewports().front().get();
+
 
     LDEBUG("Initializing OpenGL in OpenSpace Engine started");
     global::openSpaceEngine->initializeGL();
@@ -330,6 +340,10 @@ void mainInitFunc(GLFWwindow*) {
         LWARNING("Spout was requested, but program was compiled without Spout support");
 #endif // OPENSPACE_HAS_SPOUT
     }
+
+#ifdef SGCT_HAS_GSTREAMER
+    initGST();
+#endif
 
     LTRACE("main::mainInitFunc(end)");
 }
@@ -523,18 +537,26 @@ void mainRenderFunc(const sgct::RenderData& data) {
 #ifdef OPENSPACE_HAS_NVTOOLS
     nvtxRangePop();
 #endif // OPENSPACE_HAS_NVTOOLS
-}
 
+    //Do one iteration of GStreamer main loop
+
+}
 
 
 void mainDraw2DFunc(const sgct::RenderData& data) {
     ZoneScoped
     LTRACE("main::mainDraw2DFunc(begin)");
 
+    hiddenWindow = &data.window;
+    #ifdef SGCT_HAS_GSTREAMER
+        g_main_context_iteration(g_main_loop_get_context(glPipeline.loop), FALSE);
+        //glFlush();
+    #endif
+
     currentWindow = &data.window;
     currentViewport = &data.viewport;
     currentFrustumMode = data.frustumMode;
-
+    
     try {
         global::openSpaceEngine->drawOverlays();
     }
@@ -1260,6 +1282,11 @@ int main(int argc, char* argv[]) {
     std::vector<std::string> arg(argv + 1, argv + argc);
     Configuration config = parseArguments(arg);
     config::Cluster cluster = loadCluster(absPath(windowConfiguration).string());
+
+    #ifdef SGCT_HAS_GSTREAMER
+    // Init the gstreamer lib
+    gst_init(&argc, &argv);
+    #endif
 
     Engine::Callbacks callbacks;
     callbacks.initOpenGL = mainInitFunc;

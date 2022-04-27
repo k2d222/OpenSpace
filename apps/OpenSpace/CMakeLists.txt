@@ -115,6 +115,7 @@ set(SGCT_DEP_INCLUDE_FMT OFF CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ext/sgct)
 target_link_libraries(OpenSpace PRIVATE sgct)
 
+
 set_folder_location(sgct "External")
 set_folder_location(glfw "External")
 set_folder_location(miniziplibstatic "External")
