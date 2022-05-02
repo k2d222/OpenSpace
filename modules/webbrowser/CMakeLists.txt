@@ -202,9 +202,9 @@ if (OS_WINDOWS)
   target_link_libraries(${CEF_HELPER_TARGET} libcef_lib libcef_dll_wrapper ${CEF_STANDARD_LIBS})
   # Add the custom manifest files to the executable.
   add_windows_cef_manifest("${CEF_TARGET_OUT_DIR}" "${WEBBROWSER_MODULE_PATH}" "${CEF_HELPER_TARGET}" "exe")
+  set_property(TARGET ${CEF_HELPER_TARGET} PROPERTY FOLDER "Helper")
 endif (OS_WINDOWS)
 
-set_property(TARGET ${CEF_HELPER_TARGET} PROPERTY FOLDER "Helper")
 
 ##########################################################################################
 # Create OpenSpace module.
