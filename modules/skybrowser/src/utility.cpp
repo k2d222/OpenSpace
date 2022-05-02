@@ -210,6 +210,7 @@ double sizeFromFov(double fov, glm::dvec3 worldPosition) {
     return opposite;
 }
 
+template <>
 float Animation<float>::getNewValue() {
     if (!isAnimating()) {
         return _goal;
@@ -221,6 +222,7 @@ float Animation<float>::getNewValue() {
     }
 }
 
+template <>
 double Animation<double>::getNewValue() {
     if (!isAnimating()) {
         return _goal;
@@ -232,6 +234,7 @@ double Animation<double>::getNewValue() {
     }
 }
 
+template <>
 glm::dmat4 Animation<glm::dvec3>::getRotationMatrix() {
     if (!isAnimating()) {
         return glm::dmat4(1.0);
@@ -249,6 +252,7 @@ glm::dmat4 Animation<glm::dvec3>::getRotationMatrix() {
     return rotMat;
 }
 
+template <>
 glm::dvec3 Animation<glm::dvec3>::getNewValue() {
     if (!isAnimating()) {
         return _goal;
