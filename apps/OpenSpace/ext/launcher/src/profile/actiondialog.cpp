@@ -85,7 +85,7 @@ void ActionDialog::createWidgets() {
     //  |                      | Is Local      | [] [choosescr] |    Row 5
     //  |                      | Script        | [oooooooooooo] |    Row 6
     //  *----------------------*---------------*----------------*
-    //  | [+] [-]              |               | [Save] [Cancel]|    Row 7
+    //  | [+] [-]              |               | <Save> <Cancel>|    Row 7
     //  *----------------------*---------------*----------------*
     //  |=======================================================|    Row 8
     //  | Keybindings                                           |    Row 9
@@ -95,11 +95,11 @@ void ActionDialog::createWidgets() {
     //  |                      | Add actions   | DDDDDDDDDDDD>  |    Row 12
     //  |                      | Action        | [oooooooooooo] |    Row 13
     //  *----------------------*---------------*----------------*
-    //  | [+] [-]              |               | [Save] [Cancel]|    Row 14
+    //  | [+] [-]              |               | <Save> <Cancel>|    Row 14
     //  *----------------------*---------------*----------------*
     //  |=======================================================|    Row 14
     //  *----------------------*---------------*----------------*
-    //  |                                      | [Save] [Cancel]|    Row 15
+    //  |                                      | <Save> <Cancel>|    Row 15
     //  *----------------------*---------------*----------------*
 
     QGridLayout* layout = new QGridLayout(this);
@@ -485,13 +485,13 @@ void ActionDialog::actionRemove() {
 
     for (size_t i = 0; i < _actionData.size(); ++i) {
         if (_actionData[i].identifier == action->identifier) {
+            clearActionFields();
             _actionData.erase(_actionData.begin() + i);
             delete _actionWidgets.list->takeItem(static_cast<int>(i));
-            clearActionFields();
 
             _keybindingWidgets.action->clear();
-            for (const Profile::Action& action : _actionData) {
-                _keybindingWidgets.action->addItem(QString::fromStdString(action.identifier));
+            for (const Profile::Action& a : _actionData) {
+                _keybindingWidgets.action->addItem(QString::fromStdString(a.identifier));
             }
             clearKeybindingFields();
             return;
@@ -596,8 +596,8 @@ void ActionDialog::actionSaved() {
 
     // Update the list of actions available in the action chooser
     _keybindingWidgets.action->clear();
-    for (const Profile::Action& action : _actionData) {
-        _keybindingWidgets.action->addItem(QString::fromStdString(action.identifier));
+    for (const Profile::Action& a : _actionData) {
+        _keybindingWidgets.action->addItem(QString::fromStdString(a.identifier));
     }
     clearKeybindingFields();
     clearActionFields();
@@ -661,9 +661,9 @@ void ActionDialog::keybindingRemove() {
         if (_keybindingsData[i].key == keybinding->key &&
             _keybindingsData[i].action == keybinding->action)
         {
+            clearKeybindingFields();
             _keybindingsData.erase(_keybindingsData.begin() + i);
             delete _keybindingWidgets.list->takeItem(static_cast<int>(i));
-            clearKeybindingFields();
             return;
         }
     }
