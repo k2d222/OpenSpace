@@ -92,8 +92,6 @@ private:
     // rows in the UI
     void updateFilteredRowsProperty();
 
-    void renderTSMRadarPlot(const ExoplanetItem& item);
-
     void renderColumnValue(int columnIndex, std::optional<const char*> format,
         const ExoplanetItem& item);
 
