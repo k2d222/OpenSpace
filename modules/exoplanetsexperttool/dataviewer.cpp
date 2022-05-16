@@ -294,7 +294,7 @@ void DataViewer::render() {
     static bool showScatterPlotWindow = true;
 
     ImGui::SetNextWindowSize(DefaultWindowSize, ImGuiCond_FirstUseEver);
-    ImGui::Begin("ExoplanetExpertTool Gui", nullptr, ImGuiWindowFlags_MenuBar);
+    ImGui::Begin("Exoplanet Explorer", nullptr, ImGuiWindowFlags_MenuBar);
 
     if (showFilterSettingsWindow) {
         renderFilterSettingsWindow(&showFilterSettingsWindow);
