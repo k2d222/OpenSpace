@@ -746,7 +746,7 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
     static int filterColIndex = 0;
     ImGui::Separator();
     ImGui::Text("Filter on column");
-    ImGui::SetNextItemWidth(100);
+    ImGui::SetNextItemWidth(120);
     if (ImGui::BeginCombo("##Column", _columns[filterColIndex].name.c_str())) {
         for (int i = 0; i < _columns.size(); ++i) {
             if (ImGui::Selectable(_columns[i].name.c_str(), filterColIndex == i)) {
