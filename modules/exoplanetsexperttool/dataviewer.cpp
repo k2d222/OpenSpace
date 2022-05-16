@@ -613,17 +613,6 @@ void DataViewer::renderTable() {
         ).c_str()
     );
 
-    constexpr int MaxItemsToRender = 1000;
-    if (_filteredData.size() > MaxItemsToRender) {
-        ImGui::SameLine();
-        ImGui::TextColored(
-            toImVec4(DescriptiveTextColor),
-            fmt::format(
-                "   (OBS! Only rendering first {}, for performance reasons)", MaxItemsToRender
-            ).c_str()
-        );
-    }
-
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags)) {
         // Header
         for (int colIdx = 0; colIdx < _columns.size(); colIdx++) {
@@ -660,58 +649,58 @@ void DataViewer::renderTable() {
         }
 
         // Rows
-        for (size_t row = 0; row < _filteredData.size(); row++) {
-            if (row > MaxItemsToRender) {
-                break; // cap the maximum number of rows we render
-            }
+        ImGuiListClipper clipper;
+        clipper.Begin(_filteredData.size());
+        while (clipper.Step()){
+            for (size_t row = clipper.DisplayStart; row < clipper.DisplayEnd; row++) {
+                const size_t index = _filteredData[row];
+                const ExoplanetItem& item = _data[index];
 
-            const size_t index = _filteredData[row];
-            const ExoplanetItem& item = _data[index];
+                ImGuiSelectableFlags selectableFlags = ImGuiSelectableFlags_SpanAllColumns
+                    | ImGuiSelectableFlags_AllowItemOverlap;
 
-            ImGuiSelectableFlags selectableFlags = ImGuiSelectableFlags_SpanAllColumns
-                | ImGuiSelectableFlags_AllowItemOverlap;
+                auto found = std::find(_selection.begin(), _selection.end(), index);
+                const bool itemIsSelected = found != _selection.end();
 
-            auto found = std::find(_selection.begin(), _selection.end(), index);
-            const bool itemIsSelected = found != _selection.end();
+                ImGui::TableNextRow();
 
-            ImGui::TableNextRow();
+                for (int colIdx = 0; colIdx < _columns.size(); colIdx++) {
+                    const Column col = _columns[colIdx];
+                    ImGui::TableNextColumn();
 
-            for (int colIdx = 0; colIdx < _columns.size(); colIdx++) {
-                const Column col = _columns[colIdx];
-                ImGui::TableNextColumn();
+                    if (col.id == ColumnID::Name) {
+                        bool changed = ImGui::Selectable(
+                            item.planetName.c_str(),
+                            itemIsSelected,
+                            selectableFlags
+                        );
 
-                if (col.id == ColumnID::Name) {
-                    bool changed = ImGui::Selectable(
-                        item.planetName.c_str(),
-                        itemIsSelected,
-                        selectableFlags
-                    );
+                        // Check double click,  left mouse button
+                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                            addAndTarget(item);
+                        }
 
-                    // Check double click,  left mouse button
-                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
-                        addAndTarget(item);
-                    }
-
-                    if (changed) {
-                        if (ImGui::GetIO().KeyCtrl) {
-                            if (itemIsSelected) {
-                                _selection.erase(found);
+                        if (changed) {
+                            if (ImGui::GetIO().KeyCtrl) {
+                                if (itemIsSelected) {
+                                    _selection.erase(found);
+                                }
+                                else {
+                                    _selection.push_back(index);
+                                }
                             }
                             else {
+                                _selection.clear();
                                 _selection.push_back(index);
                             }
-                        }
-                        else {
-                            _selection.clear();
-                            _selection.push_back(index);
-                        }
 
-                        selectionChanged = true;
+                            selectionChanged = true;
+                        }
+                        continue;
                     }
-                    continue;
-                }
 
-                renderColumnValue(colIdx, col.format, item);
+                    renderColumnValue(colIdx, col.format, item);
+                }
             }
         }
         ImGui::EndTable();
