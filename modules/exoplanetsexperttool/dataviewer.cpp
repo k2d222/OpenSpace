@@ -675,7 +675,7 @@ void DataViewer::renderTable() {
                             selectableFlags
                         );
 
-                        // Check double click,  left mouse button
+                        // Check double click, left mouse button
                         if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
                             addAndTarget(item);
                         }
@@ -741,33 +741,6 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
     static bool showTransit = true;
     static bool showRadialVelocity = true;
     static bool showOther = true;
-
-    // Filtering
-    _filterChanged |= ImGui::Checkbox("Hide null TSM", &hideNanTsm);
-    ImGui::SameLine();
-    _filterChanged |= ImGui::Checkbox("Hide null ESM", &hideNanEsm);
-
-    _filterChanged |= ImGui::Checkbox("Only multi-planet", &showOnlyMultiPlanetSystems);
-    ImGui::SameLine();
-    _filterChanged |= ImGui::Checkbox("Must have 3D positional data", &showOnlyHasPosition);
-    ImGui::SameLine();
-    renderHelpMarker(
-        "Only include data points that will show up in OpenSpace's 3D rendered view"
-    );
-
-    ImGui::Text("Planet bin");
-    _filterChanged |= ImGui::Checkbox("Terrestrial (Rp < 1.5)", &showTerrestrial);
-    _filterChanged |= ImGui::Checkbox("Small sub-Neptune (1.5 < Rp < 2.75)", &showSmallSubNeptunes);
-    _filterChanged |= ImGui::Checkbox("Large sub-Neptune (2.75 < Rp < 4.0)", &showLargeSubNeptunes);
-    _filterChanged |= ImGui::Checkbox("Sub-Jovian (4.0 < Rp < 10)", &showSubJovians);
-    _filterChanged |= ImGui::Checkbox("Larger (Rp > 10)", &showLargerPlanets);
-
-    ImGui::Text("Discovery method");
-    _filterChanged |= ImGui::Checkbox("Transit", &showTransit);
-    ImGui::SameLine();
-    _filterChanged |= ImGui::Checkbox("Radial Velocity", &showRadialVelocity);
-    ImGui::SameLine();
-    _filterChanged |= ImGui::Checkbox("Other", &showOther);
 
     // Per-column filtering
     static int filterColIndex = 0;
@@ -837,7 +810,8 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
     // => Won't rerender when label changes
     const std::string headerWithId = fmt::format("{}###FiltersHeader", filtersHeader);
 
-    if (ImGui::CollapsingHeader(headerWithId.c_str())) {
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader(headerWithId.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Indent();
 
         if (_appliedFilters.empty()) {
@@ -846,7 +820,10 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
 
         int indexToErase = -1;
         constexpr const int nColumns = 4;
-        if (ImGui::BeginTable("filtersTable", nColumns, ImGuiTableFlags_SizingFixedFit)) {
+
+        const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg;
+
+        if (ImGui::BeginTable("filtersTable", nColumns, flags)) {
             for (int i = 0; i < _appliedFilters.size(); ++i) {
                 ColumnFilterEntry f = _appliedFilters[i];
                 ImGui::TableNextRow();
@@ -874,8 +851,38 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
         }
         ImGui::Unindent();
     }
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Pre-defined filters
+    _filterChanged |= ImGui::Checkbox("Hide null TSM", &hideNanTsm);
+    ImGui::SameLine();
+    _filterChanged |= ImGui::Checkbox("Hide null ESM", &hideNanEsm);
+
+    _filterChanged |= ImGui::Checkbox("Only multi-planet", &showOnlyMultiPlanetSystems);
+    ImGui::SameLine();
+    _filterChanged |= ImGui::Checkbox("Must have 3D positional data", &showOnlyHasPosition);
+    ImGui::SameLine();
+    renderHelpMarker(
+        "Only include data points that will show up in OpenSpace's 3D rendered view"
+    );
+
+    ImGui::Text("Planet bin");
+    _filterChanged |= ImGui::Checkbox("Terrestrial (Rp < 1.5)", &showTerrestrial);
+    _filterChanged |= ImGui::Checkbox("Small sub-Neptune (1.5 < Rp < 2.75)", &showSmallSubNeptunes);
+    _filterChanged |= ImGui::Checkbox("Large sub-Neptune (2.75 < Rp < 4.0)", &showLargeSubNeptunes);
+    _filterChanged |= ImGui::Checkbox("Sub-Jovian (4.0 < Rp < 10)", &showSubJovians);
+    _filterChanged |= ImGui::Checkbox("Larger (Rp > 10)", &showLargerPlanets);
+
+    ImGui::Text("Discovery method");
+    _filterChanged |= ImGui::Checkbox("Transit", &showTransit);
+    ImGui::SameLine();
+    _filterChanged |= ImGui::Checkbox("Radial Velocity", &showRadialVelocity);
+    ImGui::SameLine();
+    _filterChanged |= ImGui::Checkbox("Other", &showOther);
 
     // Number of rows with max TSM/ESM filter
+    ImGui::Spacing();
     ImGui::Separator();
     static int nRows = 100;
     static bool limitNumberOfRows = false;
@@ -936,6 +943,7 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
                 bool matchesBinFilter = false;
                 if (d.radius.hasValue()) {
                     float r = d.radius.value;
+                    // TODO: make it possible to set these values
                     matchesBinFilter |= showTerrestrial && (r <= 1.5);
                     matchesBinFilter |= showSmallSubNeptunes && (r > 1.5 && r <= 2.75);
                     matchesBinFilter |= showLargeSubNeptunes && (r > 2.75 && r <= 4.0);

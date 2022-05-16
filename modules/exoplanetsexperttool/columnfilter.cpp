@@ -68,8 +68,8 @@ const char* ColumnFilter::NumericFilterDescriptionShort =
     ">, >=, <, <=, =, null, !null";
 
 const char* ColumnFilter::NumericFilterDescription =
-    "Numeric filter. Supported operators are: \n"
-    "\t >, >=, <, <=, =, null, !null \n \n"
+    "Numeric filter. Supported operators are: "
+    "\t >, >=, <, <=, =, null, !null. \n \nNo input => check is not null. \n \n"
     "Combine multiple conditions with comma. Ex: '> 30, !null'";
 
 ColumnFilter::ColumnFilter(std::string query, Type type)
@@ -111,6 +111,12 @@ bool ColumnFilter::passFilter(float value) const {
     }
 
     bool pass = true;
+
+    // Special case when we only have one subquery and an empty string
+    // => check against non existing value
+    if (_subqueries.size() == 1 && _subqueries.front().empty()) {
+        return !std::isnan(value);
+    }
 
     // Test against each subquery
     for (std::string q : _subqueries) {
