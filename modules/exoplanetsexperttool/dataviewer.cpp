@@ -146,6 +146,22 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         { "Instrument", ColumnID::DiscoveryInstrument }
     };
 
+    // Add other oclumns, if there are any. Assume all data items have the same columns
+    if (_data.size() > 0 && _data.front().otherColumns.size() > 0) {
+        for (auto col : _data.front().otherColumns) {
+            Column c = { col.first, ColumnID::Other };
+            _columns.push_back(std::move(c));
+
+            if (_columns.size() >= IMGUI_TABLE_MAX_COLUMNS) {
+                LWARNING(fmt::format(
+                    "Dataset contains more than max allowed number of columns ({})."
+                    "Ignoring overflow columns", IMGUI_TABLE_MAX_COLUMNS
+                ));
+                break;
+            }
+        }
+    }
+
     // Must match names in implot and customly added ones
     _colormaps = {
         "Viridis",
@@ -379,14 +395,14 @@ void DataViewer::renderColormapWindow(bool* open) {
             ImGui::Text(fmt::format("Variable {}", index + 1).c_str());
 
             ImGui::SetNextItemWidth(InputWidth);
-            if (ImGui::BeginCombo("Column", _columns[variable.columnIndex].name)) {
+            if (ImGui::BeginCombo("Column", _columns[variable.columnIndex].name.c_str())) {
                 for (int i = 0; i < _columns.size(); ++i) {
                     // Ignore non-numeric columns
-                    if (!isNumericColumn(_columns[i].id)) {
+                    if (!isNumericColumn(i)) {
                         continue;
                     }
 
-                    const char* name = _columns[i].name;
+                    const char* name = _columns[i].name.c_str();
                     if (ImGui::Selectable(name, variable.columnIndex == i)) {
                         variable.columnIndex = i;
                         _colormapWasChanged = true;
@@ -409,7 +425,7 @@ void DataViewer::renderColormapWindow(bool* open) {
                 ImGui::EndCombo();
             }
 
-            const ColumnID colormapColumn = _columns[variable.columnIndex].id;
+            const int colormapColumn = variable.columnIndex;
 
             // Min/max values for color range
             ImGui::SetNextItemWidth(InputWidth);
@@ -591,8 +607,6 @@ void DataViewer::renderTable() {
         | ImGuiTableFlags_Sortable | ImGuiTableFlags_Resizable
         | ImGuiTableFlags_RowBg;
 
-    //const ImGuiTableColumnFlags hide = ImGuiTableColumnFlags_DefaultHide;
-
     const int nColumns = static_cast<int>(_columns.size());
 
     bool selectionChanged = false;
@@ -618,12 +632,13 @@ void DataViewer::renderTable() {
 
     if (ImGui::BeginTable("exoplanets_table", nColumns, flags)) {
         // Header
-        for (auto c : _columns) {
+        for (int colIdx = 0; colIdx < _columns.size(); colIdx++) {
+            const Column c = _columns[colIdx];
             ImGuiTableColumnFlags colFlags = ImGuiTableColumnFlags_PreferSortDescending;
             if (c.id == ColumnID::Name) {
                 colFlags |= ImGuiTableColumnFlags_DefaultSort;
             }
-            ImGui::TableSetupColumn(c.name, colFlags, 0.f, c.id);
+            ImGui::TableSetupColumn(c.name.c_str(), colFlags, 0.f, colIdx);
         }
         ImGui::TableSetupScrollFreeze(0, 1); // Make header always visible
         ImGui::TableHeadersRow();
@@ -640,7 +655,7 @@ void DataViewer::renderTable() {
                     const ExoplanetItem& l = flip ? _data[rhs] : _data[lhs];
                     const ExoplanetItem& r = flip ? _data[lhs] : _data[rhs];
 
-                    ColumnID col = static_cast<ColumnID>(sortSpecs->Specs->ColumnUserID);
+                    int col = static_cast<int>(sortSpecs->Specs->ColumnUserID);
 
                     return compareColumnValues(col, l, r);
                 };
@@ -649,8 +664,6 @@ void DataViewer::renderTable() {
                 sortSpecs->SpecsDirty = false;
             }
         }
-
-        ImGuiIO& io = ImGui::GetIO();
 
         // Rows
         for (size_t row = 0; row < _filteredData.size(); row++) {
@@ -667,7 +680,10 @@ void DataViewer::renderTable() {
             auto found = std::find(_selection.begin(), _selection.end(), index);
             const bool itemIsSelected = found != _selection.end();
 
-            for (const Column col : _columns) {
+            ImGui::TableNextRow();
+
+            for (int colIdx = 0; colIdx < _columns.size(); colIdx++) {
+                const Column col = _columns[colIdx];
                 ImGui::TableNextColumn();
 
                 if (col.id == ColumnID::Name) {
@@ -701,7 +717,7 @@ void DataViewer::renderTable() {
                     continue;
                 }
 
-                renderColumnValue(col.id, col.format, item);
+                renderColumnValue(colIdx, col.format, item);
             }
         }
         ImGui::EndTable();
@@ -775,9 +791,9 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
     ImGui::Separator();
     ImGui::Text("Filter on column");
     ImGui::SetNextItemWidth(100);
-    if (ImGui::BeginCombo("##Column", _columns[filterColIndex].name)) {
+    if (ImGui::BeginCombo("##Column", _columns[filterColIndex].name.c_str())) {
         for (int i = 0; i < _columns.size(); ++i) {
-            if (ImGui::Selectable(_columns[i].name, filterColIndex == i)) {
+            if (ImGui::Selectable(_columns[i].name.c_str(), filterColIndex == i)) {
                 filterColIndex = i;
             }
         }
@@ -796,7 +812,7 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
         ImGuiInputTextFlags_EnterReturnsTrue
     );
 
-    bool numeric = isNumericColumn(_columns[filterColIndex].id);
+    bool numeric = isNumericColumn(filterColIndex);
 
     // Short description
     ImGui::SameLine();
@@ -852,7 +868,7 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
                 ColumnFilterEntry f = _appliedFilters[i];
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
-                ImGui::Text(_columns[f.columnIndex].name);
+                ImGui::Text(_columns[f.columnIndex].name.c_str());
                 ImGui::TableNextColumn();
                 ImGui::Text("    ");
                 ImGui::TableNextColumn();
@@ -971,7 +987,7 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
             // Other filters
             for (const ColumnFilterEntry& f : _appliedFilters) {
                 std::variant<const char*, float> value =
-                    valueFromColumn(_columns[f.columnIndex].id, d);
+                    valueFromColumn(f.columnIndex, d);
 
                 if (std::holds_alternative<float>(value)) {
                     float val = std::get<float>(value);
@@ -1019,7 +1035,7 @@ void DataViewer::renderFilterSettingsWindow(bool* open) {
             // We are interested in the largest, so flip the order
             const ExoplanetItem& l = _data[rhs];
             const ExoplanetItem& r = _data[lhs];
-            return compareColumnValues(rowLimitCol, l, r);
+            return compareColumnValues(columnIndexFromId(rowLimitCol), l, r);
         };
 
         std::sort(_filteredData.begin(), _filteredData.end(), compare);
@@ -1166,10 +1182,10 @@ void DataViewer::renderTSMRadarPlot(const ExoplanetItem& item) {
 }
 
 
-void DataViewer::renderColumnValue(ColumnID column, const char* format,
+void DataViewer::renderColumnValue(int columnIndex, std::optional<const char*> format,
                                    const ExoplanetItem& item)
 {
-    std::variant<const char*, float> value = valueFromColumn(column, item);
+    std::variant<const char*, float> value = valueFromColumn(columnIndex, item);
 
     if (std::holds_alternative<float>(value)) {
         float v = std::get<float>(value);
@@ -1177,40 +1193,53 @@ void DataViewer::renderColumnValue(ColumnID column, const char* format,
             ImGui::TextUnformatted("");
         }
         else {
-            ImGui::Text(format, std::get<float>(value));
+            ImGui::Text(format.value_or("%f"), v);
         }
     }
     else if (std::holds_alternative<const char*>(value)) {
-        ImGui::Text(format, std::get<const char*>(value));
+        ImGui::Text("%s", std::get<const char*>(value));
     }
 }
 
-bool DataViewer::compareColumnValues(ColumnID column, const ExoplanetItem& left,
+int DataViewer::columnIndexFromId(ColumnID id) const {
+    ghoul_assert(id != ColumnID::Other, "Can only check specific columns");
+
+    for (int i = 0; i < _columns.size(); i++) {
+        if (_columns[i].id == id) {
+            return i;
+        }
+    }
+    throw("Could not find column"); // not found
+}
+
+
+bool DataViewer::compareColumnValues(int columnIndex, const ExoplanetItem& left,
                                      const ExoplanetItem& right) const
 {
-    std::variant<const char*, float> leftValue = valueFromColumn(column, left);
-    std::variant<const char*, float> rightValue = valueFromColumn(column, right);
+    std::variant<const char*, float> leftValue = valueFromColumn(columnIndex, left);
+    std::variant<const char*, float> rightValue = valueFromColumn(columnIndex, right);
 
     // TODO: make sure they are the same type
 
-    if (std::holds_alternative<const char*>(leftValue)) {
+    if (std::holds_alternative<const char*>(leftValue) && std::holds_alternative<const char*>(rightValue)) {
         return !caseInsensitiveLessThan(
             std::get<const char*>(leftValue),
             std::get<const char*>(rightValue)
         );
     }
-    else if (std::holds_alternative<float>(leftValue)) {
+    else if (std::holds_alternative<float>(leftValue) && std::holds_alternative<float>(rightValue)) {
         return compareValues(std::get<float>(leftValue), std::get<float>(rightValue));
     }
     else {
-        LERROR("Trying to compare undefined column types");
+        LERROR("Trying to compare mismatching column types");
         return false;
     }
 }
 
-std::variant<const char*, float> DataViewer::valueFromColumn(ColumnID column,
+std::variant<const char*, float> DataViewer::valueFromColumn(int columnIndex,
                                                          const ExoplanetItem& item) const
 {
+    ColumnID column = _columns[columnIndex].id;
     switch (column) {
         case ColumnID::Name:
             return item.planetName.c_str();
@@ -1267,21 +1296,32 @@ std::variant<const char*, float> DataViewer::valueFromColumn(ColumnID column,
             return item.discoveryTelescope.c_str();
         case ColumnID::DiscoveryInstrument:
             return item.discoveryInstrument.c_str();
+        case ColumnID::Other: {
+            std::string key = _columns[columnIndex].name;
+            std::variant<std::string, float> value = item.otherColumns.at(key);
+
+            if (std::holds_alternative<std::string>(value)) {
+                return std::get<std::string>(value).c_str();
+            }
+            else {
+                return std::get<float>(value);
+            }
+        }
         default:
             throw ghoul::MissingCaseException();
     }
 }
 
-bool DataViewer::isNumericColumn(ColumnID id) const {
+bool DataViewer::isNumericColumn(int index) const {
     ghoul_assert(_data.size() > 0, "Data size cannot be zero");
     // Test type using the first data point
-    std::variant<const char*, float> aValue = valueFromColumn(id, _data.front());
+    std::variant<const char*, float> aValue = valueFromColumn(index, _data.front());
     return std::holds_alternative<float>(aValue);
 }
 
 glm::vec4 DataViewer::colorFromColormap(const ExoplanetItem& item, int index) {
     const ColorMappedVariable varable = _variableSelection[index];
-    const ColumnID colormapColumn = _columns[varable.columnIndex].id;
+    const int colormapColumn = varable.columnIndex;
 
     std::variant<const char*, float> value = valueFromColumn(colormapColumn, item);
     float fValue = 0.0;

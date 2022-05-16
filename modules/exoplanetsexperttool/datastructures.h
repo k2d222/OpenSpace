@@ -27,6 +27,7 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 
 namespace openspace::exoplanets {
 
@@ -103,15 +104,14 @@ struct ExoplanetItem {
     DataPoint magnitudeJ; // apparent magnitude in the J band (star)
     DataPoint magnitudeK; // apparent magnitude in the K band (star)
 
-    // Chemical abundances
-
     // Position
     DataPoint ra; // in decimal degrees
     DataPoint dec; // in decimal degrees
     DataPoint distance; // in Parsec
+    std::optional<glm::dvec3> position = std::nullopt; // in Parsec
 
-    // in Parsec
-    std::optional<glm::dvec3> position = std::nullopt;
+    // Any other kind of data that might be interesting. can be numeric or string
+    std::map <std::string, std::variant<std::string, float>> otherColumns;
 };
 
 } // namespace openspace

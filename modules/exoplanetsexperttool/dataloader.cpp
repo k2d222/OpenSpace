@@ -211,6 +211,30 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
            else if (column == "TSM") {
                p.tsm = data::parseFloatData(data);
            }
+           // Any other columns that might be in the datset
+           else {
+               float parsedNumeric = data::parseFloatData(data);
+               std::string key = column;
+
+               if (key.empty()) {
+                   continue;
+               }
+
+               // TODO: check for error columns
+
+               // For now, always add as numeric column
+               p.otherColumns[key] = parsedNumeric;
+
+               // TODO: allow categorical / string columns
+               //if (!std::isnan(parsedNumeric)) {
+               //    p.otherColumns[key] = parsedNumeric;
+               //}
+               //else {
+               //    p.otherColumns[key] = data;
+               //}
+
+               // TODO: verify that all resulting planets have the same number of columns
+           }
        }
 
        p.multiSystemFlag = (p.nPlanets > 1);

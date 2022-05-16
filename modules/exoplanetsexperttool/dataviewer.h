@@ -63,12 +63,13 @@ enum ColumnID {
     DiscoveryMethod,
     DiscoveryTelescope,
     DiscoveryInstrument,
+    Other
 };
 
 struct Column {
-    const char* name;
+    std::string name;
     ColumnID id;
-    const char* format = "%s";
+    std::optional<const char*> format = std::nullopt;
 };
 
 class DataViewer : public properties::PropertyOwner {
@@ -93,19 +94,21 @@ private:
 
     void renderTSMRadarPlot(const ExoplanetItem& item);
 
-    void renderColumnValue(ColumnID column, const char* format,
+    void renderColumnValue(int columnIndex, std::optional<const char*> format,
         const ExoplanetItem& item);
 
-    std::variant<const char*, float> valueFromColumn(ColumnID column,
+    int columnIndexFromId(ColumnID id) const;
+
+    std::variant<const char*, float> valueFromColumn(int columnIndex,
         const ExoplanetItem& item) const;
 
     // Compare the values of two Exoplanets items, given a specific column.
     // The comparison made is (left < right)
-    bool compareColumnValues(ColumnID column, const ExoplanetItem& left,
+    bool compareColumnValues(int columnIndex, const ExoplanetItem& left,
         const ExoplanetItem& right) const ;
 
     // Check if a column is numeric. If it isn't, then it is text based
-    bool isNumericColumn(ColumnID id) const;
+    bool isNumericColumn(int index) const;
 
     glm::vec4 colorFromColormap(const ExoplanetItem& item, int index);
 

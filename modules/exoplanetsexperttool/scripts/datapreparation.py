@@ -73,7 +73,7 @@ columns='pl_name,hostname,default_flag,sy_snum,sy_pnum,discoverymethod,disc_year
         'pl_orbincl,pl_orbinclerr1,pl_orbinclerr2,pl_orbincllim,ttv_flag,pl_trandur,pl_trandurerr1,pl_trandurerr2,pl_trandurlim,' \
         'pl_ratdor,pl_ratdorerr1,pl_ratdorerr2,pl_ratdorlim,pl_ratror,pl_ratrorerr1,pl_ratrorerr2,pl_ratrorlim,' \
         'pl_occdep,pl_occdeperr1,pl_occdeperr2,pl_occdeplim,' \
-        'disc_telescope,disc_instrument,pl_letter,' \
+        'gaia_id,disc_telescope,disc_instrument,pl_letter,' \
         'st_refname,st_spectype,st_teff,st_tefferr1,st_tefferr2,st_tefflim,st_rad,st_raderr1,st_raderr2,st_radlim,' \
         'st_mass,st_masserr1,st_masserr2,st_masslim,st_met,st_meterr1,st_meterr2,st_metlim,st_metratio,' \
         'st_logg,st_loggerr1,st_loggerr2,st_logglim,sy_refname,rastr,ra,decstr,dec,sy_dist,sy_disterr1,sy_disterr2,' \
@@ -193,6 +193,34 @@ df['ESM'] = 4.29 * 1e6 * df['pl_rprs2'] * df['planck_pl_Tday'] / df['planck_st_t
 
 # TODO: propagate errors, so we get uncertainties for ESM and TSM
 
+##################################################################
+# Chemical Abundances
+##################################################################
+
+abundanceDatafolder = "C:/Users/emmbr26/OneDrive - Linköpings universitet/Exoplanets Expert Paper/Data/Notebooks Chemical Abundances/"
+apogeePath = abundanceDatafolder + "abundances_apogee.csv"
+galahPath = abundanceDatafolder + "abundances_galah.csv"
+
+apogee = pd.read_csv(apogeePath)
+apogee = apogee.add_suffix('_apogee')
+apogee.rename(columns={'gaia_id_apogee':'gaia_id'}, inplace=True) # remove suffix from id column
+
+print(apogee.columns)
+
+galah = pd.read_csv(galahPath)
+galah = galah.add_suffix('_galah')
+galah.rename(columns={'gaia_id_galah':'gaia_id'}, inplace=True) # remove suffix from id column
+
+print(galah.columns)
+
+print(df.columns)
+
+
+# Add apogee and galah columns
+df = df.merge(apogee, on='gaia_id', how='left')
+df = df.merge(galah, on='gaia_id', how='left')
+
 print("Writing data to file...")
 df.to_csv(dataFileName)
 print("Done!")
+
