@@ -47,6 +47,21 @@ namespace {
 
     constexpr const double EarthMass = 5.972e24; // kg
     constexpr const double EarthRadius = 6.3781e6; // meter
+
+    bool hasEnding(std::string const& fullString, std::string const& ending) {
+        if (fullString.length() >= ending.length()) {
+            int comp = fullString.compare(
+                fullString.length() - ending.length(),
+                ending.length(),
+                ending
+            );
+            return (0 == comp);
+        }
+        else {
+            return false;
+        }
+    }
+
 } // namespace
 
 namespace openspace::exoplanets {
@@ -216,11 +231,14 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
                float parsedNumeric = data::parseFloatData(data);
                std::string key = column;
 
-               if (key.empty()) {
+               // For now, ignore any empty, limit and error columns
+               if (hasEnding(key, "err1") ||
+                   hasEnding(key, "err1") ||
+                   hasEnding(key, "err2") ||
+                   hasEnding(key, "lim"))
+               {
                    continue;
                }
-
-               // TODO: check for error columns
 
                // For now, always add as numeric column
                p.otherColumns[key] = parsedNumeric;

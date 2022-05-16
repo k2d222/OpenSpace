@@ -4,6 +4,7 @@
 # Downloads confirmed planet table from NExSci, aggregates data for ESM and TSM metrics, and saves 
 # the resulting data in a csv file
 
+from tkinter import FALSE
 import pandas as pd
 import numpy as np
 import os
@@ -65,31 +66,30 @@ if not os.path.exists(DATA_FOLDER):
 ###
 print("Downloading all confirmed planets from NExSci's Exoplanets Archive..")
 
-columns='pl_name,hostname,default_flag,sy_snum,sy_pnum,discoverymethod,disc_year,disc_facility,tran_flag,soltype,pl_controv_flag,' \
+columns='pl_name,hostname,default_flag,sy_snum,sy_pnum,discoverymethod,disc_year,disc_facility,tran_flag,soltype,' \
         'pl_refname,pl_orbper,pl_orbpererr1,pl_orbpererr2,pl_orbperlim,pl_orbsmax,pl_orbsmaxerr1,pl_orbsmaxerr2,pl_orbsmaxlim,' \
         'pl_rade,pl_radeerr1,pl_radeerr2,pl_radelim,pl_radj,pl_radjerr1,pl_radjerr2,pl_radjlim,pl_bmasse,pl_bmasseerr1,pl_bmasseerr2,' \
         'pl_bmasselim,pl_bmassj,pl_bmassjerr1,pl_bmassjerr2,pl_bmassjlim,pl_bmassprov,pl_orbeccen,pl_orbeccenerr1,pl_orbeccenerr2,' \
         'pl_orbeccenlim,pl_insol,pl_insolerr1,pl_insolerr2,pl_insollim,pl_eqt,pl_eqterr1,pl_eqterr2,pl_eqtlim,' \
         'pl_orbincl,pl_orbinclerr1,pl_orbinclerr2,pl_orbincllim,ttv_flag,pl_trandur,pl_trandurerr1,pl_trandurerr2,pl_trandurlim,' \
         'pl_ratdor,pl_ratdorerr1,pl_ratdorerr2,pl_ratdorlim,pl_ratror,pl_ratrorerr1,pl_ratrorerr2,pl_ratrorlim,' \
-        'pl_occdep,pl_occdeperr1,pl_occdeperr2,pl_occdeplim,' \
         'gaia_id,disc_telescope,disc_instrument,pl_letter,' \
         'st_refname,st_spectype,st_teff,st_tefferr1,st_tefferr2,st_tefflim,st_rad,st_raderr1,st_raderr2,st_radlim,' \
         'st_mass,st_masserr1,st_masserr2,st_masslim,st_met,st_meterr1,st_meterr2,st_metlim,st_metratio,' \
-        'st_logg,st_loggerr1,st_loggerr2,st_logglim,sy_refname,rastr,ra,decstr,dec,sy_dist,sy_disterr1,sy_disterr2,' \
+        'st_logg,st_loggerr1,st_loggerr2,st_logglim,sy_refname,ra,dec,sy_dist,sy_disterr1,sy_disterr2,' \
         'sy_vmag,sy_vmagerr1,sy_vmagerr2,sy_jmag,sy_jmagerr1,sy_jmagerr2,sy_hmag,sy_hmagerr1,sy_hmagerr2,' \
-        'sy_kmag,sy_kmagerr1,sy_kmagerr2,sy_gaiamag,sy_gaiamagerr1,sy_gaiamagerr2,rowupdate,pl_pubdate,releasedate' \
+        'sy_kmag,sy_kmagerr1,sy_kmagerr2,pl_pubdate,releasedate' \
 
 
 print("Downloading default_flag=1")
 where1 = 'where+default_flag=1+and+tran_flag=1+and+upper%28soltype%29+like+%27%25CONF%25%27'
 full1 = NEW_API + 'select+' + columns + '+from+ps+' + where1 + '&format=csv'
-df0 = pd.read_csv(full1)
+df0 = pd.read_csv(full1, index_col=None)
 
 print("Downloading default_flag=0")
 where0 = 'where+default_flag=0+and+tran_flag=1+and+upper%28soltype%29+like+%27%25CONF%25%27'
 full0 = NEW_API + 'select+' + columns + '+from+ps+' + where0 + '&format=csv'
-df1 = pd.read_csv(full0)
+df1 = pd.read_csv(full0, index_col=None)
 
 with open(DATA_FOLDER + 'last_update_time.txt', 'w+') as ff:
     ff.write(str(datetime.now()))
@@ -187,11 +187,14 @@ print("Computing ESM")
 
 # Alteraitve verison from original script, to get the factors separately:
 df['pl_Tday'] = 1.1*df['pl_Teq']
-df['planck_pl_Tday'] = Plancks_function(df['pl_Tday'], 7.5e-6)
-df['planck_st_teff'] = Plancks_function(df['st_teff'], 7.5e-6)
-df['ESM'] = 4.29 * 1e6 * df['pl_rprs2'] * df['planck_pl_Tday'] / df['planck_st_teff'] * 10**(-0.2*df['sy_kmag'])
+df['planck_ratio'] = Plancks_function(df['pl_Tday'], 7.5e-6) / Plancks_function(df['st_teff'], 7.5e-6)
+df['ESM'] = 4.29 * 1e6 * df['pl_rprs2'] * df['planck_ratio'] * 10**(-0.2*df['sy_kmag'])
 
 # TODO: propagate errors, so we get uncertainties for ESM and TSM
+
+# Drop some irrelevant columns
+columnsToDrop = ['pl_Tday', 'scale', 'pl_rprs2']
+df.drop(columns=columnsToDrop)
 
 ##################################################################
 # Chemical Abundances
@@ -205,11 +208,17 @@ apogee = pd.read_csv(apogeePath)
 apogee = apogee.add_suffix('_apogee')
 apogee.rename(columns={'gaia_id_apogee':'gaia_id'}, inplace=True) # remove suffix from id column
 
+# Drop any unnamed columns
+apogee = apogee.loc[:, ~apogee.columns.str.contains('^Unnamed')]
+
 print(apogee.columns)
 
 galah = pd.read_csv(galahPath)
 galah = galah.add_suffix('_galah')
 galah.rename(columns={'gaia_id_galah':'gaia_id'}, inplace=True) # remove suffix from id column
+
+# Drop any unnamed columns
+galah = galah.loc[:, ~galah.columns.str.contains('^Unnamed')]
 
 print(galah.columns)
 
@@ -221,6 +230,6 @@ df = df.merge(apogee, on='gaia_id', how='left')
 df = df.merge(galah, on='gaia_id', how='left')
 
 print("Writing data to file...")
-df.to_csv(dataFileName)
+df.to_csv(dataFileName, index=False)
 print("Done!")
 
