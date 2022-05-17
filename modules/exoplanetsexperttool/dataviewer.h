@@ -92,6 +92,8 @@ private:
     // rows in the UI
     void updateFilteredRowsProperty();
 
+    void renderColumnSettingsModal();
+
     void renderColumnValue(int columnIndex, std::optional<const char*> format,
         const ExoplanetItem& item);
 

@@ -295,10 +295,6 @@ void DataViewer::render() {
     static bool showScatterPlotWindow = false;
     static bool showHelpers = false;
 
-    static bool showSettings_Columns = false;
-
-
-
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenuBar()) {
             if (ImGui::BeginMenu("Windows")) {
@@ -312,8 +308,7 @@ void DataViewer::render() {
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Settings")) {
-                ImGui::MenuItem("Select columns", NULL, &showSettings_Columns);
-
+                renderColumnSettingsModal();
                 ImGui::EndMenu();
             }
             ImGui::EndMenuBar();
@@ -322,13 +317,16 @@ void DataViewer::render() {
     }
 
     // Windows
-
+    _filterChanged = false;
     if (showFilterSettingsWindow) {
         renderFilterSettingsWindow(&showFilterSettingsWindow);
     }
+
+    _colormapWasChanged = false;
     if (showColormapWindow) {
         renderColormapWindow(&showColormapWindow);
     }
+
     if (showScatterPlotWindow) {
         renderScatterPlotWindow(&showScatterPlotWindow);
     }
@@ -354,12 +352,6 @@ void DataViewer::render() {
         ImPlot::ShowDemoWindow();
     }
 #endif
-
-    // Settings
-
-    if (showSettings_Columns) {
-        LINFO("This will add a popup to show column settings");
-    }
 
     // Update linked views, if needed
 
@@ -388,8 +380,6 @@ void DataViewer::renderColormapWindow(bool* open) {
 
     // Start variable group
     ImGui::BeginGroup();
-
-    _colormapWasChanged = false;
 
     // Colormap for each selected variable
     if (ImGui::Button("+ Add variable")) {
@@ -742,8 +732,6 @@ void DataViewer::renderTable() {
 }
 
 void DataViewer::renderFilterSettingsWindow(bool* open) {
-    _filterChanged = false;
-
     ImGui::SetNextWindowSize(ImVec2(430, 450), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Filters", open)) {
         ImGui::End();
@@ -1076,6 +1064,34 @@ void DataViewer::updateFilteredRowsProperty() {
             [&data = _data](size_t i) -> int { return data[i].id; });
 
         filteredRowsProperty->set(indices);
+    }
+}
+
+void DataViewer::renderColumnSettingsModal() {
+    if (ImGui::Button("Set up columns...")) {
+        ImGui::OpenPopup("SetColumns");
+    }
+
+    // Always center this window when appearing
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal("SetColumns", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Select up to 64 columns to show in the tool");
+        ImGui::Separator();
+
+        // TODO: Add list of columns to check
+
+        // Ok / Cancel
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SetItemDefaultFocus();
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
     }
 }
 
