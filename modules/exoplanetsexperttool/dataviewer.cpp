@@ -289,12 +289,39 @@ void DataViewer::initializeRenderables() {
 }
 
 void DataViewer::render() {
-    static bool showFilterSettingsWindow = true;
-    static bool showColormapWindow = true;
-    static bool showScatterPlotWindow = true;
+    static bool showTable = true;
+    static bool showFilterSettingsWindow = false;
+    static bool showColormapWindow = false;
+    static bool showScatterPlotWindow = false;
+    static bool showHelpers = false;
 
-    ImGui::SetNextWindowSize(DefaultWindowSize, ImGuiCond_FirstUseEver);
-    ImGui::Begin("Exoplanet Explorer", nullptr, ImGuiWindowFlags_MenuBar);
+    static bool showSettings_Columns = false;
+
+
+
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("Windows")) {
+                ImGui::MenuItem("Table", NULL, &showTable);
+                ImGui::MenuItem("Filters", NULL, &showFilterSettingsWindow);
+                ImGui::MenuItem("Colormapped variables", NULL, &showColormapWindow);
+                ImGui::MenuItem("Scatter plot", NULL, &showScatterPlotWindow);
+#ifdef SHOW_IMGUI_HELPERS
+                ImGui::MenuItem("ImGui Helpers", NULL, &showHelpers);
+#endif
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Settings")) {
+                ImGui::MenuItem("Select columns", NULL, &showSettings_Columns);
+
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+        ImGui::EndMainMenuBar();
+    }
+
+    // Windows
 
     if (showFilterSettingsWindow) {
         renderFilterSettingsWindow(&showFilterSettingsWindow);
@@ -306,8 +333,17 @@ void DataViewer::render() {
         renderScatterPlotWindow(&showScatterPlotWindow);
     }
 
+    if (showTable) {
+        ImGui::SetNextWindowSize(DefaultWindowSize, ImGuiCond_FirstUseEver);
+        if (!ImGui::Begin("Exoplanet Explorer", &showTable)) {
+            ImGui::End();
+            return;
+        }
+        renderTable();
+        ImGui::End();
+    }
+
 #ifdef SHOW_IMGUI_HELPERS
-    static bool showHelpers = false;
     if (showHelpers) {
         ImGui::Begin("Style Editor");
         ImGui::ShowStyleEditor();
@@ -319,23 +355,17 @@ void DataViewer::render() {
     }
 #endif
 
-    if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("Windows")) {
-            ImGui::MenuItem("Filters", NULL, &showFilterSettingsWindow);
-            ImGui::MenuItem("Colormapped variables", NULL, &showColormapWindow);
-            ImGui::MenuItem("Scatter plot", NULL, &showScatterPlotWindow);
-#ifdef SHOW_IMGUI_HELPERS
-            ImGui::MenuItem("ImGui Helpers", NULL, &showHelpers);
-#endif
-            ImGui::EndMenu();
-        }
-        ImGui::EndMenuBar();
+    // Settings
+
+    if (showSettings_Columns) {
+        LINFO("This will add a popup to show column settings");
     }
 
-    // This is the main view
-    renderTable();
+    // Update linked views, if needed
 
-    ImGui::End();
+    if (_filterChanged || _colormapWasChanged) {
+        writeRenderDataToFile();
+    }
 }
 
 void DataViewer::renderHelpMarker(const char* text) {
@@ -704,10 +734,6 @@ void DataViewer::renderTable() {
             }
         }
         ImGui::EndTable();
-
-        if (_filterChanged || _colormapWasChanged) {
-            writeRenderDataToFile();
-        }
 
         if (selectionChanged) {
             updateSelectionInRenderable();
