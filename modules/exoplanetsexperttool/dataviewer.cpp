@@ -75,6 +75,10 @@ namespace {
     constexpr const glm::vec3 DefaultSelectedColor = { 0.2f, 0.8f, 1.f };
     constexpr const glm::vec4 NanPointColor = { 0.3f, 0.3f, 0.3f, 1.f };
     constexpr const glm::vec4 DescriptiveTextColor = { 0.6f, 0.6f, 0.6f, 1.f };
+    constexpr const glm::vec4 ErrorColor = { 1.f, 0.2f, 0.2f, 1.f };
+
+    constexpr const glm::vec4 DisabledButtonColor = { 0.3f, 0.3f, 0.3f, 0.7f };
+
 
     const ImVec2 DefaultWindowSize = ImVec2(350, 350);
 
@@ -114,7 +118,7 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         _filteredData.push_back(i);
     }
 
-    _columns = {
+    _defaultColumns = {
         { "Name", ColumnID::Name },
         { "Host", ColumnID::Host },
         { "Year of discovery", ColumnID::DiscoveryYear, "%.0f" },
@@ -146,19 +150,20 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         { "Instrument", ColumnID::DiscoveryInstrument }
     };
 
+    _columns = _defaultColumns;
+    _selectedDefaultColumns.assign(_defaultColumns.size(), true);
     // Add other oclumns, if there are any. Assume all data items have the same columns
     if (_data.size() > 0 && _data.front().otherColumns.size() > 0) {
         for (auto col : _data.front().otherColumns) {
             Column c = { col.first, ColumnID::Other };
-            _columns.push_back(std::move(c));
+            _otherColumns.push_back(c);
+            bool isSelected = false;
 
-            if (_columns.size() >= IMGUI_TABLE_MAX_COLUMNS) {
-                LWARNING(fmt::format(
-                    "Dataset contains more than max allowed number of columns ({})."
-                    "Ignoring overflow columns", IMGUI_TABLE_MAX_COLUMNS
-                ));
-                break;
+            if (_columns.size() < IMGUI_TABLE_MAX_COLUMNS) {
+                _columns.push_back(c);
+                isSelected = true;
             }
+            _selectedOtherColumns.push_back(isSelected);
         }
     }
 
@@ -1069,29 +1074,165 @@ void DataViewer::updateFilteredRowsProperty() {
 
 void DataViewer::renderColumnSettingsModal() {
     if (ImGui::Button("Set up columns...")) {
-        ImGui::OpenPopup("SetColumns");
+        ImGui::OpenPopup("Set columns");
     }
+
+    constexpr const int nPerColumn = 20;
+
+    std::deque<bool> prevSelectedDefault = _selectedDefaultColumns;
+    std::deque<bool> prevSelectedOther = _selectedOtherColumns;
+    auto resetSelection = [this, &prevSelectedDefault, &prevSelectedOther]() {
+        _selectedDefaultColumns = prevSelectedDefault;
+        _selectedOtherColumns = prevSelectedOther;
+    };
 
     // Always center this window when appearing
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 
-    if (ImGui::BeginPopupModal("SetColumns", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Select up to 64 columns to show in the tool");
+    int nSelected = 0;
+    bool canSelectMore = true;
+
+    if (ImGui::BeginPopupModal("Set columns", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text(
+            "Select up to 64 columns to show in the tool. OBS! For now, only numerical "
+            "values in the \"other columns\" will be read correctly."
+        );
         ImGui::Separator();
 
-        // TODO: Add list of columns to check
+        // Default columns
+        ImGui::BeginGroup();
+        {
+            ImGui::Text("Default columns:");
+            ImGui::SameLine();
+
+            ImGui::PushID("clear_default");
+            if (ImGui::Button("Clear selection")) {
+                _selectedDefaultColumns.assign(_defaultColumns.size(), false);
+            }
+            ImGui::PopID();
+
+            ImGui::BeginGroup();
+            for (int i = 0; i < _defaultColumns.size(); i++) {
+                if (i % nPerColumn == 0) {
+                    ImGui::EndGroup();
+                    ImGui::SameLine();
+                    ImGui::BeginGroup();
+                }
+
+                if (nSelected > IMGUI_TABLE_MAX_COLUMNS) {
+                    canSelectMore = false;
+                }
+
+                const Column& c = _defaultColumns[i];
+
+                if (c.id == ColumnID::Name) {
+                    // Name is required
+                    ImGui::Checkbox(c.name.c_str(), &_selectedDefaultColumns[i]);
+                    ImGui::SameLine();
+                    ImGui::TextDisabled(" (required)");
+                    _selectedDefaultColumns[i] = true;
+                }
+                else {
+                    ImGui::Checkbox(c.name.c_str(), &_selectedDefaultColumns[i]);
+                }
+
+                nSelected += _selectedDefaultColumns[i] ? 1 : 0;
+            }
+            ImGui::EndGroup();
+
+            ImGui::EndGroup();
+        }
+        ImGui::SameLine();
+
+        // Other columns
+        ImGui::BeginGroup();
+        {
+            ImGui::Text("Other columns:");
+            ImGui::SameLine();
+
+            ImGui::PushID("clear_other");
+            if (ImGui::Button("Clear selection")) {
+                _selectedOtherColumns.assign(_otherColumns.size(), false);
+            }
+            ImGui::PopID();
+
+            ImGui::BeginGroup();
+            for (int i = 0; i < _otherColumns.size(); i++) {
+                if (i % nPerColumn == 0) {
+                    ImGui::EndGroup();
+                    ImGui::SameLine();
+                    ImGui::BeginGroup();
+                }
+
+                if (nSelected > IMGUI_TABLE_MAX_COLUMNS) {
+                    canSelectMore = false;
+                }
+
+                const Column& c = _otherColumns[i];
+                ImGui::Checkbox(c.name.c_str(), &_selectedOtherColumns[i]);
+                nSelected += _selectedOtherColumns[i] ? 1 : 0;
+            }
+            ImGui::EndGroup();
+
+            ImGui::EndGroup();
+        }
+
+        bool isTooManyColumns = nSelected > IMGUI_TABLE_MAX_COLUMNS;
+        glm::vec4 textColor = isTooManyColumns ? ErrorColor : DescriptiveTextColor;
+
+        ImGui::TextColored(
+            toImVec4(textColor),
+            fmt::format(
+                "Selected: {} / {}", nSelected, IMGUI_TABLE_MAX_COLUMNS
+            ).c_str()
+        );
 
         // Ok / Cancel
-        if (ImGui::Button("OK", ImVec2(120, 0))) {
+        if (isTooManyColumns) {
+            ImGui::PushStyleColor(ImGuiCol_Button, toImVec4(DisabledButtonColor));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, toImVec4(DisabledButtonColor));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, toImVec4(DisabledButtonColor));
+        }
+
+        if (ImGui::Button("OK", ImVec2(120, 0)) && !isTooManyColumns) {
+            setUpSelectedColumns(nSelected);
             ImGui::CloseCurrentPopup();
         }
+
+        if (isTooManyColumns) {
+            ImGui::PopStyleColor(3);
+        }
+
         ImGui::SetItemDefaultFocus();
         ImGui::SameLine();
         if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+            resetSelection();
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
+    }
+}
+
+void DataViewer::setUpSelectedColumns(int nSelected) {
+    ghoul_assert(
+        (_selectedDefaultColumns.size() == _defaultColumns.size()) &&
+        (_selectedOtherColumns.size() == _otherColumns.size()),
+        "Number of columns must match!"
+    )
+    _columns.clear();
+    _columns.reserve(nSelected);
+
+    for (int i = 0; i < _defaultColumns.size(); i++) {
+        if (_selectedDefaultColumns[i]) {
+            _columns.push_back(_defaultColumns[i]);
+        }
+    }
+
+    for (int i = 0; i < _otherColumns.size(); i++) {
+        if (_selectedOtherColumns[i]) {
+            _columns.push_back(_otherColumns[i]);
+        }
     }
 }
 

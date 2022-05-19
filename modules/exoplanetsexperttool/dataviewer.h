@@ -31,6 +31,7 @@
 #include <modules/exoplanetsexperttool/dataloader.h>
 #include <modules/exoplanetsexperttool/datastructures.h>
 #include <openspace/properties/optionproperty.h>
+#include <deque>
 #include <variant>
 #include <vector>
 
@@ -93,6 +94,7 @@ private:
     void updateFilteredRowsProperty();
 
     void renderColumnSettingsModal();
+    void setUpSelectedColumns(int nSelected);
 
     void renderColumnValue(int columnIndex, std::optional<const char*> format,
         const ExoplanetItem& item);
@@ -126,7 +128,14 @@ private:
 
     std::string _pointsIdentifier;
 
+    std::vector<Column> _defaultColumns;
+    std::vector<Column> _otherColumns;
+
+    std::deque<bool> _selectedDefaultColumns;
+    std::deque<bool> _selectedOtherColumns;
+
     std::vector<Column> _columns;
+
     std::vector<const char*> _colormaps;
     bool _colormapWasChanged = true;
 
