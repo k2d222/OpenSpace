@@ -32,6 +32,8 @@ flat in vec4 gs_colors[MaxColors];
 in float gs_component;
 in vec2 texCoord; // [-1, 1]
 
+in float gs_sizeFactor;
+
 uniform float opacity;
 uniform bool onTop;
 uniform bool useFixedRingWidth;
@@ -59,21 +61,22 @@ Fragment getFragment() {
 
     float maxRadius = 1.0;
 
-    // Old width
-    float width = 1.0 / gs_component;
+    // Same width
+    float width = 0.95 * 1.0 / gs_component; // Make it a little smaller than full width
 
     if (!useFixedRingWidth) {
-        // Compute width from radius relationship instead
-        float underRoot = 1.0 - 1.0 / gs_component;
-        // Prevent problems with potentially taking square of negative value
-        if (underRoot < 0.0) {
-            underRoot = 0.0;
-        }
-        width = 1.0 - sqrt(underRoot); // r_n minus r_(n-1) divided by r_n
-    }
+//        // Same area: Compute width from radius relationship instead
+//        float underRoot = 1.0 - 1.0 / gs_component;
+//        // Prevent problems with potentially taking square of negative value
+//        if (underRoot < 0.0) {
+//            underRoot = 0.0;
+//        }
+//        width = 1.0 - sqrt(underRoot); // r_n minus r_(n-1) divided by r_n
 
-    float widthFactor = 0.95;
-    width *= widthFactor;
+        // Ish 90% width of previous ring
+        width = pow(0.87, gs_component) / gs_sizeFactor;
+
+    }
 
     float minRadius = 1.0 - width;
 
@@ -96,8 +99,8 @@ Fragment getFragment() {
 
     vec4 color = gs_colors[colorIndex];
 
-    float borderWidth = 0.05;
-    if (coord > widthFactor - borderWidth || coord < 1.0 - widthFactor + borderWidth) {
+    float borderWidth = 0.15;
+    if (coord > 1.0 - borderWidth || coord < 1.0 - 1.0 + borderWidth) {
         color *= vec4(0.0, 0.0, 0.0, 1.0); // black border
     }
 

@@ -43,6 +43,9 @@ flat out int gs_nColors;
 flat out vec4 gs_colors[MaxColors];
 out vec2 texCoord;
 
+// The factor used for the radius of the ring
+out float gs_sizeFactor;
+
 uniform dmat4 modelMatrix;
 uniform dmat4 cameraViewProjectionMatrix;
 uniform float size; // Pixels
@@ -51,6 +54,7 @@ uniform float maxBillboardSize; // Pixels
 uniform float minBillboardSize; // Pixels
 uniform bool onTop;
 uniform bool useFixedRingWidth;
+
 
 const vec2 corners[4] = vec2[4](
     vec2(-1.0, -1.0),
@@ -99,9 +103,27 @@ void main() {
 
     // Apply component scaling lastly, to get comparable sizes
     float comp = vs_component[0];
-    float factor = useFixedRingWidth ? comp : sqrt(2.0 * comp);
-    scaledRightClip *= factor;
-    scaledUpClip *= factor;
+
+    float sizeFactor = comp;
+    if (!useFixedRingWidth) {
+        // Same area:
+//        sizeFactor = sqrt(2.0 * comp);
+
+        // Ish 90% width of previous ring
+        sizeFactor = 1.0;
+        for (int i = 1; i < comp; i++) {
+            // TODO: create a constant for the 
+            sizeFactor += sqrt(pow(0.87, comp)); // This computation is not completely logical.
+                                                // But it makes the result look ok. based on
+                                                // trying to make each ring about 90% as wide
+                                                // as the previous. The sqrt spaces them out quite nicely
+        }
+        gs_sizeFactor = sizeFactor;
+    }
+
+    scaledRightClip *= sizeFactor;
+    scaledUpClip *= sizeFactor;
+
 
     lowerLeft = dposClip - scaledRightClip - scaledUpClip;
     vec4 lowerRight = dposClip + scaledRightClip - scaledUpClip;

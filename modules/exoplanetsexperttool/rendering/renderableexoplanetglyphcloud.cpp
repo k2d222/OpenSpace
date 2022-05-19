@@ -72,7 +72,8 @@ namespace {
     constexpr openspace::properties::Property::PropertyInfo UseFixedWidthInfo = {
         "UseFixedWidth",
         "Use Fixed Width",
-        "" // @TODO
+        "If true, all the rings representing the planets will have the very same width. "
+        "Otherwise, the width of each ring decreases a bit as the radius gets larger."
     };
 
     struct [[codegen::Dictionary(RenderablePointData)]] Parameters {

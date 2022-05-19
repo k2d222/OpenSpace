@@ -272,7 +272,7 @@ void DataViewer::initializeRenderables() {
     if (_useGlyphRendering) {
         renderable.setValue("Type", "RenderableExoplanetGlyphCloud"s);
         renderable.setValue("Size", 100.0);
-        renderable.setValue("BillboardMinMaxSize", glm::dvec2(20.0, 70.0));
+        renderable.setValue("BillboardMinMaxSize", glm::dvec2(25.0, 70.0));
     }
     else {
         renderable.setValue("Type", "RenderablePointData"s);
