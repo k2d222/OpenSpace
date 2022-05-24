@@ -25,6 +25,8 @@
 #ifndef __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
 #define __OPENSPACE_MODULE_EXOPLANETSEXPERTTOOL___DATASTRUCTURES___H__
 
+#include <ghoul/glm.h>
+#include <map>
 #include <optional>
 #include <string>
 #include <variant>
@@ -110,8 +112,13 @@ struct ExoplanetItem {
     DataPoint distance; // in Parsec
     std::optional<glm::dvec3> position = std::nullopt; // in Parsec
 
+    // Detected molecules in atmosphere
+    std::string moleculesDetection;
+    std::string moleculesUpperLimit;
+    std::string moleculesNoDetection;
+
     // Any other kind of data that might be interesting. can be numeric or string
-    std::map <std::string, std::variant<std::string, float>> otherColumns;
+    std::map<std::string, std::variant<std::string, float>> otherColumns;
 };
 
 } // namespace openspace

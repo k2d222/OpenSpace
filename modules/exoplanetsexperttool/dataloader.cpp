@@ -31,8 +31,10 @@
 #include <ghoul/filesystem/filesystem.h>
 #include <ghoul/fmt.h>
 #include <ghoul/misc/csvreader.h>
-#include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/dictionary.h>
+#include <ghoul/misc/misc.h>
+#include <ghoul/logging/logmanager.h>
+#include <json/json.hpp>
 #include <charconv>
 #include <cmath>
 #include <fstream>
@@ -77,10 +79,9 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
 
     LINFO("Reading Exoplanets CSV");
 
-    bool includeFirstLine = true;
     std::vector<std::vector<std::string>> csvContent = ghoul::loadCSVFile(
         _inExoplanetsCsvPath,
-        includeFirstLine
+        true
     );
 
     if (csvContent.empty()) {
@@ -225,6 +226,20 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
             }
             else if (column == "TSM") {
                 p.tsm = data::parseFloatData(data);
+            }
+            // Molecules in atmosphere
+            // Note that molecules are separated with '&' signs. We replace those
+            else if (column == "molecule_detection") {
+                auto molecules = ghoul::tokenizeString(data, '&');
+                p.moleculesDetection = ghoul::join(molecules, ", ");
+            }
+            else if (column == "molecule_upperLimit") {
+                auto molecules = ghoul::tokenizeString(data, '&');
+                p.moleculesUpperLimit = ghoul::join(molecules, ", ");
+            }
+            else if (column == "molecule_noDetection") {
+                auto molecules = ghoul::tokenizeString(data, '&');
+                p.moleculesNoDetection = ghoul::join(molecules, ", ");
             }
             // Any other columns that might be in the datset
             else {

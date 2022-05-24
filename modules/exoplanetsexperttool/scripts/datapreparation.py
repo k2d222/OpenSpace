@@ -224,10 +224,115 @@ print(galah.columns)
 
 print(df.columns)
 
-
 # Add apogee and galah columns
 df = df.merge(apogee, on='gaia_id', how='left')
 df = df.merge(galah, on='gaia_id', how='left')
+
+##################################################################
+# IAC Exoplanet Atmospheres
+# Dataset from: http://research.iac.es/proyecto/exoatmospheres/ 
+##################################################################
+
+csv_url = 'http://research.iac.es/proyecto/muscat/exoatm/export'
+df_iac_columns = pd.read_csv(csv_url, sep=',', nrows=0) # note that the header has another separator...
+df_iac_data = pd.read_csv(
+    csv_url, 
+    sep=';', 
+    skiprows=1, 
+    names=df_iac_columns.columns, 
+    quotechar="'" # keep all the double quotes around, to not break the json column
+)
+
+IAC_COLUMNS = ['name', 'molecules']
+df_iac_reduced = df_iac_data[IAC_COLUMNS]
+
+# Remove all outer quotes from the strings
+def strip_quotes(item):
+    return item.str.strip('"')
+
+df_iac_reduced = df_iac_reduced.apply(strip_quotes)
+
+# Rmeove duplicates and empty observations
+df_iac_reduced = df_iac_reduced[df_iac_reduced.molecules != '[]']
+df_iac_reduced.drop_duplicates()
+
+# Convert molcecules column to actual json
+import json
+def to_json(item):
+    return json.loads(item)
+df_iac_reduced['molecules'] = df_iac_reduced['molecules'].apply(to_json)
+
+# print(df_iac_reduced)
+
+def add_value(dict_obj, key, value):
+    ''' Adds a key-value pair to the dictionary.
+        If the key already exists in the dictionary, 
+        it will associate multiple values with that 
+        key instead of overwritting its value'''
+    if key not in dict_obj:
+        dict_obj[key] = value
+    elif isinstance(dict_obj[key], list):
+        dict_obj[key].append(value)
+    else:
+        dict_obj[key] = [dict_obj[key], value]
+
+# The resulting dataset has multiple rows per planet (each row is one observation).
+# Combine into one row per planet, in a python dictionary
+dict_iac = {}
+for index, row in df_iac_reduced.iterrows():
+    key = row['name']
+    values = row['molecules']
+    if key not in dict_iac:
+        dict_iac[key] = {}
+
+    resultDict = dict_iac[key]
+
+    for molecule, value in values.items():
+        add_value(resultDict, molecule, value)
+
+    dict_iac[key] = resultDict
+
+# Check result
+# print(dict_iac)
+
+# Save as a json file, just in case 
+with open("../data/test_iac_csv.json", "w") as outfile:
+    json.dump(dict_iac, outfile)
+
+
+KEY_DETECTION = 'Detection'
+KEY_UPPER_LIMIT = 'Upper limit'
+KEY_NO_DETECTION = 'No detection'
+
+# Flip data so that we have one column for each detection degree.
+# Rebuild as dataframe, so we can merge with original dataset
+rows = []
+for name, molecules in dict_iac.items():
+    detections = []
+    upperLimits = []
+    noDetections = []
+    for molecule, value in molecules.items():
+        print (value)
+        if (value == KEY_DETECTION): 
+            detections.append(molecule)
+        elif (value == KEY_UPPER_LIMIT):
+            upperLimits.append(molecule)
+        elif (value == KEY_NO_DETECTION):
+            noDetections.append(molecule)
+
+    # join with '&' signs
+    rows.append([name, '&'.join(detections), '&'.join(upperLimits), '&'.join(noDetections)])
+
+res_df_iac = pd.DataFrame(rows, columns=['name', 'molecule_detection', 'molecule_upperLimit', 'molecule_noDetection'])
+print (res_df_iac)
+
+df = df.merge(res_df_iac, left_on='pl_name', right_on='name', how='left')
+df.drop(columns=['name']) # drop extra name column
+print (res_df_iac)
+
+##################################################################
+# Write out data file
+##################################################################
 
 print("Writing data to file...")
 df.to_csv(dataFileName, index=False)

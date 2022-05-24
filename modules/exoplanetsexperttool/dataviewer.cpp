@@ -147,7 +147,11 @@ DataViewer::DataViewer(std::string identifier, std::string guiName)
         // Discovery
         { "Discovery method", ColumnID::DiscoveryMethod },
         { "Telescope", ColumnID::DiscoveryTelescope },
-        { "Instrument", ColumnID::DiscoveryInstrument }
+        { "Instrument", ColumnID::DiscoveryInstrument },
+        // Detected molecules
+        { "Detected (IAC molecules)", ColumnID::MoleculesDetection },
+        { "Upper limit (IAC molecules)", ColumnID::MoleculesUpperLimit },
+        { "No detection (IAC molecules)", ColumnID::MoleculesNoDetection }
     };
 
     _columns = _defaultColumns;
@@ -1350,6 +1354,12 @@ std::variant<const char*, float> DataViewer::valueFromColumn(int columnIndex,
             return item.discoveryTelescope.c_str();
         case ColumnID::DiscoveryInstrument:
             return item.discoveryInstrument.c_str();
+        case ColumnID::MoleculesDetection:
+            return item.moleculesDetection.c_str();
+        case ColumnID::MoleculesUpperLimit:
+            return item.moleculesUpperLimit.c_str();
+        case ColumnID::MoleculesNoDetection:
+            return item.moleculesNoDetection.c_str();
         case ColumnID::Other: {
             std::string key = _columns[columnIndex].name;
             std::variant<std::string, float> value = item.otherColumns.at(key);

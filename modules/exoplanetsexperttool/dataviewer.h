@@ -64,6 +64,9 @@ enum ColumnID {
     DiscoveryMethod,
     DiscoveryTelescope,
     DiscoveryInstrument,
+    MoleculesDetection,
+    MoleculesUpperLimit,
+    MoleculesNoDetection,
     Other
 };
 
