@@ -99,204 +99,204 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
     };
 
     // Write exoplanet records to file
-   std::vector<std::string> columns = csvContent[0];
+    std::vector<std::string> columns = csvContent[0];
 
-   const int nRows = static_cast<int>(csvContent.size());
+    const int nRows = static_cast<int>(csvContent.size());
 
-   std::vector<ExoplanetItem> planets;
-   planets.reserve(nRows);
+    std::vector<ExoplanetItem> planets;
+    planets.reserve(nRows);
 
-   for (int row = 1; row < nRows; row++) {
-       ExoplanetItem p;
-       std::string name;
-       std::string component;
-       std::string hostStar;
+    for (int row = 1; row < nRows; row++) {
+        ExoplanetItem p;
+        std::string name;
+        std::string component;
+        std::string hostStar;
 
-       p.id = row - 1;
+        p.id = row - 1;
 
-       for (int col = 0; col < columns.size(); col++) {
-           const std::string& column = columns[col];
-           const std::string& data = csvContent[row][col];
+        for (int col = 0; col < columns.size(); col++) {
+            const std::string& column = columns[col];
+            const std::string& data = csvContent[row][col];
 
-           if (column == "pl_name") {
-               p.planetName = data;
-               // TODO: create identifier matching exoplanets module?
-           }
-           else if (column == "hostname") {
-               p.hostName = data;
-               // TODO: create identifier matching exoplanets module?
-           }
-           else if (column == "pl_letter") {
-               if (data.size() == 1) {
-                   p.component = data.at(0);
-               }
-               else {
-                   LWARNING(fmt::format(
-                       "Could not read planet letter from data: '{}'", data
-                   ));
-               }
-           }
-           // Discovery
-           else if (column == "disc_year") {
-               p.discoveryYear = static_cast<int>(data::parseFloatData(data));
-           }
-           else if (column == "discoverymethod") {
-               p.discoveryMethod = data;
-           }
-           else if (column == "disc_telescope") {
-               p.discoveryTelescope = data;
-           }
-           else if (column == "disc_instrument") {
-               p.discoveryInstrument = data;
-           }
-           // Planet properties
-           else if (column == "pl_rade") {
-               p.radius.value = data::parseFloatData(data);
-           }
-           else if (column.rfind("pl_bmasse") != std::string::npos) {
-               // TODO: generalize
-               if (isPositiveErrorCol(column)) {
-                   p.mass.errorUpper = data::parseFloatData(data);
-               }
-               else if (isNegativeErrorCol(column)) {
-                   p.mass.errorLower = data::parseFloatData(data);
-               }
-               else if (column == "pl_bmasse") {
-                   p.mass.value = data::parseFloatData(data);
-               }
-           }
-           // Orbital properties
-           else if (column == "pl_orbsmax") {
-               p.semiMajorAxis.value = data::parseFloatData(data);
-           }
-           else if (column == "pl_orbeccen") {
-               p.eccentricity.value = data::parseFloatData(data);
-           }
-           else if (column == "pl_orbper") {
-               p.period.value = data::parseFloatData(data);
-           }
-           else if (column == "pl_orbincl") {
-               p.inclination.value = data::parseFloatData(data);
-           }
-           else if (column == "pl_Teq") {
-               p.eqilibriumTemp.value = data::parseFloatData(data);
-           }
-           // Star properties
-           else if (column == "st_teff") {
-               p.starEffectiveTemp.value = data::parseFloatData(data);
-           }
-           else if (column == "st_rad") {
-               p.starRadius.value = data::parseFloatData(data);
-           }
-           else if (column == "st_age") {
-               p.starAge.value = data::parseFloatData(data);
-           }
-           else if (column == "st_met") {
-               p.starMetallicity.value = data::parseFloatData(data);
-           }
-           else if (column == "st_metratio") {
-               p.starMetallicityRatio = data;
-           }
-           else if (column == "sy_jmag") {
-               p.magnitudeJ.value = data::parseFloatData(data);
-           }
-           else if (column == "sy_kmag") {
-               p.magnitudeK.value = data::parseFloatData(data);
-           }
-           // System properties
-           else if (column == "sy_snum") {
-               p.nStars = static_cast<int>(data::parseFloatData(data));
-           }
-           else if (column == "sy_pnum") {
-               p.nPlanets = static_cast<int>(data::parseFloatData(data));
-           }
-           // Position
-           else if (column == "ra") {
-               p.ra.value = data::parseFloatData(data);
-           }
-           else if (column == "dec") {
-               p.dec.value = data::parseFloatData(data);
-           }
-           else if (column == "sy_dist") {
-               p.distance.value = data::parseFloatData(data);
-           }
-           else if (column == "ESM") {
-               p.esm = data::parseFloatData(data);
-           }
-           else if (column == "TSM") {
-               p.tsm = data::parseFloatData(data);
-           }
-           // Any other columns that might be in the datset
-           else {
-               float parsedNumeric = data::parseFloatData(data);
-               std::string key = column;
+            if (column == "pl_name") {
+                p.planetName = data;
+                // TODO: create identifier matching exoplanets module?
+            }
+            else if (column == "hostname") {
+                p.hostName = data;
+                // TODO: create identifier matching exoplanets module?
+            }
+            else if (column == "pl_letter") {
+                if (data.size() == 1) {
+                    p.component = data.at(0);
+                }
+                else {
+                    LWARNING(fmt::format(
+                        "Could not read planet letter from data: '{}'", data
+                    ));
+                }
+            }
+            // Discovery
+            else if (column == "disc_year") {
+                p.discoveryYear = static_cast<int>(data::parseFloatData(data));
+            }
+            else if (column == "discoverymethod") {
+                p.discoveryMethod = data;
+            }
+            else if (column == "disc_telescope") {
+                p.discoveryTelescope = data;
+            }
+            else if (column == "disc_instrument") {
+                p.discoveryInstrument = data;
+            }
+            // Planet properties
+            else if (column == "pl_rade") {
+                p.radius.value = data::parseFloatData(data);
+            }
+            else if (column.rfind("pl_bmasse") != std::string::npos) {
+                // TODO: generalize
+                if (isPositiveErrorCol(column)) {
+                    p.mass.errorUpper = data::parseFloatData(data);
+                }
+                else if (isNegativeErrorCol(column)) {
+                    p.mass.errorLower = data::parseFloatData(data);
+                }
+                else if (column == "pl_bmasse") {
+                    p.mass.value = data::parseFloatData(data);
+                }
+            }
+            // Orbital properties
+            else if (column == "pl_orbsmax") {
+                p.semiMajorAxis.value = data::parseFloatData(data);
+            }
+            else if (column == "pl_orbeccen") {
+                p.eccentricity.value = data::parseFloatData(data);
+            }
+            else if (column == "pl_orbper") {
+                p.period.value = data::parseFloatData(data);
+            }
+            else if (column == "pl_orbincl") {
+                p.inclination.value = data::parseFloatData(data);
+            }
+            else if (column == "pl_Teq") {
+                p.eqilibriumTemp.value = data::parseFloatData(data);
+            }
+            // Star properties
+            else if (column == "st_teff") {
+                p.starEffectiveTemp.value = data::parseFloatData(data);
+            }
+            else if (column == "st_rad") {
+                p.starRadius.value = data::parseFloatData(data);
+            }
+            else if (column == "st_age") {
+                p.starAge.value = data::parseFloatData(data);
+            }
+            else if (column == "st_met") {
+                p.starMetallicity.value = data::parseFloatData(data);
+            }
+            else if (column == "st_metratio") {
+                p.starMetallicityRatio = data;
+            }
+            else if (column == "sy_jmag") {
+                p.magnitudeJ.value = data::parseFloatData(data);
+            }
+            else if (column == "sy_kmag") {
+                p.magnitudeK.value = data::parseFloatData(data);
+            }
+            // System properties
+            else if (column == "sy_snum") {
+                p.nStars = static_cast<int>(data::parseFloatData(data));
+            }
+            else if (column == "sy_pnum") {
+                p.nPlanets = static_cast<int>(data::parseFloatData(data));
+            }
+            // Position
+            else if (column == "ra") {
+                p.ra.value = data::parseFloatData(data);
+            }
+            else if (column == "dec") {
+                p.dec.value = data::parseFloatData(data);
+            }
+            else if (column == "sy_dist") {
+                p.distance.value = data::parseFloatData(data);
+            }
+            else if (column == "ESM") {
+                p.esm = data::parseFloatData(data);
+            }
+            else if (column == "TSM") {
+                p.tsm = data::parseFloatData(data);
+            }
+            // Any other columns that might be in the datset
+            else {
+                float parsedNumeric = data::parseFloatData(data);
+                std::string key = column;
 
-               // For now, ignore any empty, limit and error columns
-               if (hasEnding(key, "err1") ||
-                   hasEnding(key, "err1") ||
-                   hasEnding(key, "err2") ||
-                   hasEnding(key, "lim"))
-               {
-                   continue;
-               }
+                // For now, ignore any empty, limit and error columns
+                if (hasEnding(key, "err1") ||
+                    hasEnding(key, "err1") ||
+                    hasEnding(key, "err2") ||
+                    hasEnding(key, "lim"))
+                {
+                    continue;
+                }
 
-               // For now, always add as numeric column
-               p.otherColumns[key] = parsedNumeric;
+                // For now, always add as numeric column
+                p.otherColumns[key] = parsedNumeric;
 
-               // TODO: allow categorical / string columns
-               //if (!std::isnan(parsedNumeric)) {
-               //    p.otherColumns[key] = parsedNumeric;
-               //}
-               //else {
-               //    p.otherColumns[key] = data;
-               //}
+                // TODO: allow categorical / string columns
+                //if (!std::isnan(parsedNumeric)) {
+                //    p.otherColumns[key] = parsedNumeric;
+                //}
+                //else {
+                //    p.otherColumns[key] = data;
+                //}
 
-               // TODO: verify that all resulting planets have the same number of columns
-           }
-       }
+                // TODO: verify that all resulting planets have the same number of columns
+            }
+        }
 
-       p.multiSystemFlag = (p.nPlanets > 1);
+        p.multiSystemFlag = (p.nPlanets > 1);
 
-       // Compute galactic position of system
-       bool hasPos = p.ra.hasValue() && p.dec.hasValue() && p.distance.hasValue();
-       if (hasPos) {
-           const float ra = p.ra.value;
-           const float dec = p.dec.value;
-           p.position = icrsToGalacticCartesian(ra, dec, p.distance.value);
-       }
+        // Compute galactic position of system
+        bool hasPos = p.ra.hasValue() && p.dec.hasValue() && p.distance.hasValue();
+        if (hasPos) {
+            const float ra = p.ra.value;
+            const float dec = p.dec.value;
+            p.position = icrsToGalacticCartesian(ra, dec, p.distance.value);
+        }
 
-       //// If unknown, compute planet mass
-       //// TODO: move to python
-       //if ((!p.mass.hasValue()) && p.radius.hasValue()) {
-       //    float r = p.radius.value;
+        //// If unknown, compute planet mass
+        //// TODO: move to python
+        //if ((!p.mass.hasValue()) && p.radius.hasValue()) {
+        //    float r = p.radius.value;
 
-       //    // Mass radius relationship from Chen & Kipping (2017)
-       //    // See eq. (2) in https://arxiv.org/pdf/1805.03671.pdf
+        //    // Mass radius relationship from Chen & Kipping (2017)
+        //    // See eq. (2) in https://arxiv.org/pdf/1805.03671.pdf
 
-       //    if (r < 1.23f) { // Terran
-       //        p.mass.value = 0.9718f * glm::pow(r, 3.58f);
-       //    }
-       //    else if (r < 14.26) { // Neptunian
-       //        p.mass.value = 1.436f * glm::pow(r, 1.70f);
-       //    }
-       //    // TODO: constant for larger planets (Jovian & Stellar)
-       //    // Use their python package!
-       //    // Their paper: https://iopscience.iop.org/article/10.3847/1538-4357/834/1/17
-       //}
+        //    if (r < 1.23f) { // Terran
+        //        p.mass.value = 0.9718f * glm::pow(r, 3.58f);
+        //    }
+        //    else if (r < 14.26) { // Neptunian
+        //        p.mass.value = 1.436f * glm::pow(r, 1.70f);
+        //    }
+        //    // TODO: constant for larger planets (Jovian & Stellar)
+        //    // Use their python package!
+        //    // Their paper: https://iopscience.iop.org/article/10.3847/1538-4357/834/1/17
+        //}
 
-       // TODO: move to python
-       if (p.radius.hasValue() && p.mass.hasValue()) {
-           constexpr const double G = 6.67430e-11;
-           const double r = static_cast<double>(p.radius.value) * EarthRadius;
-           const double M = static_cast<double>(p.mass.value) * EarthMass;
-           p.surfaceGravity.value = static_cast<float>((G * M) / (r * r));
-       }
+        // TODO: move to python
+        if (p.radius.hasValue() && p.mass.hasValue()) {
+            constexpr const double G = 6.67430e-11;
+            const double r = static_cast<double>(p.radius.value) * EarthRadius;
+            const double M = static_cast<double>(p.mass.value) * EarthMass;
+            p.surfaceGravity.value = static_cast<float>((G * M) / (r * r));
+        }
 
-       planets.push_back(p);
-   }
+        planets.push_back(p);
+    }
 
-   planets.shrink_to_fit();
-   return planets;
+    planets.shrink_to_fit();
+    return planets;
 }
 
 } // namespace openspace::exoplanets
