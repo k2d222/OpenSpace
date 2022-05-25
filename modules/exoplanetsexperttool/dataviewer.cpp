@@ -347,11 +347,9 @@ void DataViewer::render() {
 
     if (showTable) {
         ImGui::SetNextWindowSize(DefaultWindowSize, ImGuiCond_FirstUseEver);
-        if (!ImGui::Begin("Exoplanet Explorer", &showTable)) {
-            ImGui::End();
-            return;
+        if (ImGui::Begin("Exoplanet Explorer", &showTable)) {
+            renderTable();
         }
-        renderTable();
         ImGui::End();
     }
 
