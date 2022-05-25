@@ -280,6 +280,19 @@ std::vector<ExoplanetItem> DataLoader::loadData() {
             p.position = icrsToGalacticCartesian(ra, dec, p.distance.value);
         }
 
+        // Check if water has been detected
+        // 1 = yes, 0 = maybe, -1 = no
+        constexpr const char WaterKey[] = "H2O";
+        if (p.moleculesDetection.find(WaterKey) != std::string::npos) {
+            p.waterDetection = 1.f;
+        }
+        else if (p.moleculesUpperLimit.find(WaterKey) != std::string::npos) {
+            p.waterDetection = 0.f;
+        }
+        else if (p.moleculesNoDetection.find(WaterKey) != std::string::npos) {
+            p.waterDetection = -1.f;
+        }
+
         //// If unknown, compute planet mass
         //// TODO: move to python
         //if ((!p.mass.hasValue()) && p.radius.hasValue()) {

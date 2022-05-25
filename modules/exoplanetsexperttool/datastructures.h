@@ -116,6 +116,7 @@ struct ExoplanetItem {
     std::string moleculesDetection;
     std::string moleculesUpperLimit;
     std::string moleculesNoDetection;
+    float waterDetection = std::numeric_limits<float>::quiet_NaN();
 
     // Any other kind of data that might be interesting. can be numeric or string
     std::map<std::string, std::variant<std::string, float>> otherColumns;

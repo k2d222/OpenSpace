@@ -67,6 +67,7 @@ enum ColumnID {
     MoleculesDetection,
     MoleculesUpperLimit,
     MoleculesNoDetection,
+    WaterDetection,
     Other
 };
 
