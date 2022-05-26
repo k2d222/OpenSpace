@@ -200,7 +200,7 @@ df.drop(columns=columnsToDrop)
 # Chemical Abundances
 ##################################################################
 
-abundanceDatafolder = "C:/Users/emmbr26/OneDrive - Linköpings universitet/Exoplanets Expert Paper/Data/Notebooks Chemical Abundances/"
+abundanceDatafolder = "https://weber.itn.liu.se/~emmbr26/exo_star_abundances/"
 apogeePath = abundanceDatafolder + "abundances_apogee.csv"
 galahPath = abundanceDatafolder + "abundances_galah.csv"
 
