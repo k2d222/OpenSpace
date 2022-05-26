@@ -97,6 +97,8 @@ private:
     // rows in the UI
     void updateFilteredRowsProperty();
 
+    void renderSettingsMenuContent();
+
     void renderColumnSettingsModal();
     void setUpSelectedColumns(int nSelected);
 

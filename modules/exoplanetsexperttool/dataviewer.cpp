@@ -272,7 +272,7 @@ void DataViewer::initializeRenderables() {
 
     ghoul::Dictionary gui;
     gui.setValue("Name", "All Exoplanets"s);
-    gui.setValue("Path", "/ExoplanetsTool"s);
+    gui.setValue("Path", "/ExoplanetExplorer"s);
 
     std::filesystem::path dataFilePath = absPath(RenderDataFileName);
 
@@ -282,6 +282,7 @@ void DataViewer::initializeRenderables() {
         renderable.setValue("Type", "RenderableExoplanetGlyphCloud"s);
         renderable.setValue("Size", 100.0);
         renderable.setValue("BillboardMinMaxSize", glm::dvec2(25.0, 70.0));
+        renderable.setValue("UseFixedWidth", false);
     }
     else {
         renderable.setValue("Type", "RenderablePointData"s);
@@ -321,10 +322,13 @@ void DataViewer::render() {
 #endif
                 ImGui::EndMenu();
             }
+
+
             if (ImGui::BeginMenu("Settings")) {
-                renderColumnSettingsModal();
+                renderSettingsMenuContent();
                 ImGui::EndMenu();
             }
+
             ImGui::EndMenuBar();
         }
         ImGui::EndMainMenuBar();
@@ -1076,6 +1080,48 @@ void DataViewer::updateFilteredRowsProperty() {
             [&data = _data](size_t i) -> int { return data[i].id; });
 
         filteredRowsProperty->set(indices);
+    }
+}
+
+void DataViewer::renderSettingsMenuContent() {
+    // OBS! These should match the default settings for the SGNs
+    static bool useFixedWidth = false;
+    static bool showKepler = true;
+    static bool showMilkyWayLine = true;
+
+    renderColumnSettingsModal();
+
+    if (ImGui::Checkbox("Use fixed ring width", &useFixedWidth)) {
+        openspace::global::scriptEngine->queueScript(
+            fmt::format(
+                "openspace.setPropertyValueSingle('{}', {})",
+                fmt::format("Scene.{}.Renderable.UseFixedWidth", _pointsIdentifier),
+                useFixedWidth
+            ),
+            scripting::ScriptEngine::RemoteScripting::Yes
+        );
+    }
+
+    if (ImGui::Checkbox("Show Kepler FOV cue", &showKepler)) {
+        openspace::global::scriptEngine->queueScript(
+            fmt::format(
+                "openspace.setPropertyValueSingle('{}', {})",
+                "Scene.KeplerPrism.Renderable.Enabled",
+                showKepler
+            ),
+            scripting::ScriptEngine::RemoteScripting::Yes
+        );
+    }
+
+    if (ImGui::Checkbox("Show line to Milky Way center", &showMilkyWayLine)) {
+        openspace::global::scriptEngine->queueScript(
+            fmt::format(
+                "openspace.setPropertyValueSingle('{}', {})",
+                "Scene.MilkyWayEarthLine.Renderable.Enabled",
+                showMilkyWayLine
+            ),
+            scripting::ScriptEngine::RemoteScripting::Yes
+        );
     }
 }
 
