@@ -202,7 +202,7 @@ void RenderableExoplanetGlyphCloud::render(const RenderData& data, RendererTasks
         glm::dmat4(data.camera.projectionMatrix()) * data.camera.combinedViewMatrix()
     );
 
-    _program->setUniform(_uniformCache.opacity, _opacity);
+    _program->setUniform(_uniformCache.opacity, opacity());
     _program->setUniform(_uniformCache.size, _size);
     _program->setUniform(_uniformCache.onTop, false);
 

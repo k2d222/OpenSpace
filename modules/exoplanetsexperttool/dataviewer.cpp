@@ -53,6 +53,7 @@ namespace {
     constexpr const char _loggerCat[] = "ExoplanetsDataViewer";
 
     constexpr const char RenderDataFileName[] = "${TEMPORARY}/pointrenderdata.dat";
+    constexpr const char RenderableIdentifier[] = "ExoplanetDataPoints";
 
     bool caseInsensitiveLessThan(const char* lhs, const char* rhs) {
         int res = _stricmp(lhs, rhs);
@@ -109,7 +110,7 @@ namespace openspace::exoplanets::gui {
 
 DataViewer::DataViewer(std::string identifier, std::string guiName)
     : properties::PropertyOwner({ std::move(identifier), std::move(guiName) })
-    , _pointsIdentifier("ExoplanetDataPoints")
+    , _pointsIdentifier(RenderableIdentifier)
 {
     _data = _dataLoader.loadData();
 
@@ -1551,6 +1552,7 @@ void DataViewer::addAndTarget(const ExoplanetItem& item) {
     const std::string identifier = createIdentifier(item.hostName);
 
     if (!sceneGraphNode(identifier)) {
+        LINFO("Adding system. Click again to target");
         openspace::global::scriptEngine->queueScript(
             "openspace.exoplanets.addExoplanetSystem('" + item.hostName + "')",
             scripting::ScriptEngine::RemoteScripting::Yes
@@ -1561,17 +1563,27 @@ void DataViewer::addAndTarget(const ExoplanetItem& item) {
             scripting::ScriptEngine::RemoteScripting::Yes
         );
     }
+    else {
+        // TODO: make it celarer what is going on and improve usability!
 
-    // TODO: make it celarer what is going on and improve usability!
+        // TODO: do the following things automatically once the planet has been added
 
-    // Rotate to look at the target
-    const std::string planetIdentifier = identifier + "_" + item.component;
-    openspace::global::scriptEngine->queueScript(
-        "openspace.setPropertyValueSingle('NavigationHandler.OrbitalNavigator.Anchor', '" + planetIdentifier + "');"
-        "openspace.setPropertyValueSingle('NavigationHandler.OrbitalNavigator.Aim', '');"
-        "openspace.setPropertyValueSingle('NavigationHandler.OrbitalNavigator.RetargetAnchor', nil);",
-        scripting::ScriptEngine::RemoteScripting::Yes
-    );
+        // Give all the added planets a much bigger approach factor
+        openspace::global::scriptEngine->queueScript(
+            "openspace.setPropertyValue('{exoplanet}.ApproachFactor', 15000000.000000)"
+            "openspace.setPropertyValue('{exoplanet_system}.ApproachFactor', 15000000.000000)",
+            scripting::ScriptEngine::RemoteScripting::Yes
+        );
+
+        // Rotate to look at the target
+        const std::string planetIdentifier = identifier + "_" + item.component;
+        openspace::global::scriptEngine->queueScript(
+            "openspace.setPropertyValueSingle('NavigationHandler.OrbitalNavigator.Anchor', '" + planetIdentifier + "');"
+            "openspace.setPropertyValueSingle('NavigationHandler.OrbitalNavigator.Aim', '');"
+            "openspace.setPropertyValueSingle('NavigationHandler.OrbitalNavigator.RetargetAnchor', nil);",
+            scripting::ScriptEngine::RemoteScripting::Yes
+        );
+    }
 }
 
 
