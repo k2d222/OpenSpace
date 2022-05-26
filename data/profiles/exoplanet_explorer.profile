@@ -28,6 +28,7 @@
   "assets": [
     "base",
     "events/toggle_sun",
+    "exoplanetexplorer/kepler_prism",
     "exoplanetexplorer/milkyway_center_line",
     "scene/solarsystem/planets/earth/earth"
   ],
