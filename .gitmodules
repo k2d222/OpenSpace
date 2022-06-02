@@ -1,6 +1,6 @@
 [submodule "ext/ghoul"]
 	path = ext/ghoul
-	url = https://github.com/OpenSpace/Ghoul.git
+	url =  https://github.com/OpenSpace/Ghoul.git
 [submodule "modules/kameleon/ext/kameleon"]
 	path = modules/kameleon/ext/kameleon
 	url = https://github.com/OpenSpace/Kameleon.git
@@ -16,7 +16,7 @@
 	branch = OpenSpace
 [submodule "apps/OpenSpace/ext/sgct"]
 	path = apps/OpenSpace/ext/sgct
-	url = https://github.com/sgct/sgct
+	url = git@github.com:k2d222/sgct.git
 [submodule "modules/fitsfilereader/ext/CCfits"]
 	path = modules/fitsfilereader/ext/CCfits
 	url = https://github.com/OpenSpace/CCfits.git
