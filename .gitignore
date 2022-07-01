@@ -3,6 +3,9 @@
 /build-ninja/
 /build-xcode/
 /build-make/
+/build-debug/
+/moldata/
+/OpenSpace-WebGuiFrontend/
 *~
 *.dir
 *.idea/
@@ -32,12 +35,14 @@ GPUCache
 /cache-*/
 /cache_gdal/
 /documentation/
+/doc/
 /logs/
 /screenshots/
 /recordings/
 /user/
 /sync/
 /temp/
+/shaders/
 # Customization is not supposed to be committed
 customization.lua
 # The COMMIT info is generated everytime CMake is run
