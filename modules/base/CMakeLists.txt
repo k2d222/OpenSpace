@@ -69,6 +69,7 @@ set(HEADER_FILES
   rendering/screenspacedashboard.h
   rendering/screenspaceframebuffer.h
   rendering/screenspaceimagelocal.h
+  rendering/screenspacetext.h
   rendering/screenspaceimageonline.h
   rotation/timelinerotation.h
   rotation/constantrotation.h
@@ -133,6 +134,7 @@ set(SOURCE_FILES
   rendering/screenspacedashboard_lua.inl
   rendering/screenspaceframebuffer.cpp
   rendering/screenspaceimagelocal.cpp
+  rendering/screenspacetext.cpp
   rendering/screenspaceimageonline.cpp
   rotation/timelinerotation.cpp
   rotation/constantrotation.cpp
