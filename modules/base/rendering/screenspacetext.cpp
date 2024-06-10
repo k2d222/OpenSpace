@@ -128,13 +128,10 @@ ScreenSpaceText::ScreenSpaceText(const ghoul::Dictionary& dictionary)
 void ScreenSpaceText::renderText() {
     glDepthMask(true);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-    glClearColor(0.f, 1.f, 0.f, 1.f);
-    glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     const glm::vec3 transformedPos = glm::vec3(0.f);
 
     glm::vec4 textColor = glm::vec4(glm::vec3(_color), 1.f);
-    textColor.a *= opacity();
 
     ghoul::fontrendering::FontRenderer::defaultRenderer().render(
         *_font,
@@ -151,6 +148,7 @@ bool ScreenSpaceText::initializeGL() {
     if (!ScreenSpaceFramebuffer::initializeGL())
         return false;
     
+
     if (_font == nullptr) {
         _font = global::fontManager->font(
             "Mono",
