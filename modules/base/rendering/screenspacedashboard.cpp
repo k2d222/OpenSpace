@@ -87,7 +87,7 @@ bool ScreenSpaceDashboard::initializeGL() {
     ScreenSpaceFramebuffer::initializeGL();
 
     addRenderFunction([this]() {
-        glm::vec2 penPosition = glm::vec2(0.f, _size.value().w);
+        glm::vec2 penPosition = glm::vec2(0.f, _resolution.value().y);
 
         if (_useMainDashboard) {
             global::dashboard->render(penPosition);
@@ -114,9 +114,8 @@ bool ScreenSpaceDashboard::isReady() const {
 
 void ScreenSpaceDashboard::update() {
     if (global::windowDelegate->windowHasResized()) {
-        const glm::ivec2 size = global::windowDelegate->currentDrawBufferResolution();
-        _size = glm::vec4(0.f, 0.f, size.x, size.y);
-        createFramebuffer();
+        const glm::ivec2 resolution = global::windowDelegate->currentDrawBufferResolution();
+        setResolution(resolution);
     }
 }
 
