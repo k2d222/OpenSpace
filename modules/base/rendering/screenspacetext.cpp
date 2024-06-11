@@ -22,6 +22,7 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
+#include "ghoul/font/font.h"
 #include "modules/base/rendering/screenspaceframebuffer.h"
 #include "openspace/rendering/screenspacerenderable.h"
 #include <functional>
@@ -41,6 +42,7 @@
 #include <ghoul/opengl/texture.h>
 #include <ghoul/opengl/textureconversion.h>
 #include <optional>
+#include <iostream>
 
 namespace {
     constexpr openspace::properties::Property::PropertyInfo ColorInfo = {
@@ -123,13 +125,31 @@ ScreenSpaceText::ScreenSpaceText(const ghoul::Dictionary& dictionary)
 
     _text = p.text.value_or(_text);
     addProperty(_text);
+
+    _text.onChange(std::bind(&ScreenSpaceText::resizeFramebuffer, this));
+}
+void ScreenSpaceText::resizeFramebuffer() {
+    if (!_font) {
+        return;
+    }
+
+    // HACK: this is dumb, but I just want to get the text bounding box to size the fb
+    auto box = ghoul::fontrendering::FontRenderer::defaultRenderer().render(
+        *_font,
+        glm::vec2(0.f),
+        _text.value(),
+        glm::vec4(0.f)
+    );
+    _lines = box.numberOfLines;
+    setResolution(glm::uvec2(box.boundingBox.x, _lines * _font->height()));
+    std::cout << _lines << " " << box.boundingBox.x << " " << box.boundingBox.y << std::endl;
 }
 
 void ScreenSpaceText::renderText() {
     glDepthMask(true);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-    const glm::vec3 transformedPos = glm::vec3(0.f);
+    const glm::vec3 transformedPos = glm::vec3(0.f, (_lines - 1) * _font->height(), 0.f);
 
     glm::vec4 textColor = glm::vec4(glm::vec3(_color), 1.f);
 
@@ -157,6 +177,8 @@ bool ScreenSpaceText::initializeGL() {
             ghoul::fontrendering::FontManager::LoadGlyphs::No
         );
     }
+
+    resizeFramebuffer();
 
     addRenderFunction(std::bind(&ScreenSpaceText::renderText, this));
 

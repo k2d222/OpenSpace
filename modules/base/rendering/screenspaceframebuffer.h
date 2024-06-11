@@ -28,6 +28,7 @@
 #include <openspace/rendering/screenspacerenderable.h>
 
 #include <openspace/properties/vector/vec4property.h>
+#include <openspace/properties/vector/uvec2property.h>
 
 namespace ghoul::opengl {
     class FramebufferObject;
@@ -56,7 +57,7 @@ public:
     void render(const RenderData& renderData) override;
     bool isReady() const override;
 
-    void setSize(glm::vec4 size);
+    void setResolution(glm::uvec2 resolution);
     void addRenderFunction(RenderFunction renderFunction);
     void removeAllRenderFunctions();
 
@@ -64,7 +65,7 @@ public:
 
 protected:
     void createFramebuffer();
-    properties::Vec4Property _size;
+    properties::UVec2Property _resolution;
 
 private:
     void bindTexture() override;

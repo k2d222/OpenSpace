@@ -33,28 +33,30 @@
 #include <ghoul/opengl/textureunit.h>
 
 namespace {
-    constexpr openspace::properties::Property::PropertyInfo SizeInfo = {
-        "Size",
-        "Size",
-        "This value explicitly specifies the size of the screen space plane.",
+    constexpr openspace::properties::Property::PropertyInfo ResolutionInfo = {
+        "Resolution",
+        "Resolution",
+        "This value sets the resolution in pixels of the framebuffer texture."
+        "The default resolution is the active window resolution.",
         openspace::properties::Property::Visibility::AdvancedUser
     };
+
+    struct [[codegen::Dictionary(ScreenSpaceFramebuffer)]] Parameters {
+        // [[codegen::verbatim(ResolutionInfo.description)]]
+        std::optional<glm::ivec2> resolution;
+    };
+#include "screenspaceframebuffer_codegen.cpp"
 } // namespace
 
 namespace openspace {
 
 documentation::Documentation ScreenSpaceFramebuffer::Documentation() {
-    using namespace documentation;
-    return {
-        "ScreenSpaceFramebuffer",
-        "base_screenspace_framebuffer",
-        {}
-    };
+    return codegen::doc<Parameters>("base_screenspace_framebuffer");
 }
 
 ScreenSpaceFramebuffer::ScreenSpaceFramebuffer(const ghoul::Dictionary& dictionary)
     : ScreenSpaceRenderable(dictionary)
-    , _size(SizeInfo, glm::vec4(0), glm::vec4(0), glm::vec4(16384))
+    , _resolution(ResolutionInfo, glm::ivec2(0), glm::ivec2(0), glm::ivec2(16384))
 {
     documentation::testSpecificationAndThrow(
         Documentation(),
@@ -79,9 +81,21 @@ ScreenSpaceFramebuffer::ScreenSpaceFramebuffer(const ghoul::Dictionary& dictiona
         setGuiName("ScreenSpaceFramebuffer " + std::to_string(iIdentifier));
     }
 
-    const glm::vec2 resolution = global::windowDelegate->currentDrawBufferResolution();
-    addProperty(_size);
-    _size = glm::vec4(0.f, 0.f, resolution.x, resolution.y);
+    const Parameters p = codegen::bake<Parameters>(dictionary);
+
+    const glm::uvec2 res = p.resolution.value_or(global::windowDelegate->currentDrawBufferResolution());
+
+    addProperty(_resolution);
+
+    _resolution.onChange([this]() {
+        if (_texture) {
+            _texture->setDimensions(glm::uvec3(_resolution.value(), 1));
+            _texture->uploadTexture();
+            _texture->purgeFromRAM();
+        }
+    });
+
+    _resolution = res;
 }
 
 ScreenSpaceFramebuffer::~ScreenSpaceFramebuffer() {}
@@ -105,43 +119,42 @@ bool ScreenSpaceFramebuffer::deinitializeGL() {
 }
 
 void ScreenSpaceFramebuffer::render(const RenderData& renderData) {
-    const glm::vec2& resolution = global::windowDelegate->currentDrawBufferResolution();
-    const glm::vec4& size = _size.value();
-
-    const float xratio = resolution.x / (size.z - size.x);
-    const float yratio = resolution.y / (size.w - size.y);
+    const glm::ivec2& resolution = _resolution.value();
 
     if (!_renderFunctions.empty()) {
-        std::array<GLint, 4> viewport;
-        //glGetIntegerv(GL_VIEWPORT, viewport);
-        global::renderEngine->openglStateCache().viewport(viewport.data());
-        glViewport(
-            static_cast<GLint>(-size.x * xratio),
-            static_cast<GLint>(-size.y * yratio),
-            static_cast<GLsizei>(resolution.x * xratio),
-            static_cast<GLsizei>(resolution.y * yratio)
-        );
-        global::renderEngine->openglStateCache().setViewportState(viewport.data());
-
         const GLint defaultFBO = ghoul::opengl::FramebufferObject::getActiveObject();
         _framebuffer->activate();
 
+        std::array<GLint, 4> viewport;
+        global::renderEngine->openglStateCache().viewport(viewport.data());
+
+        // glViewport(
+        //     static_cast<GLint>(0),
+        //     static_cast<GLint>(0),
+        //     static_cast<GLsizei>(resolution.x),
+        //     static_cast<GLsizei>(resolution.y)
+        // );
+
         glClearColor(0.f, 0.f, 0.f, 0.f);
         glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         for (const RenderFunction& renderFunction : _renderFunctions) {
             renderFunction();
         }
-        ghoul::opengl::FramebufferObject::deactivate();
+
+        global::renderEngine->openglStateCache().setViewportState(viewport.data());
 
         glBindFramebuffer(GL_FRAMEBUFFER, defaultFBO);
-        glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+
+        _objectSize = resolution;
 
         const glm::mat4 globalRotation = globalRotationMatrix();
         const glm::mat4 translation = translationMatrix();
         const glm::mat4 localRotation = localRotationMatrix();
         const glm::mat4 scale = glm::scale(
             scaleMatrix(),
-            glm::vec3((1.f / xratio), (1.f / yratio), 1.f)
+            // glm::vec3((1.f / xratio), (1.f / yratio), 1.f)
+            glm::vec3(1.f)
         );
         const glm::mat4 modelTransform = globalRotation*translation*localRotation*scale;
         draw(modelTransform, renderData);
@@ -159,8 +172,13 @@ bool ScreenSpaceFramebuffer::isReady() const {
     return ready;
 }
 
-void ScreenSpaceFramebuffer::setSize(glm::vec4 size) {
-    _size = std::move(size);
+void ScreenSpaceFramebuffer::setResolution(glm::uvec2 resolution) {
+    _resolution = std::move(resolution);
+    if (_texture) {
+        _texture->setDimensions(glm::uvec3(_resolution.value(), 1));
+        _texture->uploadTexture();
+        _texture->purgeFromRAM();
+    }
 }
 
 void ScreenSpaceFramebuffer::addRenderFunction(std::function<void()> renderFunction) {
@@ -172,15 +190,12 @@ void ScreenSpaceFramebuffer::removeAllRenderFunctions() {
 }
 
 void ScreenSpaceFramebuffer::createFramebuffer() {
-    const glm::vec2 resolution = global::windowDelegate->currentDrawBufferResolution();
-
     _framebuffer = std::make_unique<ghoul::opengl::FramebufferObject>();
     _framebuffer->activate();
     _texture = std::make_unique<ghoul::opengl::Texture>(
-        glm::uvec3(resolution.x, resolution.y, 1),
+        glm::uvec3(_resolution.value(), 1),
         GL_TEXTURE_2D
     );
-    _objectSize = glm::ivec2(resolution);
 
     _texture->uploadTexture();
     _texture->setFilter(ghoul::opengl::Texture::FilterMode::Linear);

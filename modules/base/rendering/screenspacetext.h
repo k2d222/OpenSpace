@@ -52,6 +52,7 @@ public:
     static documentation::Documentation Documentation();
 
 private:
+    void resizeFramebuffer();
     void renderText();
 
     // void bindTexture() override;
@@ -59,6 +60,8 @@ private:
     properties::Vec3Property _color;
     properties::FloatProperty _fontSize;
     properties::StringProperty _text;
+
+    size_t _lines = 1;
 
     std::shared_ptr<ghoul::fontrendering::Font> _font;
 };
