@@ -7,7 +7,7 @@ local TestText = {
   RadiusAzimuthElevation = { 1.0, 0.5, 0.1 },
   UsePerspectiveProjection = false,
   Opacity = 1.0,
-  Text = "Test Text"
+  Text = "Test\nText"
 }
 
 
