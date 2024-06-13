@@ -30,6 +30,7 @@
 #include <openspace/rendering/screenspacerenderable.h>
 
 #include <openspace/properties/stringproperty.h>
+#include <openspace/properties/vector/uvec4property.h>
 
 #include <ghoul/opengl/ghoul_gl.h>
 #include <ghoul/opengl/uniformcache.h>
@@ -54,6 +55,7 @@ private:
 
     // void bindTexture() override;
 
+    properties::UVec4Property _padding;
     properties::Vec3Property _color;
     properties::FloatProperty _fontSize;
     properties::StringProperty _text;

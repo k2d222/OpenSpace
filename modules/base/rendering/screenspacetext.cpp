@@ -43,6 +43,13 @@
 #include <optional>
 
 namespace {
+    constexpr openspace::properties::Property::PropertyInfo PaddingInfo = {
+        "Padding",
+        "Padding",
+        "The text padding.",
+        openspace::properties::Property::Visibility::NoviceUser
+    };
+
     constexpr openspace::properties::Property::PropertyInfo ColorInfo = {
         "Color",
         "Color",
@@ -66,6 +73,9 @@ namespace {
 
     // This `ScreenSpaceRenderable` can be used to display text in screen space.
     struct [[codegen::Dictionary(ScreenSpaceText)]] Parameters {
+        // [[codegen::verbatim(PaddingInfo.description)]]
+        std::optional<glm::ivec4> padding;
+
         // [[codegen::verbatim(ColorInfo.description)]]
         std::optional<glm::vec3> color [[codegen::color()]];
 
@@ -86,6 +96,7 @@ documentation::Documentation ScreenSpaceText::Documentation() {
 
 ScreenSpaceText::ScreenSpaceText(const ghoul::Dictionary& dictionary)
     : ScreenSpaceFramebuffer(dictionary)
+    , _padding(PaddingInfo, glm::uvec4(0), glm::uvec4(0), glm::uvec4(1000))
     , _color(ColorInfo, glm::vec3(1.f), glm::vec3(0.f), glm::vec3(1.f))
     , _fontSize(FontSizeInfo, 50.f, 1.f, 100.f)
     , _text(TextInfo, "")
@@ -101,6 +112,12 @@ ScreenSpaceText::ScreenSpaceText(const ghoul::Dictionary& dictionary)
     }
     identifier = makeUniqueIdentifier(identifier);
     setIdentifier(identifier);
+
+    if (p.padding.has_value()) {
+        _padding = p.padding.value();
+    }
+    _padding.onChange(std::bind(&ScreenSpaceText::resizeFramebuffer, this));
+    addProperty(_padding);
 
     _color = p.color.value_or(_color);
     _color.setViewOption(properties::Property::ViewOptions::Color);
@@ -119,12 +136,11 @@ ScreenSpaceText::ScreenSpaceText(const ghoul::Dictionary& dictionary)
 
     // @TODO (emmbr, 2021-05-31): Temporarily set as read only, to avoid errors from font
     // rendering/loading
-    _fontSize.setReadOnly(true);
+    // _fontSize.setReadOnly(true);
 
     _text = p.text.value_or(_text);
-    addProperty(_text);
-
     _text.onChange(std::bind(&ScreenSpaceText::resizeFramebuffer, this));
+    addProperty(_text);
 }
 
 void ScreenSpaceText::resizeFramebuffer() {
@@ -133,13 +149,14 @@ void ScreenSpaceText::resizeFramebuffer() {
     }
 
     const std::string text = _text.value();
+    const glm::uvec4 pad = _padding.value();
     const auto box = _font->boundingBox(text);
     const size_t lines = std::count(text.begin(), text.end(), '\n') + 1;
     const glm::uvec2 res = glm::ceil(box);
 
     if (res.x > 0 && res.y > 0) {
         _lines = lines;
-        setResolution(res);
+        setResolution(res + glm::uvec2(pad.x + pad.z, pad.y + pad.w));
     }
 }
 
@@ -147,19 +164,16 @@ void ScreenSpaceText::renderText() {
     glDepthMask(true);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-    float y = float(_lines - 1) * _font->height() + (_font->hasOutline() ? 1.f : 0.f);
-    const glm::vec3 transformedPos = glm::vec3(0.f, y, 0.f);
+    glm::vec3 pos(0.f);
+    pos.y += float(_lines - 1) * _font->height() + (_font->hasOutline() ? 1.f : 0.f); // XXX: 1px is the default outline width, but I can't check it.
+    pos.x += _padding.value().x;
+    pos.y += _padding.value().y;
 
     glm::vec4 textColor = glm::vec4(glm::vec3(_color), 1.f);
 
     auto& fontRenderer = ghoul::fontrendering::FontRenderer::defaultRenderer();
     fontRenderer.setFramebufferSize(_resolution.value());
-    fontRenderer.render(
-        *_font,
-        transformedPos,
-        _text.value(),
-        textColor
-    );
+    fontRenderer.render(*_font, pos, _text.value(), textColor);
     fontRenderer.setFramebufferSize(global::windowDelegate->currentViewportSize()); // XXX: hope this is correct?
 
     global::renderEngine->openglStateCache().resetBlendState();
