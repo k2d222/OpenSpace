@@ -25,7 +25,8 @@
 #ifndef __OPENSPACE_MODULE_BASE___SCREENSPACETEXT___H__
 #define __OPENSPACE_MODULE_BASE___SCREENSPACETEXT___H__
 
-#include "modules/base/rendering/screenspaceframebuffer.h"
+#include "ghoul/font/fontrenderer.h"
+#include <modules/base/rendering/screenspaceframebuffer.h>
 #include <openspace/rendering/screenspacerenderable.h>
 
 #include <openspace/properties/stringproperty.h>
@@ -43,11 +44,7 @@ class ScreenSpaceText : public ScreenSpaceFramebuffer {
 public:
     ScreenSpaceText(const ghoul::Dictionary& dictionary);
 
-    // void render(float blackoutFactor) override;
-
     bool initializeGL() override;
-
-    // void update() override;
 
     static documentation::Documentation Documentation();
 

@@ -22,17 +22,15 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#include "ghoul/font/font.h"
-#include "modules/base/rendering/screenspaceframebuffer.h"
-#include "openspace/rendering/screenspacerenderable.h"
-#include <functional>
 #include <modules/base/rendering/screenspacetext.h>
 
 #include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 #include <openspace/engine/globals.h>
 #include <openspace/rendering/renderengine.h>
+#include <openspace/rendering/screenspacerenderable.h>
 #include <ghoul/filesystem/filesystem.h>
+#include <ghoul/font/font.h>
 #include <ghoul/font/fontmanager.h>
 #include <ghoul/font/fontrenderer.h>
 #include <ghoul/io/texture/texturereader.h>
@@ -42,7 +40,6 @@
 #include <ghoul/opengl/texture.h>
 #include <ghoul/opengl/textureconversion.h>
 #include <optional>
-#include <iostream>
 
 namespace {
     constexpr openspace::properties::Property::PropertyInfo ColorInfo = {
@@ -128,28 +125,29 @@ ScreenSpaceText::ScreenSpaceText(const ghoul::Dictionary& dictionary)
 
     _text.onChange(std::bind(&ScreenSpaceText::resizeFramebuffer, this));
 }
+
 void ScreenSpaceText::resizeFramebuffer() {
     if (!_font) {
         return;
     }
 
-    // HACK: this is dumb, but I just want to get the text bounding box to size the fb
-    auto box = ghoul::fontrendering::FontRenderer::defaultRenderer().render(
-        *_font,
-        glm::vec2(0.f),
-        _text.value(),
-        glm::vec4(0.f)
-    );
-    _lines = box.numberOfLines;
-    setResolution(glm::uvec2(box.boundingBox.x, _lines * _font->height()));
-    std::cout << _lines << " " << box.boundingBox.x << " " << box.boundingBox.y << std::endl;
+    const std::string text = _text.value();
+    const auto box = _font->boundingBox(text);
+    const size_t lines = std::count(text.begin(), text.end(), '\n') + 1;
+    const glm::uvec2 res = glm::ceil(box);
+
+    if (res.x > 0 && res.y > 0) {
+        _lines = lines;
+        setResolution(res);
+    }
 }
 
 void ScreenSpaceText::renderText() {
     glDepthMask(true);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-    const glm::vec3 transformedPos = glm::vec3(0.f, (_lines - 1) * _font->height(), 0.f);
+    float y = float(_lines - 1) * _font->height() + (_font->hasOutline() ? 1.f : 0.f);
+    const glm::vec3 transformedPos = glm::vec3(0.f, y, 0.f);
 
     glm::vec4 textColor = glm::vec4(glm::vec3(_color), 1.f);
 
@@ -184,12 +182,5 @@ bool ScreenSpaceText::initializeGL() {
 
     return true;
 }
-
-// void ScreenSpaceText::update() {
-// }
-
-// void ScreenSpaceText::bindTexture() {
-//     // TODO
-// }
 
 } // namespace openspace
