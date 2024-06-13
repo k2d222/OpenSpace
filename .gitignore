@@ -1,5 +1,6 @@
 # Build and editor thing
 /.cache/
+/GPUCache/
 /out/
 /build*/
 *~
