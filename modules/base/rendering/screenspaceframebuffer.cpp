@@ -128,12 +128,12 @@ void ScreenSpaceFramebuffer::render(const RenderData& renderData) {
         std::array<GLint, 4> viewport;
         global::renderEngine->openglStateCache().viewport(viewport.data());
 
-        // glViewport(
-        //     static_cast<GLint>(0),
-        //     static_cast<GLint>(0),
-        //     static_cast<GLsizei>(resolution.x),
-        //     static_cast<GLsizei>(resolution.y)
-        // );
+        glViewport(
+            static_cast<GLint>(0),
+            static_cast<GLint>(0),
+            static_cast<GLsizei>(resolution.x),
+            static_cast<GLsizei>(resolution.y)
+        );
 
         glClearColor(0.f, 0.f, 0.f, 0.f);
         glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

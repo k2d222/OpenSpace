@@ -27,6 +27,7 @@
 #include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 #include <openspace/engine/globals.h>
+#include <openspace/engine/windowdelegate.h>
 #include <openspace/rendering/renderengine.h>
 #include <openspace/rendering/screenspacerenderable.h>
 #include <ghoul/filesystem/filesystem.h>
@@ -151,12 +152,15 @@ void ScreenSpaceText::renderText() {
 
     glm::vec4 textColor = glm::vec4(glm::vec3(_color), 1.f);
 
-    ghoul::fontrendering::FontRenderer::defaultRenderer().render(
+    auto& fontRenderer = ghoul::fontrendering::FontRenderer::defaultRenderer();
+    fontRenderer.setFramebufferSize(_resolution.value());
+    fontRenderer.render(
         *_font,
         transformedPos,
         _text.value(),
         textColor
     );
+    fontRenderer.setFramebufferSize(global::windowDelegate->currentViewportSize()); // XXX: hope this is correct?
 
     global::renderEngine->openglStateCache().resetBlendState();
     global::renderEngine->openglStateCache().resetDepthState();
