@@ -188,14 +188,14 @@ bool ScriptEngine::runScript(const std::string& script, const ScriptCallback& ca
     catch (const ghoul::lua::LuaLoadingException& e) {
         LERRORC(e.component, e.message);
         if (callback) {
-            callback(ghoul::Dictionary());
+            callback(std::string(e.message));
         }
         return false;
     }
     catch (const ghoul::lua::LuaExecutionException& e) {
         LERRORC(e.component, e.message);
         if (callback) {
-            callback(ghoul::Dictionary());
+            callback(std::string(e.message));
         }
         return false;
     }
@@ -210,7 +210,7 @@ bool ScriptEngine::runScript(const std::string& script, const ScriptCallback& ca
     catch (const ghoul::RuntimeError& e) {
         LERRORC(e.component, e.message);
         if (callback) {
-            callback(ghoul::Dictionary());
+            callback(std::string(e.message));
         }
         return false;
     }

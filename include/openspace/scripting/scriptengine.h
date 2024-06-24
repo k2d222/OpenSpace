@@ -29,11 +29,12 @@
 #include <openspace/scripting/lualibrary.h>
 #include <ghoul/lua/luastate.h>
 #include <ghoul/misc/boolean.h>
+#include <ghoul/misc/dictionary.h>
 #include <filesystem>
 #include <mutex>
-#include <optional>
 #include <queue>
 #include <functional>
+#include <variant>
 
 namespace openspace { class SyncBuffer; }
 
@@ -49,7 +50,24 @@ namespace openspace::scripting {
  */
 class ScriptEngine : public Syncable {
 public:
-    using ScriptCallback = std::function<void(ghoul::Dictionary)>;
+    struct ScriptResult {
+        template <typename T>
+        ScriptResult(T&& value) : _value(std::forward<T>(value)) {}
+        static ScriptResult Success(ghoul::Dictionary&& success) { return ScriptResult(std::move(success)); }
+        static ScriptResult Failure(std::string&& failure) { return ScriptResult(std::move(failure)); }
+
+        bool isSuccess() const
+            { return std::holds_alternative<ghoul::Dictionary>(_value); }
+
+        const ghoul::Dictionary& get_success() const { return std::get<ghoul::Dictionary>(_value); }
+        const std::string& get_failure() const { return std::get<std::string>(_value); }
+
+    private:
+        std::variant<ghoul::Dictionary, std::string> _value;
+    };
+
+public:
+    using ScriptCallback = std::function<void(ScriptResult)>;
     BooleanType(ShouldBeSynchronized);
     BooleanType(ShouldSendToRemote);
 
