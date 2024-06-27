@@ -35,10 +35,15 @@ class Topic {
 public:
     virtual ~Topic() = default;
 
+    enum class StatusCode {
+        Ok = 200,
+        BadRequest = 400,
+        NotFound = 404,
+        ServerError = 500,
+    };
+
     void initialize(std::shared_ptr<Connection> connection, size_t topicId);
-    nlohmann::json wrappedPayload(const nlohmann::json& payload) const;
-    nlohmann::json wrappedError(std::string message = "Could not complete request",
-        int code = 500);
+    nlohmann::json wrappedPayload(const nlohmann::json& payload, StatusCode status = StatusCode::Ok) const;
     virtual void handleJson(const nlohmann::json& json) = 0;
     virtual bool isDone() const = 0;
 

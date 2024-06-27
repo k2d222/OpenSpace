@@ -31,6 +31,7 @@
 #include <openspace/scripting/scriptengine.h>
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/dictionary.h>
+#include <variant>
 
 namespace {
     constexpr std::string_view KeyScript = "script";
@@ -192,12 +193,12 @@ void LuaScriptTopic::runScript(std::string script, bool shouldReturn,
 {
     scripting::ScriptEngine::ScriptCallback callback;
     if (shouldReturn) {
-        callback = [this](const auto& result) {
+        callback = [this](const scripting::ScriptEngine::ScriptResult& data) {
             if (_connection) {
-                const nlohmann::json payload = result.isSuccess()
-                    ? wrappedPayload(result.get_success())
-                    : wrappedError(result.get_failure());
-                _connection->sendJson(payload);
+                const auto json = std::holds_alternative<std::string>(data)
+                    ? wrappedPayload(std::get<std::string>(data), StatusCode::ServerError)
+                    : wrappedPayload(std::get<ghoul::Dictionary>(data), StatusCode::Ok);
+                _connection->sendJson(json);
                 _waitingForReturnValue = false;
             }
         };
