@@ -77,7 +77,7 @@ public:
     /**
      * Lock-swap the containers of this listener.
      */
-    std::vector<TouchInput> takeInput();
+    std::vector<TouchInput> takeInputs();
     std::vector<TouchInput> takeRemovals();
 
 private:

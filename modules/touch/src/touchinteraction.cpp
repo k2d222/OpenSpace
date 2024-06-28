@@ -45,7 +45,6 @@
 #include <glm/gtx/quaternion.hpp>
 #include <cmath>
 #include <functional>
-#include <fstream>
 #include <numeric>
 
 #ifdef WIN32
@@ -323,13 +322,13 @@ TouchInteraction::TouchInteraction()
         glm::vec4(0.2f)
     )
     , _constTimeDecay_secs(ConstantTimeDecaySecsInfo, 1.75f, 0.1f, 4.f)
-    , _pinchInputs({ TouchInput(0, 0, 0.f, 0.f, 0.0), TouchInput(0, 0, 0.f, 0.f, 0.0) })
-    , _vel{ glm::dvec2(0.0), 0.0, 0.0, glm::dvec2(0.0) }
-    , _sensitivity{ glm::dvec2(0.08, 0.045), 12.0, 2.75, glm::dvec2(0.08, 0.045) }
-    // Calculated with two vectors with known diff in length, then
-    // projDiffLength/diffLength.
     , _enableDirectManipulation(EnableDirectManipulationInfo, true)
     , _directTouchDistanceThreshold(DirectManipulationThresholdInfo, 5.f, 0.f, 10.f)
+    , _pinchInputs({ TouchInput(0, 0, 0.f, 0.f, 0.0), TouchInput(0, 0, 0.f, 0.f, 0.0) })
+    // Calculated with two vectors with known diff in length, then
+    // projDiffLength/diffLength.
+    , _velocity{ glm::dvec2(0.0), 0.0, 0.0, glm::dvec2(0.0) }
+    , _sensitivity{ glm::dvec2(0.08, 0.045), 12.0, 2.75, glm::dvec2(0.08, 0.045) }
 {
     addProperty(_disableZoom);
     addProperty(_disableRoll);
@@ -373,10 +372,9 @@ TouchInteraction::TouchInteraction()
     _reset.onChange([this]() { resetPropertiesToDefault(); });
 }
 
-void TouchInteraction::updateStateFromInput(const std::vector<TouchInputHolder>& list,
-                                            std::vector<TouchInput>& lastProcessed)
+void TouchInteraction::updateStateFromInput(const std::vector<TouchInputHolder>& inputs)
 {
-    size_t numFingers = list.size();
+    size_t numFingers = inputs.size();
 
 #ifdef TOUCH_DEBUG_PROPERTIES
     _debugProperties.nFingers = numFingers;
@@ -387,77 +385,11 @@ void TouchInteraction::updateStateFromInput(const std::vector<TouchInputHolder>&
         return;
     }
 
-    if (_tap) {
-        // @TODO (2023-02-01, emmbr) This if is not triggered on every touch tap.
-        // Why?
-
-        // Check for doubletap
-        using namespace std::chrono;
-        milliseconds timestamp = duration_cast<milliseconds>(
-            high_resolution_clock::now().time_since_epoch()
-        );
-        if ((timestamp - _time).count() < _maxTapTime) {
-            _doubleTap = true;
-            _tap = false;
-        }
-        _time = timestamp;
-    }
-
-    // Code for lower-right corner double-tap to zoom-out
-    {
-        const glm::vec2 res = global::windowDelegate->currentWindowSize();
-        const glm::vec2 pos = list[0].latestInput().screenCoordinates(res);
-
-        const float bottomCornerSizeForZoomTap_fraction = 0.08f;
-        const int zoomTapThresholdX = static_cast<int>(
-            res.x * (1.f - bottomCornerSizeForZoomTap_fraction)
-        );
-        const int zoomTapThresholdY = static_cast<int>(
-            res.y * (1.f - bottomCornerSizeForZoomTap_fraction)
-        );
-
-        const bool isTapInLowerRightCorner =
-            (std::abs(pos.x) > zoomTapThresholdX && std::abs(pos.y) > zoomTapThresholdY);
-
-        if (_doubleTap && isTapInLowerRightCorner) {
-            _zoomOutTap = true;
-            _tap = false;
-            _doubleTap = false;
-        }
-    }
-
-    bool isTransitionBetweenModes = (_wasPrevModeDirectTouch != _directTouchMode);
-    if (isTransitionBetweenModes) {
-        resetVelocities();
-        resetAfterInput();
-    }
-
-    _directTouchMode = _enableDirectManipulation &&
-        _isWithinDirectTouchDistance &&
-        !_selectedNodeSurfacePoints.empty() &&
-        numFingers == _selectedNodeSurfacePoints.size();
-
-    if (_directTouchMode) {
-#ifdef TOUCH_DEBUG_PROPERTIES
-        _debugProperties.interactionMode = "Direct";
-#endif
-        directControl(list);
-    }
-    else {
-#ifdef TOUCH_DEBUG_PROPERTIES
-        _debugProperties.interactionMode = "Velocities";
-#endif
-        computeVelocities(list, lastProcessed);
-    }
-
-    if (_enableDirectManipulation && _isWithinDirectTouchDistance) {
-        updateNodeSurfacePoints(list);
-    }
-
-    _wasPrevModeDirectTouch = _directTouchMode;
+    directControl(inputs);
+    updateNodeSurfacePoints(inputs);
 }
 
-void TouchInteraction::directControl(const std::vector<TouchInputHolder>& list) {
+void TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs) {
     // Reset old velocities upon new interaction
     resetVelocities();
 
@@ -470,7 +402,7 @@ void TouchInteraction::directControl(const std::vector<TouchInputHolder>& list) 
     par[0] = _lastVel.orbit.x; // use _lastVel for orbit
     par[1] = _lastVel.orbit.y;
     bool lmSuccess = _directInputSolver.solve(
-        list,
+        inputs,
         _selectedNodeSurfacePoints,
         &par,
         *_camera
@@ -479,23 +411,23 @@ void TouchInteraction::directControl(const std::vector<TouchInputHolder>& list) 
 
     if (lmSuccess && !_unitTest) {
         // If good values were found set new camera state
-        _vel.orbit = glm::dvec2(par.at(0), par.at(1));
+        _velocity.orbit = glm::dvec2(par.at(0), par.at(1));
         if (nDof > 2) {
             if (!_disableZoom) {
-                _vel.zoom = par.at(2);
+                _velocity.zoom = par.at(2);
             }
             if (!_disableRoll) {
-                _vel.roll = par.at(3);
+                _velocity.roll = par.at(3);
             }
             if (_panEnabled && nDof > 4) {
-                _vel.roll = 0.0;
-                _vel.pan = glm::dvec2(par.at(4), par.at(5));
+                _velocity.roll = 0.0;
+                _velocity.pan = glm::dvec2(par.at(4), par.at(5));
             }
         }
         step(1.0, true);
 
         // Reset velocities after setting new camera state
-        _lastVel = _vel;
+        _lastVel = _velocity;
         resetVelocities();
     }
     else {
@@ -505,7 +437,7 @@ void TouchInteraction::directControl(const std::vector<TouchInputHolder>& list) 
     }
 }
 
-void TouchInteraction::updateNodeSurfacePoints(const std::vector<TouchInputHolder>& list)
+void TouchInteraction::updateNodeSurfacePoints(const std::vector<TouchInputHolder>& inputs)
 {
     _selectedNodeSurfacePoints.clear();
 
@@ -527,7 +459,7 @@ void TouchInteraction::updateNodeSurfacePoints(const std::vector<TouchInputHolde
     glm::dvec3 camPos = _camera->positionVec3();
     std::vector<DirectInputSolver::SelectedBody> surfacePoints;
 
-    for (const TouchInputHolder& inputHolder : list) {
+    for (const TouchInputHolder& inputHolder : inputs) {
         // Normalized -1 to 1 coordinates on screen
         double xCo = 2 * (inputHolder.latestInput().x - 0.5);
         double yCo = -2 * (inputHolder.latestInput().y - 0.5);
@@ -563,296 +495,6 @@ void TouchInteraction::updateNodeSurfacePoints(const std::vector<TouchInputHolde
     _selectedNodeSurfacePoints = std::move(surfacePoints);
 }
 
-TouchInteraction::InteractionType
-TouchInteraction::interpretInteraction(const std::vector<TouchInputHolder>& list,
-                                           const std::vector<TouchInput>& lastProcessed)
-{
-    ghoul_assert(!list.empty(), "Cannot interpret interaction of no input");
-
-    glm::fvec2 lastCentroid = _centroid;
-    _centroid = glm::vec2(0.f, 0.f);
-    for (const TouchInputHolder& inputHolder : list) {
-        _centroid += glm::vec2(
-            inputHolder.latestInput().x,
-            inputHolder.latestInput().y
-        );
-    }
-    _centroid /= static_cast<float>(list.size());
-
-    // See if the distance between fingers changed - used in pan interpretation
-    double dist = 0;
-    double lastDist = 0;
-    TouchInput distInput = list[0].latestInput();
-    for (const TouchInputHolder& inputHolder : list) {
-        const TouchInput& latestInput = inputHolder.latestInput();
-        dist += glm::length(
-            glm::dvec2(latestInput.x, latestInput.y) -
-            glm::dvec2(distInput.x, distInput.y)
-        );
-        distInput = latestInput;
-    }
-    distInput = lastProcessed[0];
-    for (const TouchInput& p : lastProcessed) {
-        lastDist += glm::length(glm::dvec2(p.x, p.y) -
-                    glm::dvec2(distInput.x, distInput.y));
-        distInput = p;
-    }
-    // Find the slowest moving finger - used in roll interpretation
-    double minDiff = 1000.0;
-    for (const TouchInputHolder& inputHolder : list) {
-        const auto it = std::find_if(
-            lastProcessed.cbegin(),
-            lastProcessed.cend(),
-            [&inputHolder](const TouchInput& input) {
-                return inputHolder.holdsInput(input);
-        });
-
-        if (it == lastProcessed.cend()) {
-            continue;
-        }
-        const TouchInput& latestInput = inputHolder.latestInput();
-        const TouchInput& prevInput = *it;
-
-        double diff = latestInput.x - prevInput.x + latestInput.y - prevInput.y;
-
-        if (!inputHolder.isMoving()) {
-            minDiff = 0.0;
-        }
-        else if (std::abs(diff) < std::abs(minDiff)) {
-            minDiff = diff;
-        }
-    }
-    // Find if all fingers angles are high - used in roll interpretation
-    double rollOn = std::accumulate(
-        list.begin(),
-        list.end(),
-        0.0,
-        [this, &lastProcessed](double diff, const TouchInputHolder& inputHolder) {
-            const TouchInput& lastPoint = *std::find_if(
-                lastProcessed.begin(),
-                lastProcessed.end(),
-                [&inputHolder](const TouchInput& input) {
-                    return inputHolder.holdsInput(input);
-                }
-            );
-
-            double res = 0.0;
-            float lastAngle = lastPoint.angleToPos(_centroid.x, _centroid.y);
-            float currentAngle =
-                inputHolder.latestInput().angleToPos(_centroid.x, _centroid.y);
-
-            if (lastAngle > currentAngle + 1.5 * glm::pi<float>()) {
-                res = currentAngle + (2.0 * glm::pi<float>() - lastAngle);
-            }
-            else if (currentAngle > lastAngle + 1.5 * glm::pi<float>()) {
-                res = (2.0 * glm::pi<float>() - currentAngle) + lastAngle;
-            }
-            else {
-                res = currentAngle - lastAngle;
-            }
-
-            if (std::abs(res) < _rollAngleThreshold) {
-                return 1000.0;
-            }
-            else {
-                return (diff + res);
-            }
-        }
-    );
-
-    double normalizedCentroidDistance = glm::distance(
-        _centroid,
-        lastCentroid
-    ) / list.size();
-
-#ifdef TOUCH_DEBUG_PROPERTIES
-    _debugProperties.normalizedCentroidDistance = normalizedCentroidDistance;
-    _debugProperties.rollOn = rollOn;
-    _debugProperties.minDiff = minDiff;
-#endif
-
-    if (_zoomOutTap) {
-        return InteractionType::ZOOM_OUT;
-    }
-    else if (list.size() == 1) {
-        return InteractionType::ROTATION;
-    }
-    else {
-        float avgDistance = static_cast<float>(std::abs(dist - lastDist));
-        // If average distance between 3 fingers are constant we have panning
-        if (_panEnabled && (avgDistance < _interpretPan && list.size() == 3)) {
-            return InteractionType::PAN;
-        }
-
-        // We have roll if one finger is still, or the total roll angles around the
-        // centroid is over _rollAngleThreshold (_centroidStillThreshold is used to void
-        // misinterpretations)
-        else if (std::abs(minDiff) < _inputStillThreshold ||
-                (std::abs(rollOn) < 100.0 &&
-                 normalizedCentroidDistance < _centroidStillThreshold))
-        {
-            return InteractionType::ROLL;
-        }
-        else {
-            const bool sameInput0 = _pinchInputs[0].holdsInput(list[0].latestInput());
-            const bool sameInput1 = _pinchInputs[1].holdsInput(list[1].latestInput());
-            if (sameInput0 && sameInput1) {
-                _pinchInputs[0].tryAddInput(list[0].latestInput());
-                _pinchInputs[1].tryAddInput(list[1].latestInput());
-            } else {
-                _pinchInputs[0] = TouchInputHolder(list[0].latestInput());
-                _pinchInputs[1] = TouchInputHolder(list[1].latestInput());
-            }
-            return InteractionType::PINCH;
-        }
-    }
-}
-
-void TouchInteraction::computeVelocities(const std::vector<TouchInputHolder>& list,
-                                         const std::vector<TouchInput>& lastProcessed)
-{
-    const SceneGraphNode* anchor =
-        global::navigationHandler->orbitalNavigator().anchorNode();
-
-    if (list.empty() || !anchor) {
-        return;
-    }
-
-    const InteractionType action = interpretInteraction(list, lastProcessed);
-
-#ifdef TOUCH_DEBUG_PROPERTIES
-    const std::map<InteractionType, std::string> interactionNames = {
-        { InteractionType::ROTATION, "Rotation" },
-        { InteractionType::PINCH, "Pinch" },
-        { InteractionType::PAN, "Pan" },
-        { InteractionType::ROLL, "Roll" }
-    };
-    _debugProperties.interpretedInteraction = interactionNames.at(action);
-
-    if (pinchConsecCt > 0 && action != InteractionType::PINCH) {
-        if (pinchConsecCt > 3) {
-            LDEBUG(std::format(
-                "PINCH gesture ended with {} drag distance and {} counts",
-                pinchConsecZoomFactor, pinchConsecCt
-            ));
-        }
-        pinchConsecCt = 0;
-        pinchConsecZoomFactor = 0.0;
-    }
-#endif
-
-    const TouchInputHolder& inputHolder = list.at(0);
-    const glm::ivec2 windowSize = global::windowDelegate->currentWindowSize();
-    const float aspectRatio =
-        static_cast<float>(windowSize.x) / static_cast<float>(windowSize.y);
-    switch (action) {
-        case InteractionType::ROTATION: {
-            // Add rotation velocity
-            _vel.orbit += glm::dvec2(inputHolder.speedX() *
-                          _sensitivity.orbit.x, inputHolder.speedY() *
-                          _sensitivity.orbit.y);
-            const double orbitVelocityAvg = glm::distance(_vel.orbit.x, _vel.orbit.y);
-            _constTimeDecayCoeff.orbit = computeConstTimeDecayCoefficient(
-                orbitVelocityAvg
-            );
-            break;
-        }
-        case InteractionType::PINCH: {
-            if (_disableZoom) {
-                break;
-            }
-
-            // Add zooming velocity - dependant on distance difference between contact
-            // points this/first frame
-            using namespace glm;
-            const TouchInput& startFinger0 = _pinchInputs[0].firstInput();
-            const TouchInput& startFinger1 = _pinchInputs[1].firstInput();
-            const dvec2 startVec0 = dvec2(startFinger0.x * aspectRatio, startFinger0.y);
-            const dvec2 startVec1 = dvec2(startFinger1.x * aspectRatio, startFinger1.y);
-            double distToCentroidStart = length(startVec0 - startVec1) / 2.0;
-
-            const TouchInput& endFinger0 = _pinchInputs[0].latestInput();
-            const TouchInput& endFinger1 = _pinchInputs[1].latestInput();
-            const dvec2 endVec0 = dvec2(endFinger0.x * aspectRatio, endFinger0.y);
-            const dvec2 endVec1 = dvec2(endFinger1.x * aspectRatio, endFinger1.y);
-            double distToCentroidEnd = length(endVec0 - endVec1) / 2.0;
-
-            double zoomFactor = distToCentroidEnd - distToCentroidStart;
-#ifdef TOUCH_DEBUG_PROPERTIES
-            pinchConsecCt++;
-            pinchConsecZoomFactor += zoomFactor;
-#endif
-
-            _constTimeDecayCoeff.zoom = 1.0;
-            _vel.zoom = zoomFactor * _pinchZoomFactor * _zoomSensitivityProportionalDist *
-                std::max(_touchScreenSize.value() * 0.1, 1.0);
-            break;
-        }
-        case InteractionType::ROLL: {
-            if (_disableRoll) {
-                break;
-            }
-
-            // Add global roll rotation velocity
-            double rollFactor = std::accumulate(
-                list.begin(),
-                list.end(),
-                0.0,
-                [this, &lastProcessed](double diff, const TouchInputHolder& inputHolder) {
-                    TouchInput point = *std::find_if(
-                        lastProcessed.begin(),
-                        lastProcessed.end(),
-                        [&inputHolder](const TouchInput& input) {
-                            return inputHolder.holdsInput(input);
-                        }
-                    );
-                    double res = diff;
-                    float lastAngle = point.angleToPos(_centroid.x, _centroid.y);
-                    float currentAngle = inputHolder.latestInput().angleToPos(
-                        _centroid.x,
-                        _centroid.y
-                    );
-                    // Ifs used to set angles 359 + 1 = 0 and 0 - 1 = 359
-                    if (lastAngle > currentAngle + 1.5 * glm::pi<float>()) {
-                        res += currentAngle + (2 * glm::pi<float>() - lastAngle);
-                    }
-                    else if (currentAngle > lastAngle + 1.5 * glm::pi<float>()) {
-                        res += (2 * glm::pi<float>() - currentAngle) + lastAngle;
-                    }
-                    else {
-                        res += currentAngle - lastAngle;
-                    }
-                    return res;
-                }
-            ) / list.size();
-            _vel.roll += -rollFactor * _sensitivity.roll;
-            _constTimeDecayCoeff.roll = computeConstTimeDecayCoefficient(_vel.roll);
-            break;
-        }
-        case InteractionType::PAN: {
-            if (!_panEnabled) {
-                break;
-            }
-
-            // Add local rotation velocity
-            _vel.pan += glm::dvec2(inputHolder.speedX() *
-                        _sensitivity.pan.x, inputHolder.speedY() * _sensitivity.pan.y);
-            double panVelocityAvg = glm::distance(_vel.pan.x, _vel.pan.y);
-            _constTimeDecayCoeff.pan = computeConstTimeDecayCoefficient(panVelocityAvg);
-            break;
-        }
-        case InteractionType::ZOOM_OUT: {
-            if (_disableZoom) {
-                break;
-            }
-
-            // Zooms out from current if triple tap occurred
-            _vel.zoom = computeTapZoomDistance(-1.0);
-            _constTimeDecayCoeff.zoom = computeConstTimeDecayCoefficient(_vel.zoom);
-        }
-    }
-}
-
 double TouchInteraction::computeConstTimeDecayCoefficient(double velocity) {
     constexpr double postDecayVelocityTarget = 1e-6;
     const double stepsToDecay = _constTimeDecay_secs / _frameTimeAvg.averageFrameTime();
@@ -882,12 +524,12 @@ double TouchInteraction::computeTapZoomDistance(double zoomGain) {
 }
 
 bool TouchInteraction::hasNonZeroVelocities() const {
-    glm::dvec2 sum = _vel.orbit;
-    sum += glm::dvec2(_vel.zoom, 0.0);
-    sum += glm::dvec2(_vel.roll, 0.0);
-    sum += _vel.pan;
+    glm::dvec2 sum = _velocity.orbit;
+    sum += glm::dvec2(_velocity.zoom, 0.0);
+    sum += glm::dvec2(_velocity.roll, 0.0);
+    sum += _velocity.pan;
     // Epsilon size based on that even if no interaction is happening,
-    // there might still be some residual velocity in the
+    // there might still be some residual velocity
     return glm::length(sum) > 0.001;
 }
 
@@ -939,18 +581,18 @@ void TouchInteraction::step(double dt, bool directTouch) {
 
         {
             // Roll
-            const dquat camRollRot = angleAxis(_vel.roll * dt, dvec3(0.0, 0.0, 1.0));
+            const dquat camRollRot = angleAxis(_velocity.roll * dt, dvec3(0.0, 0.0, 1.0));
             localCamRot = localCamRot * camRollRot;
         }
         {
             // Panning (local rotation)
-            const dvec3 eulerAngles(_vel.pan.y * dt, _vel.pan.x * dt, 0.0);
+            const dvec3 eulerAngles(_velocity.pan.y * dt, _velocity.pan.x * dt, 0.0);
             const dquat rotationDiff = dquat(eulerAngles);
             localCamRot = localCamRot * rotationDiff;
         }
         {
             // Orbit (global rotation)
-            const dvec3 eulerAngles(_vel.orbit.y * dt, _vel.orbit.x * dt, 0.0);
+            const dvec3 eulerAngles(_velocity.orbit.y * dt, _velocity.orbit.x * dt, 0.0);
             const dquat rotationDiffCamSpace = dquat(eulerAngles);
 
             const dquat rotationDiffWorldSpace = globalCamRot * rotationDiffCamSpace *
@@ -1019,7 +661,7 @@ void TouchInteraction::step(double dt, bool directTouch) {
             const double currentPosDistance = length(centerToCamera);
 
             // Apply the velocity to update camera position
-            double zoomVelocity = _vel.zoom;
+            double zoomVelocity = _velocity.zoom;
             if (!directTouch) {
                 const double distanceFromSurface =
                     length(currentPosDistance) - anchor->interactionSphere();
@@ -1073,7 +715,7 @@ void TouchInteraction::step(double dt, bool directTouch) {
 #ifdef TOUCH_DEBUG_PROPERTIES
                 LINFO("Zero the zoom velocity close to surface");
 #endif
-                _vel.zoom = 0.0;
+                _velocity.zoom = 0.0;
             }
         }
 
@@ -1134,10 +776,10 @@ void TouchInteraction::decelerate(double dt) {
     //Ensure the number of times to apply the decay coefficient is valid
     times = std::min(times, 1);
 
-    _vel.orbit *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.orbit, times);
-    _vel.roll  *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.roll,  times);
-    _vel.pan   *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.pan,   times);
-    _vel.zoom  *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.zoom,  times);
+    _velocity.orbit *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.orbit, times);
+    _velocity.roll  *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.roll,  times);
+    _velocity.pan   *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.pan,   times);
+    _velocity.zoom  *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.zoom,  times);
 }
 
 // Called if all fingers are off the screen
@@ -1158,7 +800,7 @@ void TouchInteraction::resetAfterInput() {
     _lastVel.roll = 0.0;
     _lastVel.pan = glm::dvec2(0.0);
 
-    _constTimeDecayCoeff.zoom = computeConstTimeDecayCoefficient(_vel.zoom);
+    _constTimeDecayCoeff.zoom = computeConstTimeDecayCoefficient(_velocity.zoom);
     _pinchInputs[0].clearInputs();
     _pinchInputs[1].clearInputs();
 
@@ -1184,10 +826,10 @@ void TouchInteraction::resetPropertiesToDefault() {
 }
 
 void TouchInteraction::resetVelocities() {
-    _vel.orbit = glm::dvec2(0.0);
-    _vel.zoom = 0.0;
-    _vel.roll = 0.0;
-    _vel.pan = glm::dvec2(0.0);
+    _velocity.orbit = glm::dvec2(0.0);
+    _velocity.zoom = 0.0;
+    _velocity.roll = 0.0;
+    _velocity.pan = glm::dvec2(0.0);
 }
 
 void TouchInteraction::tap() {
