@@ -63,18 +63,13 @@ private:
      */
     bool processNewInput();
 
-    void clearInputs();
-
-    void addTouchInput(TouchInput input);
     void updateOrAddTouchInput(TouchInput input);
     void removeTouchInput(TouchInput input);
 
     std::unique_ptr<TuioEar> _ear;
-    TouchInteraction _touch;
+    TouchInteraction _touchInteraction;
     TouchMarker _markers;
-    std::vector<TouchInputHolder> _touchPoints;
-    std::vector<TouchInput> _deferredRemovals;
-    std::vector<TouchInput> _lastTouchInputs;
+    std::vector<TouchInputHolder> _touches;
 
     properties::BoolProperty _touchIsEnabled;
     properties::BoolProperty _hasActiveTouchEvent;
@@ -88,7 +83,7 @@ private:
 #ifdef WIN32
     std::unique_ptr<Win32TouchHook> _win32TouchHook;
 #endif //WIN32
-    bool _tap = false;
+    std::vector<TouchInput> _taps;
 };
 
 } // namespace openspace

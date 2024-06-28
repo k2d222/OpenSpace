@@ -29,6 +29,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <map>
 
 namespace openspace {
 

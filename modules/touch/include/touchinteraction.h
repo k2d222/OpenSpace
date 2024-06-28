@@ -38,7 +38,6 @@
 #include <openspace/properties/vector/vec4property.h>
 #include <array>
 #include <chrono>
-#include <memory>
 
 // #define TOUCH_DEBUG_PROPERTIES
 
@@ -66,14 +65,6 @@ class TouchInteraction : public properties::PropertyOwner {
 public:
     TouchInteraction();
 
-    enum class InteractionType {
-        ROTATION = 0,
-        PINCH,
-        PAN,
-        ROLL,
-        ZOOM_OUT
-    };
-
     // Stores the velocity in all 6 DOF
     struct VelocityStates {
         glm::dvec2 orbit = glm::dvec2(0.0);
@@ -96,8 +87,7 @@ public:
      *      points select the same node and said node is larger than _nodeRadiusThreshold
      */
 
-    void updateStateFromInput(const std::vector<TouchInputHolder>& list,
-        std::vector<TouchInput>& lastProcessed);
+    void updateStateFromInput(const std::vector<TouchInputHolder>& list);
 
     bool hasNonZeroVelocities() const;
 
@@ -132,13 +122,6 @@ private:
      * surface coordinates the cursor hit.
      */
     void updateNodeSurfacePoints(const std::vector<TouchInputHolder>& list);
-
-    /**
-     * Returns an enum for what interaction to be used, depending on what input was
-     * received.
-     */
-    InteractionType interpretInteraction(const std::vector<TouchInputHolder>& list,
-        const std::vector<TouchInput>& lastProcessed);
 
     /**
      * Compute new velocity according to the interpreted action.
@@ -220,7 +203,7 @@ private:
     std::array<TouchInputHolder, 2> _pinchInputs;
 
     // Class variables
-    VelocityStates _vel;
+    VelocityStates _velocity;
     VelocityStates _lastVel;
     VelocityStates _sensitivity;
 
