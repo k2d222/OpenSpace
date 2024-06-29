@@ -223,7 +223,7 @@ bool TouchModule::processNewInput() {
         global::interactionMonitor->markInteraction();
     }
 
-    return earInputs.size() != 0 && earRemovals.size() != 0;
+    return earInputs.size() != 0 || earRemovals.size() != 0;
 }
 
 void TouchModule::updateOrAddTouchInput(TouchInput input) {

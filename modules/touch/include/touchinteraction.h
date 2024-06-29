@@ -25,6 +25,7 @@
 #ifndef __OPENSPACE_MODULE_TOUCH___TOUCH_INTERACTION___H__
 #define __OPENSPACE_MODULE_TOUCH___TOUCH_INTERACTION___H__
 
+#include "openspace/camera/camerapose.h"
 #include <openspace/properties/propertyowner.h>
 
 #include <modules/touch/include/directinputsolver.h>
@@ -155,7 +156,14 @@ private:
      */
     void resetVelocities();
 
+    /**
+     * Compute the touchInput position on the target node's interaction sphere.
+     */
+    glm::dvec3 unprojectTouchOnSphere(const TouchInput& input) const;
+
     Camera* _camera = nullptr;
+    CameraPose _startPose = {};
+    const SceneGraphNode* _anchor = nullptr;
 
     // Property variables
     properties::BoolProperty _unitTest;
@@ -204,21 +212,11 @@ private:
 
     // Class variables
     VelocityStates _velocity;
-    VelocityStates _lastVel;
     VelocityStates _sensitivity;
 
-    bool _isWithinDirectTouchDistance = false;
     double _timeSlack = 0.0;
     std::chrono::milliseconds _time;
-    bool _directTouchMode = false;
-    bool _wasPrevModeDirectTouch = false;
-    bool _tap = false;
-    bool _doubleTap = false;
-    bool _zoomOutTap = false;
     std::vector<DirectInputSolver::SelectedBody> _selectedNodeSurfacePoints;
-    DirectInputSolver _directInputSolver;
-
-    glm::vec2 _centroid = glm::vec2(0.f);
 
     FrameTimeAverage _frameTimeAvg;
 
