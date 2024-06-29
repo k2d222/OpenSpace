@@ -400,22 +400,22 @@ void TouchInteraction::updateStateFromInput(const std::vector<TouchInputHolder>&
 }
 
 glm::dvec3 TouchInteraction::unprojectTouchOnSphere(const TouchInput& input) const {
-    glm::dvec3 camPos = _camera->positionVec3();
+    const glm::dvec3& camPos = _startPose.position;
+    const glm::dquat& camQuat = _startPose.rotation;
 
     // convert touch input in range [0, 1] to NDC in range [-1, 1]
     glm::vec4 inputNdc(input.x * 2.f - 1.f, -(input.y * 2.f - 1.f), -1.f, 1.f);
     glm::mat4 ndcToCam = glm::inverse(_camera->projectionMatrix());
-    glm::dquat camToWorld = _camera->rotationQuaternion();
-    glm::dvec3 inputWorldSpace = camToWorld * glm::dvec3(ndcToCam * inputNdc);
+    glm::dvec3 inputWorldSpace = camQuat * glm::dvec3(ndcToCam * inputNdc); // it's not really in world space, the origin is the camera position.
     glm::dvec3 rayDir = glm::normalize(inputWorldSpace);
 
     // Compute positions on anchor node, by checking if touch input
     // intersect interaction sphere
     double intersectionDist = 0.0;
     const bool intersected = glm::intersectRaySphere(
-        camPos,
+        glm::dvec3(0.0), // it's more stable to do the computation at camera origin
         rayDir,
-        _anchor->worldPosition(),
+        _anchor->worldPosition() - camPos,
         _anchor->interactionSphere() * _anchor->interactionSphere(),
         intersectionDist
     );
