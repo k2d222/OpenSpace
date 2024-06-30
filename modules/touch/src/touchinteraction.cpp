@@ -258,16 +258,13 @@ namespace {
         openspace::properties::Property::Visibility::AdvancedUser
     };
 
-    // Compute coefficient of decay based on current frametime; if frametime has been
-    // longer than usual then multiple decay steps may be applied to keep the decay
-    // relative to user time
-    double computeDecayCoeffFromFrametime(double coeff, int times) {
-        if (coeff > 0.00001) {
-            return std::pow(coeff, times);
+    glm::vec2 touchBarycenter(const std::vector<openspace::TouchInputHolder>& inputs) {
+        glm::vec2 sum(0.f);
+        for (const openspace::TouchInputHolder& input : inputs) {
+            sum += glm::vec2(input.latestInput().x, input.latestInput().y);
         }
-        else {
-            return 0.0;
-        }
+
+        return sum / inputs.size();
     }
 } // namespace
 
@@ -450,11 +447,9 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         return false;
     }
 
-    const TouchInputHolder& input = inputs[0];
-
     interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
 
-    const glm::vec2 lastInput(input.latestInput().x, input.latestInput().y);
+    const glm::vec2 lastInput = touchBarycenter(inputs);
     const glm::dvec3 startWorldSpace = unprojectTouchOnSphere(_firstInput);
     const glm::dvec3 endWorldSpace = unprojectTouchOnSphere(lastInput);
     const glm::dvec3 spherePosition = _anchor->worldPosition();
@@ -498,8 +493,7 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
         .rotation = _camera->rotationQuaternion(),
     };
 
-    const TouchInputHolder& input = inputs[0];
-    _firstInput = glm::vec2(input.latestInput().x, input.latestInput().y);
+    _firstInput = touchBarycenter(inputs);
     glm::dvec3 proj = unprojectTouchOnSphere(_firstInput);
 
     // check if touch is inside interaction sphere
