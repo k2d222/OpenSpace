@@ -24,12 +24,12 @@
 
 #include <modules/touch/include/tuioear.h>
 
-#include <mutex>
 #include <openspace/engine/globals.h>
 #include <openspace/engine/windowdelegate.h>
 #include <openspace/rendering/renderengine.h>
 #include <openspace/rendering/screenspacerenderable.h>
 #include <ghoul/logging/logmanager.h>
+#include <mutex>
 
 using namespace TUIO;
 

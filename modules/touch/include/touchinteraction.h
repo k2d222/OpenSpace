@@ -25,11 +25,9 @@
 #ifndef __OPENSPACE_MODULE_TOUCH___TOUCH_INTERACTION___H__
 #define __OPENSPACE_MODULE_TOUCH___TOUCH_INTERACTION___H__
 
-#include "openspace/camera/camerapose.h"
-#include <cstddef>
-#include <openspace/properties/propertyowner.h>
-
 #include <modules/touch/include/directinputsolver.h>
+#include <openspace/camera/camerapose.h>
+#include <openspace/properties/propertyowner.h>
 #include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
 #include <openspace/properties/scalar/doubleproperty.h>

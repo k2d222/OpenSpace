@@ -39,7 +39,6 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/vector_angle.hpp>
 #include <cmath>
-#include <iostream>
 
 #include "orbitalnavigator_lua.inl"
 

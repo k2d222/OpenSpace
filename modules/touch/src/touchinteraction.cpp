@@ -22,8 +22,6 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#include "openspace/util/touch.h"
-#include <glm/common.hpp>
 #include <modules/touch/include/touchinteraction.h>
 
 #include <modules/touch/include/directinputsolver.h>
@@ -40,10 +38,12 @@
 #include <openspace/scene/scenegraphnode.h>
 #include <openspace/util/keys.h>
 #include <openspace/util/time.h>
+#include <openspace/util/touch.h>
 #include <openspace/util/updatestructures.h>
 #include <ghoul/format.h>
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/invariants.h>
+#include <glm/common.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <cmath>
 #include <functional>
