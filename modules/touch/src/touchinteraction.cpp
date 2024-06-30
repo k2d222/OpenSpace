@@ -22,6 +22,7 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
+#include <glm/geometric.hpp>
 #include <modules/touch/include/touchinteraction.h>
 
 #include <modules/touch/include/directinputsolver.h>
@@ -258,10 +259,22 @@ namespace {
         openspace::properties::Property::Visibility::AdvancedUser
     };
 
-    glm::vec2 touchBarycenter(const std::vector<openspace::TouchInputHolder>& inputs) {
-        glm::vec2 sum(0.f);
+    std::vector<openspace::TouchInput> lastInputs(const std::vector<openspace::TouchInputHolder>& inputs) {
+        std::vector<openspace::TouchInput> res;
+        res.reserve(inputs.size());
+
         for (const openspace::TouchInputHolder& input : inputs) {
-            sum += glm::vec2(input.latestInput().x, input.latestInput().y);
+            res.push_back(input.latestInput());
+        }
+
+        return res;
+    }
+
+    glm::vec2 touchBarycenter(const std::vector<openspace::TouchInput>& inputs) {
+        glm::vec2 sum(0.f);
+
+        for (const openspace::TouchInput& input : inputs) {
+            sum += glm::vec2(input.x, input.y);
         }
 
         return sum / inputs.size();
@@ -388,6 +401,19 @@ void TouchInteraction::update(const std::vector<TouchInputHolder>& inputs)
         _isDirectControlActive = startDirectControl(inputs);
     }
 
+    // added / removed a finger
+    else if (_isDirectControlActive && numFingers != _startInputs.size()) {
+        _isDirectControlActive = startDirectControl(inputs);
+        if (_isDirectControlActive) {
+            _isDirectControlActive = directControl(inputs);
+
+            if (!_isDirectControlActive) {
+                _anchor = nullptr;
+                endDirectControl();
+            }
+        }
+    }
+
     // interaction in progress
     else if (_isDirectControlActive) {
         _isDirectControlActive = directControl(inputs);
@@ -447,42 +473,89 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         return false;
     }
 
-    interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
+    // compute all the constants
+    const std::vector<TouchInput> endInputs = lastInputs(inputs);
+    const glm::dvec3 anchorPos = _anchor->worldPosition();
+    const glm::dvec2 startCenterScreen = touchBarycenter(_startInputs);
+    const glm::dvec2 endCenterScreen = touchBarycenter(endInputs);
+    const glm::dvec3 startCenterWorld = unprojectTouchOnSphere(startCenterScreen);
+    const glm::dvec3 endCenterWorld = unprojectTouchOnSphere(endCenterScreen);
+    const glm::dvec3 startCenterDir = glm::normalize(startCenterWorld - anchorPos);
+    const glm::dvec3 endCenterDir = glm::normalize(endCenterWorld - anchorPos);
 
-    const glm::vec2 lastInput = touchBarycenter(inputs);
-    const glm::dvec3 startWorldSpace = unprojectTouchOnSphere(_firstInput);
-    const glm::dvec3 endWorldSpace = unprojectTouchOnSphere(lastInput);
-    const glm::dvec3 spherePosition = _anchor->worldPosition();
+    const glm::vec2 startP1(_startInputs[0].x, _startInputs[0].y);
+    const glm::vec2 endP1(endInputs[0].x, endInputs[0].y);
+    const glm::dvec3 startP1World = unprojectTouchOnSphere(startP1);
+    const glm::dvec3 endP1World = unprojectTouchOnSphere(endP1);
+    const glm::dvec3 startP1Dir = glm::normalize(startP1World - anchorPos);
+    const glm::dvec3 endP1Dir = glm::normalize(endP1World - anchorPos);
 
     // check if raycast failed (outside anchor sphere)
-    if (startWorldSpace == glm::dvec3(0.0) || endWorldSpace == glm::dvec3(0.0)) {
+    if (startCenterWorld == glm::dvec3(0.0) || endCenterWorld == glm::dvec3(0.0)) {
         return false;
     }
     
-    glm::vec3 startVec = glm::normalize(startWorldSpace - spherePosition);
-    glm::vec3 endVec = glm::normalize(endWorldSpace - spherePosition);
-
-    glm::vec3 rotAxis = glm::normalize(glm::cross(startVec, endVec));
-    float rotAngle = glm::acos(glm::dot(startVec, endVec));
-    glm::dquat rotQuat = glm::angleAxis(-rotAngle, rotAxis); // invert the angle as we want to rotate the camera around the sphere, not the opposite
+    // compute camera orbit rotation (bringing startP1 to endP1)
+    glm::dvec3 orbitAxis = glm::normalize(glm::cross(startP1Dir, endP1Dir));
+    double orbitAngle = -glm::acos(glm::dot(startP1Dir, endP1Dir));
 
     // rotAxis is NaN when startVec and endVec are parallel (no rotation needed)
-    if (glm::any(glm::isnan(rotAxis))) {
-        return true;
+    if (glm::any(glm::isnan(orbitAxis))) {
+        orbitAxis = glm::dvec3(1.0, 0.0, 0.0);
+        orbitAngle = 0.0;
     }
 
+    // compute camera z-axis rotation (roll)
+    double rollAngle = 0.0;
+    glm::dvec3 rollAxis(0.0);
+
+    if (inputs.size() >= 2) {
+        const glm::vec2 startP2(_startInputs[1].x, _startInputs[1].y);
+        const glm::vec2 endP2(endInputs[1].x, endInputs[1].y);
+        const glm::dvec3 startP2World = unprojectTouchOnSphere(startP2);
+        const glm::dvec3 endP2World = unprojectTouchOnSphere(endP2);
+
+        rollAxis = endP1Dir;
+
+        // need to project all vectors on the rotation plane to compute the angle from
+        // this point of view.
+        const glm::dvec3 startP1Proj = startP1World - glm::dot(startP1World, rollAxis) * rollAxis;
+        const glm::dvec3 startP2Proj = startP2World - glm::dot(startP2World, rollAxis) * rollAxis;
+        const glm::dvec3 endP1Proj = endP1World - glm::dot(endP1World, rollAxis) * rollAxis;
+        const glm::dvec3 endP2Proj = endP2World - glm::dot(endP2World, rollAxis) * rollAxis;
+        const glm::dvec3 startDir = glm::normalize(startP2Proj - startP1Proj);
+        const glm::dvec3 endDir = glm::normalize(endP2Proj - endP1Proj);
+
+        rollAngle = -glm::orientedAngle(startDir, endDir, rollAxis);
+    }
+
+    glm::dquat rotQuat =
+        glm::angleAxis(rollAngle, rollAxis) *
+        glm::angleAxis(orbitAngle, orbitAxis);
+
+    // glm::dquat rotQuat =
+    //     glm::angleAxis(rollAngle, rollAxis);
+        // glm::angleAxis(orbitAngle, orbitAxis);
+
+    // apply transforms
     _lastPoses[0] = _lastPoses[1];
-    _lastPoses[1].position = rotQuat * (_startPose.position - spherePosition) + spherePosition;
+    _lastPoses[1].position = rotQuat * (_startPose.position - anchorPos) + anchorPos;
     _lastPoses[1].rotation = rotQuat * _startPose.rotation;
     _camera->setPose(_lastPoses[1]);
 
+    // TODO
+    _startPose = _lastPoses[1];
+    _startInputs = endInputs;
+
     // Mark that a camera interaction happeneddD
+    interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
     orbNav.updateOnCameraInteraction();
 
     return true;
 }
 
 bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& inputs) {
+    std::cout << "startDirectControl" << std::endl;
     if (inputs.size() == 0 || !_camera || !_anchor) {
         return false;
     }
@@ -493,8 +566,9 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
         .rotation = _camera->rotationQuaternion(),
     };
 
-    _firstInput = touchBarycenter(inputs);
-    glm::dvec3 proj = unprojectTouchOnSphere(_firstInput);
+    _startInputs = lastInputs(inputs);
+    const glm::vec2 startCenter = touchBarycenter(_startInputs);
+    glm::dvec3 proj = unprojectTouchOnSphere(startCenter);
 
     // check if touch is inside interaction sphere
     bool isInside = proj != glm::dvec3(0.0);
@@ -508,6 +582,7 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
 }
 
 void TouchInteraction::endDirectControl() {
+    std::cout << "startDirectControl" << std::endl;
     glm::dquat rotDiff = glm::inverse(_lastPoses[0].rotation) * _lastPoses[1].rotation;
     glm::vec3 axisAngle = glm::axis(rotDiff) * glm::angle(rotDiff);
     glm::vec3 angularVel = glm::inverse(_camera->viewMatrix()) * glm::vec4(axisAngle, 0.f);
