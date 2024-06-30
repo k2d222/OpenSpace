@@ -22,8 +22,6 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#include "openspace/util/touch.h"
-#include <memory>
 #include <modules/touch/touchmodule.h>
 
 #include <modules/touch/include/tuioear.h>
@@ -36,8 +34,10 @@
 #include <openspace/navigation/navigationhandler.h>
 #include <openspace/rendering/renderable.h>
 #include <openspace/util/factorymanager.h>
+#include <openspace/util/touch.h>
 #include <algorithm>
 #include <format>
+#include <memory>
 #include <thread>
 
 using namespace TUIO;
@@ -150,10 +150,9 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&) {
     // These are handled in UI thread, which (as of 20th dec 2019) is in main/rendering
     // thread so we don't need a mutex here:
     // touchDetected, touchUpdated, touchExit, preSync.
+    // TODO: check comment above, im not sure it's true.
     global::callback::touchDetected->push_back(
         [this](TouchInput i) {
-            LDEBUG("touch detected");
-            std::cout << std::this_thread::get_id() << std::endl;
             updateOrAddTouchInput(i);
             return true;
         }
