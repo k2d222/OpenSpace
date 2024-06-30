@@ -99,6 +99,26 @@ bool CameraInteractionStates::hasNonZeroVelocities(bool checkOnlyMovement) const
     return glm::length(sum) > 0.001;
 }
 
+void CameraInteractionStates::setGlobalRotationVelocity(glm::dvec2 velocity) {
+    _globalRotationState.velocity.setHard(velocity);
+}
+
+void CameraInteractionStates::setLocalRotationVelocity(glm::dvec2 velocity) {
+    _localRotationState.velocity.setHard(velocity);
+}
+
+void CameraInteractionStates::setTruckMovementVelocity(glm::dvec2 velocity) {
+    _truckMovementState.velocity.setHard(velocity);
+}
+
+void CameraInteractionStates::setLocalRollVelocity(glm::dvec2 velocity) {
+    _localRollState.velocity.setHard(velocity);
+}
+
+void CameraInteractionStates::setGlobalRollVelocity(glm::dvec2 velocity) {
+    _globalRollState.velocity.setHard(velocity);
+}
+
 glm::dvec2 CameraInteractionStates::globalRotationVelocity() const{
     return _globalRotationState.velocity.get();
 }
