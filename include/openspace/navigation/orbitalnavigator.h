@@ -127,6 +127,9 @@ public:
     ScriptCameraStates& scriptStates();
     const ScriptCameraStates& scriptStates() const;
 
+    ScriptCameraStates& touchStates();
+    const ScriptCameraStates& touchStates() const;
+
     bool shouldFollowAnchorRotation(const glm::dvec3& cameraPosition) const;
     bool followingAnchorRotation() const;
     const SceneGraphNode* anchorNode() const;
@@ -239,10 +242,15 @@ private:
     };
     properties::OptionProperty _upToUseForRotation;
 
+    // TODO(mbr, 2024-06-30): there's too many CameraStates now. Consider making
+    // updateStateFromInput() virtual, and making a addCameraState() method on
+    // orbitalNavigator that adds them at runtime. Also, consider renaming "CameraStates".
+    // Name is not super clear IMO.
     MouseCameraStates _mouseStates;
     JoystickCameraStates _joystickStates;
     WebsocketCameraStates _websocketStates;
     ScriptCameraStates _scriptStates;
+    ScriptCameraStates _touchStates;
 
     const SceneGraphNode* _anchorNode = nullptr;
     const SceneGraphNode* _aimNode = nullptr;

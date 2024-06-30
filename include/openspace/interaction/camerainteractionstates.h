@@ -46,6 +46,12 @@ public:
     void setSensitivity(double sensitivity);
     void setVelocityScaleFactor(double scaleFactor);
 
+    void setGlobalRotationVelocity(glm::dvec2 velocity);
+    void setLocalRotationVelocity(glm::dvec2 velocity);
+    void setTruckMovementVelocity(glm::dvec2 velocity);
+    void setLocalRollVelocity(glm::dvec2 velocity);
+    void setGlobalRollVelocity(glm::dvec2 velocity);
+
     glm::dvec2 globalRotationVelocity() const;
     glm::dvec2 localRotationVelocity() const;
     glm::dvec2 truckMovementVelocity() const;

@@ -91,7 +91,7 @@ TouchModule::TouchModule()
     addPropertySubOwner(_markers);
     addProperty(_touchIsEnabled);
     _touchIsEnabled.onChange([this]() {
-        _touchInteraction.resetAfterInput();
+        _touchInteraction.reset();
     });
 
     _hasActiveTouchEvent.setReadOnly(true);
@@ -180,7 +180,7 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&) {
             mode == OpenSpaceEngine::Mode::SessionRecordingPlayback)
         {
             // Reset everything, to avoid problems once we process inputs again
-            _touchInteraction.resetAfterInput();
+            _touchInteraction.reset();
             return;
         }
 
@@ -188,14 +188,8 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&) {
 
         bool gotNewInput = processNewInput();
         if (gotNewInput && global::windowDelegate->isMaster()) {
-            _touchInteraction.updateStateFromInput(_touches);
+            _touchInteraction.update(_touches);
         }
-        else if (_touches.empty()) {
-            _touchInteraction.resetAfterInput();
-        }
-
-        // Calculate the new camera state for this frame
-        _touchInteraction.step(global::windowDelegate->deltaTime());
     });
 
     global::callback::render->push_back([this]() {

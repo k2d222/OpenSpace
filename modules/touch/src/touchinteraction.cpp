@@ -22,6 +22,7 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
+#include "openspace/util/touch.h"
 #include <glm/common.hpp>
 #include <modules/touch/include/touchinteraction.h>
 
@@ -326,10 +327,6 @@ TouchInteraction::TouchInteraction()
     , _enableDirectManipulation(EnableDirectManipulationInfo, true)
     , _directTouchDistanceThreshold(DirectManipulationThresholdInfo, 5.f, 0.f, 10.f)
     , _pinchInputs({ TouchInput(0, 0, 0.f, 0.f, 0.0), TouchInput(0, 0, 0.f, 0.f, 0.0) })
-    // Calculated with two vectors with known diff in length, then
-    // projDiffLength/diffLength.
-    , _velocity{ glm::dvec2(0.0), 0.0, 0.0, glm::dvec2(0.0) }
-    , _sensitivity{ glm::dvec2(0.08, 0.045), 12.0, 2.75, glm::dvec2(0.08, 0.045) }
 {
     addProperty(_disableZoom);
     addProperty(_disableRoll);
@@ -373,7 +370,7 @@ TouchInteraction::TouchInteraction()
     _reset.onChange([this]() { resetPropertiesToDefault(); });
 }
 
-void TouchInteraction::updateStateFromInput(const std::vector<TouchInputHolder>& inputs)
+void TouchInteraction::update(const std::vector<TouchInputHolder>& inputs)
 {
     size_t numFingers = inputs.size();
 
@@ -381,25 +378,40 @@ void TouchInteraction::updateStateFromInput(const std::vector<TouchInputHolder>&
     _debugProperties.nFingers = numFingers;
 #endif
 
-    if (numFingers == 0) {
-        // No fingers, no input (note that this function should not even be called then)
+    // just ended an interaction by relasing the last finger
+    if (numFingers == 0 && _isDirectControlActive) {
         _anchor = nullptr;
-        return;
+        _isDirectControlActive = false;
+        endDirectControl();
     }
 
-    else if(numFingers == 1 && !_anchor) {
+    // just started an interaction by pressing a finger
+    else if(numFingers != 0 && !_isDirectControlActive) {
         _anchor = global::navigationHandler->orbitalNavigator().anchorNode();
-        _startPose = {
-            .position = _camera->positionVec3(),
-            .rotation = _camera->rotationQuaternion(),
-        };
+        _isDirectControlActive = startDirectControl(inputs);
     }
 
-    directControl(inputs);
-    updateNodeSurfacePoints(inputs);
+    // interaction in progress
+    else if (_isDirectControlActive) {
+        _isDirectControlActive = directControl(inputs);
+
+        if (!_isDirectControlActive) {
+            _anchor = nullptr;
+            endDirectControl();
+        }
+    }
 }
 
-glm::dvec3 TouchInteraction::unprojectTouchOnSphere(const TouchInput& input) const {
+void TouchInteraction::reset() {
+    if (_isDirectControlActive) {
+        _anchor = nullptr;
+        _isDirectControlActive = false;
+        interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
+        orbNav.resetVelocities();
+    }
+}
+
+glm::dvec3 TouchInteraction::unprojectTouchOnSphere(const glm::vec2& input) const {
     const glm::dvec3& camPos = _startPose.position;
     const glm::dquat& camQuat = _startPose.rotation;
 
@@ -428,113 +440,89 @@ glm::dvec3 TouchInteraction::unprojectTouchOnSphere(const TouchInput& input) con
     }
 }
 
-void TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs) {
+bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs) {
 #ifdef TOUCH_DEBUG_PROPERTIES
     LINFO("DirectControl");
 #endif
 
-    if (inputs.size() != 1 || !_anchor || !_camera) {
-        return;
+    // check if direct control is possible
+    if (inputs.size() == 0 || !_anchor || !_camera) {
+        return false;
     }
 
     const TouchInputHolder& input = inputs[0];
 
     interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
 
-    const glm::dvec3 startWorldSpace = unprojectTouchOnSphere(input.firstInput());
-    const glm::dvec3 endWorldSpace = unprojectTouchOnSphere(input.latestInput());
+    const glm::vec2 lastInput(input.latestInput().x, input.latestInput().y);
+    const glm::dvec3 startWorldSpace = unprojectTouchOnSphere(_firstInput);
+    const glm::dvec3 endWorldSpace = unprojectTouchOnSphere(lastInput);
     const glm::dvec3 spherePosition = _anchor->worldPosition();
 
+    // check if raycast failed (outside anchor sphere)
     if (startWorldSpace == glm::dvec3(0.0) || endWorldSpace == glm::dvec3(0.0)) {
-        return;
+        return false;
     }
     
     glm::vec3 startVec = glm::normalize(startWorldSpace - spherePosition);
     glm::vec3 endVec = glm::normalize(endWorldSpace - spherePosition);
 
     glm::vec3 rotAxis = glm::normalize(glm::cross(startVec, endVec));
-    float rotAngle = -glm::acos(glm::dot(startVec, endVec));
-    glm::dquat rotQuat = glm::angleAxis(rotAngle, rotAxis);
+    float rotAngle = glm::acos(glm::dot(startVec, endVec));
+    glm::dquat rotQuat = glm::angleAxis(-rotAngle, rotAxis); // invert the angle as we want to rotate the camera around the sphere, not the opposite
 
+    // rotAxis is NaN when startVec and endVec are parallel (no rotation needed)
     if (glm::any(glm::isnan(rotAxis))) {
-        return;
+        return true;
     }
 
-    _camera->setPose(_startPose);
-    _camera->setPositionVec3(rotQuat * (_camera->positionVec3() - spherePosition) + spherePosition);
-    _camera->rotate(rotQuat);
+    _lastPoses[0] = _lastPoses[1];
+    _lastPoses[1].position = rotQuat * (_startPose.position - spherePosition) + spherePosition;
+    _lastPoses[1].rotation = rotQuat * _startPose.rotation;
+    _camera->setPose(_lastPoses[1]);
 
-    // Mark that a camera interaction happened
+    // Mark that a camera interaction happeneddD
     orbNav.updateOnCameraInteraction();
 
+    return true;
 }
 
-void TouchInteraction::updateNodeSurfacePoints(const std::vector<TouchInputHolder>& inputs)
-{
-    _selectedNodeSurfacePoints.clear();
-
-    const SceneGraphNode* anchor =
-        global::navigationHandler->orbitalNavigator().anchorNode();
-    SceneGraphNode* node = sceneGraphNode(anchor->identifier());
-
-    // Check if current anchor is valid for direct touch
-    TouchModule* module = global::moduleEngine->module<TouchModule>();
-
-    bool isDirectTouchRenderable = node->renderable() &&
-        module->isDefaultDirectTouchType(node->renderable()->typeAsString());
-
-    if (!(node->supportsDirectInteraction() || isDirectTouchRenderable)) {
-        return;
+bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& inputs) {
+    if (inputs.size() == 0 || !_camera || !_anchor) {
+        return false;
     }
 
-    glm::dquat camToWorldSpace = _camera->rotationQuaternion();
-    glm::dvec3 camPos = _camera->positionVec3();
-    std::vector<DirectInputSolver::SelectedBody> surfacePoints;
+    // TODO: implement Camera::pose() (also used in OrbitalNavigator)
+    _startPose = {
+        .position = _camera->positionVec3(),
+        .rotation = _camera->rotationQuaternion(),
+    };
 
-    for (const TouchInputHolder& inputHolder : inputs) {
-        // Normalized -1 to 1 coordinates on screen
-        double xCo = 2 * (inputHolder.latestInput().x - 0.5);
-        double yCo = -2 * (inputHolder.latestInput().y - 0.5);
-        glm::dvec3 cursorInWorldSpace = camToWorldSpace *
-            glm::dvec3(glm::inverse(_camera->projectionMatrix()) *
-            glm::dvec4(xCo, yCo, -1.0, 1.0));
-        glm::dvec3 rayDir = glm::normalize(cursorInWorldSpace);
+    const TouchInputHolder& input = inputs[0];
+    _firstInput = glm::vec2(input.latestInput().x, input.latestInput().y);
+    glm::dvec3 proj = unprojectTouchOnSphere(_firstInput);
 
-        size_t id = inputHolder.fingerId();
+    // check if touch is inside interaction sphere
+    bool isInside = proj != glm::dvec3(0.0);
 
-        // Compute positions on anchor node, by checking if touch input
-        // intersect interaction sphere
-        double intersectionDist = 0.0;
-        const bool intersected = glm::intersectRaySphere(
-            camPos,
-            rayDir,
-            node->worldPosition(),
-            node->interactionSphere() * node->interactionSphere(),
-            intersectionDist
-        );
-
-        if (intersected) {
-            glm::dvec3 intersectionPos = camPos + rayDir * intersectionDist;
-            glm::dvec3 pointInModelView = glm::inverse(node->worldRotationMatrix()) *
-                                            (intersectionPos - node->worldPosition());
-
-            // Note that node is saved as the direct input solver was initially
-            // implemented to handle touch contact points on multiple nodes
-            surfacePoints.push_back({ id, node, pointInModelView });
-        }
+    if (isInside) {
+        interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
+        orbNav.resetVelocities();
     }
 
-    _selectedNodeSurfacePoints = std::move(surfacePoints);
+    return isInside;
 }
 
-double TouchInteraction::computeConstTimeDecayCoefficient(double velocity) {
-    constexpr double postDecayVelocityTarget = 1e-6;
-    const double stepsToDecay = _constTimeDecay_secs / _frameTimeAvg.averageFrameTime();
+void TouchInteraction::endDirectControl() {
+    glm::dquat rotDiff = glm::inverse(_lastPoses[0].rotation) * _lastPoses[1].rotation;
+    glm::vec3 axisAngle = glm::axis(rotDiff) * glm::angle(rotDiff);
+    glm::vec3 angularVel = glm::inverse(_camera->viewMatrix()) * glm::vec4(axisAngle, 0.f);
 
-    if (stepsToDecay > 0.0 && std::abs(velocity) > postDecayVelocityTarget) {
-        return std::pow(postDecayVelocityTarget / std::abs(velocity), 1.0 / stepsToDecay);
-    }
-    return 1.0;
+    interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
+    // XXX: idk why y and x axes are swapped here.
+    // TODO: compute dt to have correct velocity
+    // TODO: ensure _lastPoses were computed
+    orbNav.touchStates().setGlobalRotationVelocity(glm::dvec2(angularVel.y, angularVel.x));
 }
 
 double TouchInteraction::computeTapZoomDistance(double zoomGain) {
@@ -555,285 +543,6 @@ double TouchInteraction::computeTapZoomDistance(double zoomGain) {
     return newVelocity;
 }
 
-bool TouchInteraction::hasNonZeroVelocities() const {
-    glm::dvec2 sum = _velocity.orbit;
-    sum += glm::dvec2(_velocity.zoom, 0.0);
-    sum += glm::dvec2(_velocity.roll, 0.0);
-    sum += _velocity.pan;
-    // Epsilon size based on that even if no interaction is happening,
-    // there might still be some residual velocity
-    return glm::length(sum) > 0.001;
-}
-
-// Main update call, calculates the new orientation and position for the camera depending
-// on _vel and dt. Called every frame
-void TouchInteraction::step(double dt, bool directTouch) {
-    return;
-    using namespace glm;
-
-    if (!(directTouch || hasNonZeroVelocities())) {
-        // No motion => don't update the camera
-        return;
-    }
-
-    const SceneGraphNode* anchor =
-        global::navigationHandler->orbitalNavigator().anchorNode();
-
-    if (anchor && _camera) {
-        // Create variables from current state
-        dvec3 camPos = _camera->positionVec3();
-        const dvec3 centerPos = anchor->worldPosition();
-
-        dvec3 directionToCenter = normalize(centerPos - camPos);
-        const dvec3 centerToCamera = camPos - centerPos;
-        const dvec3 lookUp = _camera->lookUpVectorWorldSpace();
-        const dvec3 camDirection = _camera->viewDirectionWorldSpace();
-
-        // Make a representation of the rotation quaternion with local and global
-        // rotations. To avoid problem with lookup in up direction
-        const dmat4 lookAtMat = lookAt(
-            dvec3(0.0, 0.0, 0.0),
-            directionToCenter,
-            normalize(camDirection + lookUp)
-        );
-        dquat globalCamRot = normalize(quat_cast(inverse(lookAtMat)));
-        dquat localCamRot = inverse(globalCamRot) * _camera->rotationQuaternion();
-
-        const double interactionSphere = anchor->interactionSphere();
-
-        // Check if camera is within distance for direct manipulation to be applicable
-        // if (interactionSphere > 0.0 && _enableDirectManipulation) {
-        //     const double distance =
-        //         std::max(length(centerToCamera) - interactionSphere, 0.0);
-        //     const double maxDistance = interactionSphere * _directTouchDistanceThreshold;
-        //     _isWithinDirectTouchDistance = distance <= maxDistance;
-        // }
-        // else {
-        //     _isWithinDirectTouchDistance = false;
-        // }
-
-        {
-            // Roll
-            const dquat camRollRot = angleAxis(_velocity.roll * dt, dvec3(0.0, 0.0, 1.0));
-            localCamRot = localCamRot * camRollRot;
-        }
-        {
-            // Panning (local rotation)
-            const dvec3 eulerAngles(_velocity.pan.y * dt, _velocity.pan.x * dt, 0.0);
-            const dquat rotationDiff = dquat(eulerAngles);
-            localCamRot = localCamRot * rotationDiff;
-        }
-        {
-            // Orbit (global rotation)
-            const dvec3 eulerAngles(_velocity.orbit.y * dt, _velocity.orbit.x * dt, 0.0);
-            const dquat rotationDiffCamSpace = dquat(eulerAngles);
-
-            const dquat rotationDiffWorldSpace = globalCamRot * rotationDiffCamSpace *
-                                                 inverse(globalCamRot);
-            const dvec3 rotationDiffVec3 = centerToCamera * rotationDiffWorldSpace -
-                                           centerToCamera;
-            camPos += rotationDiffVec3;
-
-            const dvec3 centerToCam = camPos - centerPos;
-            directionToCenter = normalize(-centerToCam);
-            const dvec3 lookUpWhenFacingCenter = globalCamRot *
-                                           dvec3(_camera->lookUpVectorCameraSpace());
-
-            const dmat4 lookAtMatrix = lookAt(
-                dvec3(0.0),
-                directionToCenter,
-                lookUpWhenFacingCenter
-            );
-            globalCamRot = normalize(quat_cast(inverse(lookAtMatrix)));
-        }
-        {
-            // Zooming
-
-            // This is a rough estimate of the node surface
-            // If nobody has set another zoom in limit, use this as default zoom in bounds
-            double zoomInBounds = interactionSphere * _zoomInBoundarySphereMultiplier;
-            bool isZoomInLimitSet = (_zoomInLimit.value() >= 0.0);
-
-            if (isZoomInLimitSet && _zoomInLimit.value() < zoomInBounds) {
-                // If zoom in limit is less than the estimated node radius we need to
-                // make sure we do not get too close to possible height maps
-                SurfacePositionHandle posHandle = anchor->calculateSurfacePositionHandle(
-                    camPos
-                );
-                glm::dvec3 centerToActualSurfaceModelSpace =
-                    posHandle.centerToReferenceSurface +
-                    posHandle.referenceSurfaceOutDirection * posHandle.heightToSurface;
-                glm::dvec3 centerToActualSurface = glm::dmat3(anchor->modelTransform()) *
-                    centerToActualSurfaceModelSpace;
-                const double nodeRadius = length(centerToActualSurface);
-
-                // Because of heightmaps we need to ensure we don't go through the surface
-                if (_zoomInLimit.value() < nodeRadius) {
-#ifdef TOUCH_DEBUG_PROPERTIES
-                    LINFO(std::format(
-                        "Zoom In limit should be larger than anchor "
-                        "center to surface, setting it to {}", zoomInBounds
-                    ));
-#endif
-                    zoomInBounds = _zoomInLimit.value();
-                }
-            }
-
-            double zoomOutBounds = std::min(
-                interactionSphere *_zoomOutBoundarySphereMultiplier,
-                _zoomOutLimit.value()
-            );
-
-            // Make sure zoom in limit is not larger than zoom out limit
-            if (zoomInBounds > zoomOutBounds) {
-               LWARNING(std::format(
-                   "Zoom In Limit should be smaller than Zoom Out Limit",
-                    zoomOutBounds
-               ));
-            }
-            const double currentPosDistance = length(centerToCamera);
-
-            // Apply the velocity to update camera position
-            double zoomVelocity = _velocity.zoom;
-            if (!directTouch) {
-                const double distanceFromSurface =
-                    length(currentPosDistance) - anchor->interactionSphere();
-                if (distanceFromSurface > 0.1) {
-                    const double ratioOfDistanceToNodeVsSurf =
-                        length(currentPosDistance) / distanceFromSurface;
-                    if (ratioOfDistanceToNodeVsSurf > _zoomSensitivityDistanceThreshold) {
-                        zoomVelocity *= pow(
-                            std::abs(distanceFromSurface),
-                            static_cast<float>(_zoomSensitivityExponential)
-                        );
-                    }
-                }
-                else {
-                    zoomVelocity = 1.0;
-                }
-            }
-
-            const glm::dvec3 zoomDistanceInc = directionToCenter * zoomVelocity * dt;
-            const double newPosDistance = length(centerToCamera + zoomDistanceInc);
-
-            // Possible with other navigations performed outside touch interaction
-            const bool currentPosViolatingZoomOutLimit =
-                (currentPosDistance >= zoomOutBounds);
-            const bool willNewPositionViolateZoomOutLimit =
-                (newPosDistance >= zoomOutBounds);
-            bool willNewPositionViolateZoomInLimit =
-                (newPosDistance < zoomInBounds);
-            bool willNewPositionViolateDirection =
-                (currentPosDistance <= length(zoomDistanceInc));
-
-            if (!willNewPositionViolateZoomInLimit &&
-                !willNewPositionViolateDirection &&
-                !willNewPositionViolateZoomOutLimit)
-            {
-                camPos += zoomDistanceInc;
-            }
-            else if (currentPosViolatingZoomOutLimit) {
-#ifdef TOUCH_DEBUG_PROPERTIES
-                LINFO(std::format(
-                    "You are outside zoom out {} limit, only zoom in allowed",
-                    zoomOutBounds
-                ));
-#endif
-                // Only allow zooming in if you are outside the zoom out limit
-                if (newPosDistance < currentPosDistance) {
-                    camPos += zoomDistanceInc;
-                }
-            }
-            else {
-#ifdef TOUCH_DEBUG_PROPERTIES
-                LINFO("Zero the zoom velocity close to surface");
-#endif
-                _velocity.zoom = 0.0;
-            }
-        }
-
-        decelerate(dt);
-
-        // @TODO (emmbr, 2023-02-08) This is ugly, but for now prevents jittering
-        // when zooming in closer than the orbital navigator allows. Long term, we
-        // should make the touch interaction tap into the orbitalnavigator and let that
-        // do the updating of the camera, instead of handling them separately. Then we
-        // would keep them in sync and avoid duplicated camera updating code.
-        auto orbitalNavigator = global::navigationHandler->orbitalNavigator();
-        camPos = orbitalNavigator.pushToSurfaceOfAnchor(camPos);
-
-        // @TODO (emmbr, 2023-02-08) with the line above, the ZoomInLimit might not be
-        // needed anymore. We should make it so that just the limit properties in the
-        // OrbitalNavigator is actually needed, and don't have duplicates
-
-        // Update the camera state
-        _camera->setPositionVec3(camPos);
-        _camera->setRotation(globalCamRot * localCamRot);
-
-        // Mark that a camera interaction happened
-        global::navigationHandler->orbitalNavigator().updateOnCameraInteraction();
-
-#ifdef TOUCH_DEBUG_PROPERTIES
-        //Show velocity status every N frames
-        if (++stepVelUpdate >= 60) {
-            stepVelUpdate = 0;
-            LINFO(std::format(
-                "DistToFocusNode {} stepZoomVelUpdate {}",
-                length(centerToCamera), _vel.zoom
-            ));
-        }
-#endif
-
-        // _tap = false;
-        // _doubleTap = false;
-        // _zoomOutTap = false;
-    }
-}
-
-// Decelerate velocities, called a set number of times per second to dereference it from
-// frame time
-// Example:
-// Assume: frequency = 0.01, dt = 0.05 (200 fps), _timeSlack = 0.0001
-// times = floor((0.05 + 0.0001) / 0.01) = 5
-// _timeSlack = 0.0501 % 0.01 = 0.01
-void TouchInteraction::decelerate(double dt) {
-    _frameTimeAvg.updateWithNewFrame(dt);
-    double expectedFrameTime = _frameTimeAvg.averageFrameTime();
-
-    // Number of times velocities should decelerate, depending on chosen frequency and
-    // time slack over from last frame
-    int times = static_cast<int>((dt + _timeSlack) / expectedFrameTime);
-    // Save the new time slack for the next frame
-    _timeSlack = fmod((dt + _timeSlack), expectedFrameTime) * expectedFrameTime;
-
-    //Ensure the number of times to apply the decay coefficient is valid
-    times = std::min(times, 1);
-
-    _velocity.orbit *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.orbit, times);
-    _velocity.roll  *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.roll,  times);
-    _velocity.pan   *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.pan,   times);
-    _velocity.zoom  *= computeDecayCoeffFromFrametime(_constTimeDecayCoeff.zoom,  times);
-}
-
-// Called if all fingers are off the screen
-void TouchInteraction::resetAfterInput() {
-#ifdef TOUCH_DEBUG_PROPERTIES
-    _debugProperties.nFingers = 0;
-    _debugProperties.interactionMode = "None";
-#endif
-    // @TODO (emmbr 2023-02-03) Bring back feature that allows node to spin when
-    // the direct manipulaiton finger is let go. Should implement this using the
-    // orbitalnavigator's friction values. This also implies passing velocities to
-    // the orbitalnavigator, instead of setting the camera directly as is currently
-    // done in this class.
-
-    _constTimeDecayCoeff.zoom = computeConstTimeDecayCoefficient(_velocity.zoom);
-    _pinchInputs[0].clearInputs();
-    _pinchInputs[1].clearInputs();
-
-    _selectedNodeSurfacePoints.clear();
-}
-
 // Reset all property values to default
 void TouchInteraction::resetPropertiesToDefault() {
     _unitTest.set(false);
@@ -850,13 +559,6 @@ void TouchInteraction::resetPropertiesToDefault() {
     _centroidStillThreshold.set(0.0018f);
     _interpretPan.set(0.015f);
     _friction.set(glm::vec4(0.025f, 0.025f, 0.02f, 0.02f));
-}
-
-void TouchInteraction::resetVelocities() {
-    _velocity.orbit = glm::dvec2(0.0);
-    _velocity.zoom = 0.0;
-    _velocity.roll = 0.0;
-    _velocity.pan = glm::dvec2(0.0);
 }
 
 void TouchInteraction::tap() {

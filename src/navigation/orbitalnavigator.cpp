@@ -39,6 +39,7 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/vector_angle.hpp>
 #include <cmath>
+#include <iostream>
 
 #include "orbitalnavigator_lua.inl"
 
@@ -762,6 +763,7 @@ void OrbitalNavigator::resetVelocities() {
     _joystickStates.resetVelocities();
     _websocketStates.resetVelocities();
     _scriptStates.resetVelocities();
+    _touchStates.resetVelocities();
 
     if (shouldFollowAnchorRotation(_camera->positionVec3())) {
         _followRotationInterpolator.end();
@@ -779,12 +781,14 @@ void OrbitalNavigator::updateStatesFromInput(const MouseInputState& mouseInputSt
     _joystickStates.updateStateFromInput(*global::joystickInputStates, deltaTime);
     _websocketStates.updateStateFromInput(*global::websocketInputStates, deltaTime);
     _scriptStates.updateStateFromInput(deltaTime);
+    _touchStates.updateStateFromInput(deltaTime);
 
     const bool interactionHappened =
         _mouseStates.hasNonZeroVelocities() ||
         _joystickStates.hasNonZeroVelocities() ||
         _websocketStates.hasNonZeroVelocities() ||
-        _scriptStates.hasNonZeroVelocities();
+        _scriptStates.hasNonZeroVelocities() ||
+        _touchStates.hasNonZeroVelocities();
 
     if (interactionHappened) {
         updateOnCameraInteraction();
@@ -797,7 +801,8 @@ void OrbitalNavigator::updateStatesFromInput(const MouseInputState& mouseInputSt
         _mouseStates.hasNonZeroVelocities(true) ||
         _joystickStates.hasNonZeroVelocities(true) ||
         _websocketStates.hasNonZeroVelocities(true) ||
-        _scriptStates.hasNonZeroVelocities(true);
+        _scriptStates.hasNonZeroVelocities(true) ||
+        _touchStates.hasNonZeroVelocities(true);
 
     if (cameraLocationChanged && (_movementTimer < 0.f)) {
         global::eventEngine->publishEvent<events::EventCameraMovedPosition>();
@@ -1473,7 +1478,8 @@ glm::dquat OrbitalNavigator::roll(double deltaTime,
         _mouseStates.localRollVelocity().x * deltaTime +
         _joystickStates.localRollVelocity().x * deltaTime +
         _websocketStates.localRollVelocity().x * deltaTime +
-        _scriptStates.localRollVelocity().x * deltaTime,
+        _scriptStates.localRollVelocity().x * deltaTime +
+        _touchStates.localRollVelocity().x * deltaTime,
         glm::dvec3(0.0, 0.0, 1.0)
     );
     return localCameraRotation * mouseRollQuat;
@@ -1506,8 +1512,14 @@ glm::dquat OrbitalNavigator::rotateLocally(double deltaTime,
         0.0
     ) * deltaTime);
 
+    const glm::dquat touchRotationDiff = glm::dquat(glm::dvec3(
+        _touchStates.localRotationVelocity().y,
+        _touchStates.localRotationVelocity().x,
+        0.0
+    ) * deltaTime);
+
     return localCameraRotation * joystickRotationDiff * mouseRotationDiff *
-           websocketRotationDiff * scriptRotationDiff;
+           websocketRotationDiff * scriptRotationDiff * touchRotationDiff;
 }
 
 glm::dquat OrbitalNavigator::interpolateLocalRotation(double deltaTime,
@@ -1656,7 +1668,8 @@ void OrbitalNavigator::rotateAroundAnchorUp(double deltaTime, double speedScale,
     const double combinedXInput = _mouseStates.globalRotationVelocity().x +
         _joystickStates.globalRotationVelocity().x +
         _websocketStates.globalRotationVelocity().x +
-        _scriptStates.globalRotationVelocity().x;
+        _scriptStates.globalRotationVelocity().x +
+        _touchStates.globalRotationVelocity().x;
 
     const double angle = combinedXInput * deltaTime * speedScale;
     orbitAroundAxis(axis, angle, cameraPosition, globalCameraRotation);
@@ -1687,15 +1700,21 @@ glm::dvec3 OrbitalNavigator::translateHorizontally(double deltaTime, double spee
         0.0
     ) * angleScale);
 
+    const glm::dquat websocketRotationDiffCamSpace = glm::dquat(glm::dvec3(
+        -_websocketStates.globalRotationVelocity().y,
+        useX ? -_websocketStates.globalRotationVelocity().x : 0.0,
+        0.0
+    ) * angleScale);
+
     const glm::dquat scriptRotationDiffCamSpace = glm::dquat(glm::dvec3(
         -_scriptStates.globalRotationVelocity().y,
         useX ? -_scriptStates.globalRotationVelocity().x : 0.0,
         0.0
     ) * angleScale);
 
-    const glm::dquat websocketRotationDiffCamSpace = glm::dquat(glm::dvec3(
-        -_websocketStates.globalRotationVelocity().y,
-        useX ? -_websocketStates.globalRotationVelocity().x : 0.0,
+    const glm::dquat touchRotationDiffCamSpace = glm::dquat(glm::dvec3(
+        -_touchStates.globalRotationVelocity().y,
+        useX ? -_touchStates.globalRotationVelocity().x : 0.0,
         0.0
     ) * angleScale);
 
@@ -1703,7 +1722,7 @@ glm::dvec3 OrbitalNavigator::translateHorizontally(double deltaTime, double spee
     const glm::dquat rotationDiffWorldSpace = globalCameraRotation *
         joystickRotationDiffCamSpace * mouseRotationDiffCamSpace *
         websocketRotationDiffCamSpace * scriptRotationDiffCamSpace *
-        glm::inverse(globalCameraRotation);
+        touchRotationDiffCamSpace * glm::inverse(globalCameraRotation);
 
     const glm::dmat4 modelTransform = _anchorNode->modelTransform();
     const glm::dvec3 outDirection = glm::normalize(
@@ -1773,7 +1792,8 @@ glm::dvec3 OrbitalNavigator::translateVertically(double deltaTime,
     const double totalVelocity = _joystickStates.truckMovementVelocity().y +
                                  _mouseStates.truckMovementVelocity().y +
                                  _websocketStates.truckMovementVelocity().y +
-                                 _scriptStates.truckMovementVelocity().y;
+                                 _scriptStates.truckMovementVelocity().y +
+                                 _touchStates.truckMovementVelocity().y;
 
     return cameraPosition - actualSurfaceToCamera * totalVelocity * deltaTime;
 }
@@ -1794,7 +1814,8 @@ glm::dquat OrbitalNavigator::rotateHorizontally(double deltaTime,
         _mouseStates.globalRollVelocity().x * deltaTime +
         _joystickStates.globalRollVelocity().x * deltaTime +
         _websocketStates.globalRollVelocity().x * deltaTime +
-        _scriptStates.globalRollVelocity().x * deltaTime,
+        _scriptStates.globalRollVelocity().x * deltaTime +
+        _touchStates.globalRollVelocity().x * deltaTime,
         directionFromSurfaceToCamera
     );
     return mouseCameraRollRotation * globalCameraRotation;
@@ -1888,6 +1909,14 @@ ScriptCameraStates& OrbitalNavigator::scriptStates() {
 
 const ScriptCameraStates& OrbitalNavigator::scriptStates() const {
     return _scriptStates;
+}
+
+ScriptCameraStates& OrbitalNavigator::touchStates() {
+    return _touchStates;
+}
+
+const ScriptCameraStates& OrbitalNavigator::touchStates() const {
+    return _touchStates;
 }
 
 void OrbitalNavigator::triggerIdleBehavior(std::string_view choice) {
