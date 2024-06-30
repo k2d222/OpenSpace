@@ -104,8 +104,9 @@ private:
 
     Camera* _camera = nullptr;
     CameraPose _startPose = {};
+    float _startZoom = 0.f;
+    std::vector<TouchInput> _startInputs;
     CameraPose _lastPoses[2]; // store two last poses to compute velocity
-    glm::vec2 _firstInput;
     bool _isDirectControlActive = false;
     const SceneGraphNode* _anchor = nullptr;
 
