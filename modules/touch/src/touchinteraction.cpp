@@ -497,14 +497,23 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     }
     
     // compute camera orbit rotation (bringing startP1 to endP1)
-    glm::dvec3 orbitAxis = glm::normalize(glm::cross(startP1Dir, endP1Dir));
-    double orbitAngle = -glm::acos(glm::dot(startP1Dir, endP1Dir));
+    // glm::dvec3 orbitAxis = glm::normalize(glm::cross(startP1Dir, endP1Dir));
+    // double orbitAngle = -glm::acos(glm::dot(startP1Dir, endP1Dir));
+    glm::dvec3 orbitAxis = glm::normalize(glm::cross(startCenterDir, endCenterDir));
+    double orbitAngle = -glm::acos(glm::dot(startCenterDir, endCenterDir));
 
     // rotAxis is NaN when startVec and endVec are parallel (no rotation needed)
     if (glm::any(glm::isnan(orbitAxis))) {
         orbitAxis = glm::dvec3(1.0, 0.0, 0.0);
         orbitAngle = 0.0;
     }
+
+    // constrain to rotations around camera x and y axes (no roll)
+    glm::dvec3 cameraRight = _camera->rotationQuaternion() * glm::dvec3(1.0, 0.0, 0.0);
+    glm::dvec3 cameraUp = _camera->rotationQuaternion() * glm::dvec3(0.0, 1.0, 0.0);
+    glm::dquat rotationX = glm::angleAxis(orbitAngle * glm::dot(orbitAxis, cameraRight), cameraRight);
+    glm::dquat rotationY = glm::angleAxis(orbitAngle * glm::dot(orbitAxis, cameraUp), cameraUp);
+    glm::dquat orbit = rotationY * rotationX;
 
     // compute camera z-axis rotation (roll)
     double rollAngle = 0.0;
@@ -519,7 +528,7 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         const glm::dvec3 startP2Dir = glm::normalize(startP2World - anchorPos);
         const glm::dvec3 endP2Dir = glm::normalize(endP2World - anchorPos);
 
-        rollAxis = endP1Dir;
+        rollAxis = endCenterDir;
 
         // need to project all vectors on the rotation plane to compute the angle from
         // this point of view.
@@ -539,10 +548,9 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         double r2 = x2 * glm::length(_startPose.position - anchorPos) / (x2 * glm::cos(angle) + glm::sin(angle) * 1.0 * cos(_camera->maxFov() / 2.0));
         zoom = r2 / r1;
     }
+    glm::dquat roll = glm::angleAxis(rollAngle, rollAxis);
 
-    glm::dquat rotQuat =
-        glm::angleAxis(rollAngle, rollAxis) *
-        glm::angleAxis(orbitAngle, orbitAxis);
+    glm::dquat rotQuat = roll * orbit;
 
     // apply transforms
     _lastPoses[0] = _lastPoses[1];
@@ -552,8 +560,8 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     _camera->setPose(_lastPoses[1]);
 
     // TODO
-    // _startPose = _lastPoses[1];
-    // _startInputs = endInputs;
+    _startPose = _lastPoses[1];
+    _startInputs = endInputs;
 
     // Mark that a camera interaction happeneddD
     interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
