@@ -260,6 +260,17 @@ namespace {
         openspace::properties::Property::Visibility::AdvancedUser
     };
 
+    constexpr openspace::properties::Property::PropertyInfo
+        GlobeDisplayInfo =
+    {
+        "GlobeDisplay",
+        "Globe display",
+        "Enable this for spherical outside-in touch displays (e.g. Pufferfish)."
+        "The camera will be set at the anchor position. Use in conjuntion with the "
+        "outside-in cubemap fisheye configuration.",
+        openspace::properties::Property::Visibility::AdvancedUser
+    };
+
     std::vector<openspace::TouchInput> lastInputs(const std::vector<openspace::TouchInputHolder>& inputs) {
         std::vector<openspace::TouchInput> res;
         res.reserve(inputs.size());
@@ -337,6 +348,7 @@ TouchInteraction::TouchInteraction()
     , _constTimeDecay_secs(ConstantTimeDecaySecsInfo, 1.75f, 0.1f, 4.f)
     , _enableDirectManipulation(EnableDirectManipulationInfo, true)
     , _directTouchDistanceThreshold(DirectManipulationThresholdInfo, 5.f, 0.f, 10.f)
+    , _useGlobeDisplay(GlobeDisplayInfo, true)
     , _pinchInputs({ TouchInput(0, 0, 0.f, 0.f, 0.0), TouchInput(0, 0, 0.f, 0.f, 0.0) })
 {
     addProperty(_disableZoom);
@@ -365,6 +377,7 @@ TouchInteraction::TouchInteraction()
 
     addProperty(_enableDirectManipulation);
     addProperty(_directTouchDistanceThreshold);
+    addProperty(_useGlobeDisplay);
 
 #ifdef TOUCH_DEBUG_PROPERTIES
     addPropertySubOwner(_debugProperties);
@@ -388,6 +401,10 @@ void TouchInteraction::update(const std::vector<TouchInputHolder>& inputs)
 #ifdef TOUCH_DEBUG_PROPERTIES
     _debugProperties.nFingers = numFingers;
 #endif
+
+    if (_useGlobeDisplay && _anchor) {
+        _camera->setPositionVec3(_anchor->worldPosition() + glm::dvec3(0.0, 10.0, 0.0));
+    }
 
     // just ended an interaction by relasing the last finger
     if (numFingers == 0 && _isDirectControlActive) {
@@ -436,6 +453,13 @@ void TouchInteraction::reset() {
 }
 
 glm::dvec3 TouchInteraction::unprojectTouchOnSphere(const TouchInput& input) const {
+    if (_useGlobeDisplay) {
+        double yaw = (1.5 - input.x) * glm::two_pi<double>();
+        double pitch = (0.5 - input.y) * glm::half_pi<double>();
+        glm::dvec3 dir = glm::normalize(glm::dvec3(cos(yaw) * cos(pitch), sin(pitch), sin(yaw) * cos(pitch)));
+        return dir;
+    }
+
     const glm::dvec3& camPos = _startPose.position;
     const glm::dquat& camQuat = _startPose.rotation;
 
@@ -544,14 +568,7 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
             rollAxis = endP1Dir;
             // need to project all vectors on the rotation plane to compute the angle from
             // this point of view.
-            const glm::dvec3 startP1Proj = startP1World - glm::dot(startP1World, rollAxis) * rollAxis;
-            const glm::dvec3 startP2Proj = startP2World - glm::dot(startP2World, rollAxis) * rollAxis;
-            const glm::dvec3 endP1Proj = endP1World - glm::dot(endP1World, rollAxis) * rollAxis;
-            const glm::dvec3 endP2Proj = endP2World - glm::dot(endP2World, rollAxis) * rollAxis;
-            const glm::dvec3 startDir = glm::normalize(startP2Proj - startP1Proj);
-            const glm::dvec3 endDir = glm::normalize(endP2Proj - endP1Proj);
-
-            rollAngle = -glm::orientedAngle(startP1Dir, endP1Dir, rollAxis);
+            rollAngle = -glm::orientedAngle(startP2Dir, endP2Dir, rollAxis);
         }
     }
 
@@ -571,6 +588,10 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     // const glm::dvec3 surface = anchorPos - camAxis * _anchor->interactionSphere(); // we scale the distance from the camera to the surface of the globle by scaling
     // _lastPoses[1].position = (_startPose.position - surface) / scaling + surface;
     // _lastPoses[1].rotation = rot * _startPose.rotation;
+
+    if (_useGlobeDisplay) {
+        pose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
+    }
 
     _camera->setPose(pose);
     _lastPoses[0] = _lastPoses[1];

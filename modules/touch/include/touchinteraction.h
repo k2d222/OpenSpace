@@ -143,6 +143,7 @@ private:
 
     properties::BoolProperty _enableDirectManipulation;
     properties::FloatProperty _directTouchDistanceThreshold;
+    properties::BoolProperty _useGlobeDisplay;
 
 #ifdef TOUCH_DEBUG_PROPERTIES
     struct DebugProperties : PropertyOwner {

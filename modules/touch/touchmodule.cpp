@@ -26,6 +26,7 @@
 
 #include <modules/touch/include/tuioear.h>
 #include <modules/touch/include/win32_touch.h>
+#include <openspace/camera/camera.h>
 #include <openspace/engine/globals.h>
 #include <openspace/engine/globalscallbacks.h>
 #include <openspace/engine/openspaceengine.h>
@@ -33,6 +34,7 @@
 #include <openspace/interaction/interactionmonitor.h>
 #include <openspace/navigation/navigationhandler.h>
 #include <openspace/rendering/renderable.h>
+#include <openspace/scene/scenegraphnode.h>
 #include <openspace/util/factorymanager.h>
 #include <openspace/util/touch.h>
 #include <algorithm>
@@ -183,10 +185,10 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&) {
             return;
         }
 
-        _touchInteraction.setCamera(global::navigationHandler->camera());
 
         bool gotNewInput = processNewInput();
-        if (gotNewInput && global::windowDelegate->isMaster()) {
+        if ((gotNewInput || true) && global::windowDelegate->isMaster()) {
+            _touchInteraction.setCamera(global::navigationHandler->camera());
             _touchInteraction.update(_touches);
         }
     });
