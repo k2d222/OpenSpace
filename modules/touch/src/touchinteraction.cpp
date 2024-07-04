@@ -264,9 +264,9 @@ namespace {
         GlobeDisplayInfo =
     {
         "GlobeDisplay",
-        "Globe display",
-        "Enable this for spherical outside-in touch displays (e.g. Pufferfish)."
-        "The camera will be set at the anchor position. Use in conjuntion with the "
+        "Spherical display",
+        "Enable this for spherical touch displays (e.g. Pufferfish touch)."
+        "The camera will be fixed at the anchor position. Use in conjuntion with the "
         "outside-in cubemap fisheye configuration.",
         openspace::properties::Property::Visibility::AdvancedUser
     };
@@ -280,16 +280,6 @@ namespace {
         }
 
         return res;
-    }
-
-    glm::vec2 touchBarycenter(const std::vector<openspace::TouchInput>& inputs) {
-        glm::vec2 sum(0.f);
-
-        for (const openspace::TouchInput& input : inputs) {
-            sum += glm::vec2(input.x, input.y);
-        }
-
-        return sum / inputs.size();
     }
 } // namespace
 
@@ -348,7 +338,7 @@ TouchInteraction::TouchInteraction()
     , _constTimeDecay_secs(ConstantTimeDecaySecsInfo, 1.75f, 0.1f, 4.f)
     , _enableDirectManipulation(EnableDirectManipulationInfo, true)
     , _directTouchDistanceThreshold(DirectManipulationThresholdInfo, 5.f, 0.f, 10.f)
-    , _useGlobeDisplay(GlobeDisplayInfo, true)
+    , _useGlobeDisplay(GlobeDisplayInfo, false)
     , _pinchInputs({ TouchInput(0, 0, 0.f, 0.f, 0.0), TouchInput(0, 0, 0.f, 0.f, 0.0) })
 {
     addProperty(_disableZoom);
@@ -520,7 +510,9 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     const glm::dvec3 startP1Dir = unprojectTouchOnSphere(_startInputs.front());
     const glm::dvec3 endP1Dir = unprojectTouchOnSphere(endInputs.front());
     const glm::dvec3 startBarycenterDir = unprojectTouchesOnSphere(_startInputs);
-    const glm::dvec3 endBarycenterDir = unprojectTouchesOnSphere(endInputs);
+    glm::dvec3 endBarycenterDir = unprojectTouchesOnSphere(endInputs);
+    glm::dvec3 startP2Dir = unprojectTouchOnSphere(_startInputs.back());
+    glm::dvec3 endP2Dir = unprojectTouchOnSphere(endInputs.back());
 
     std::cout << "p1    start dir  " << startP1Dir << " end dir "<< endP1Dir << std::endl;
 
@@ -536,10 +528,32 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     glm::dvec3 rollAxis = glm::dvec3(1.0, 0.0, 0.0);
     double rollAngle = 0.0;
 
+    // compute scaling (first because orbit depends on it)
+    if (inputs.size() >= 2) {
+        // this is a simplified scaling. Proper scaling calculation might be impossible to find
+        // analytically. I challenge someone to find it, it would be a great contribution.
+        double startAngle = glm::distance(startP1Dir, startP2Dir);
+        double endAngle = glm::distance(endP1Dir, endP2Dir);
+        scaling = endAngle / startAngle;
+
+        const glm::dvec3 surface = anchorPos - camAxis * _anchor->interactionSphere(); // we scale the distance from the camera to the surface of the globle by scaling
+        _startPose.position = (_startPose.position - surface) / scaling + surface;
+        startP2Dir = unprojectTouchOnSphere(_startInputs.back());
+        endP2Dir = unprojectTouchOnSphere(endInputs.back());
+        endBarycenterDir = unprojectTouchesOnSphere(endInputs);
+
+        // check if raycast failed (outside anchor sphere)
+        if (startP2Dir == glm::dvec3(0.0) || endP2Dir == glm::dvec3(0.0)) {
+            return false;
+        }
+
+        std::cout << "scale " << scaling << std::endl;
+    }
+
     // compute orbit
     {
-        orbitAxis = glm::normalize(glm::cross(startP1Dir, endP1Dir));
-        orbitAngle = glm::acos(glm::dot(startP1Dir, endP1Dir));
+        orbitAxis = glm::normalize(glm::cross(startBarycenterDir, endBarycenterDir));
+        orbitAngle = glm::acos(glm::dot(startBarycenterDir, endBarycenterDir));
 
         // failure can happen if startP1Dir and endP1Dir are colinear (no orbit)
         if (glm::any(glm::isnan(orbitAxis))) {
@@ -548,33 +562,12 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         }
     }
 
+    // compute camera z-axis rotation (roll)
     if (inputs.size() >= 2) {
-        const glm::dvec3 startP2Dir = unprojectTouchOnSphere(_startInputs.back());
-        const glm::dvec3 endP2Dir = unprojectTouchOnSphere(endInputs.back());
-
-        std::cout << "p2    start dir  " << startP2Dir << " end dir "<< endP2Dir << std::endl;
-
-        // check if raycast failed (outside anchor sphere)
-        if (startP2Dir == glm::dvec3(0.0) || endP2Dir == glm::dvec3(0.0)) {
-            return false;
-        }
-
-        // compute scaling
-        {
-            // this is a simplified scaling. Proper scaling calculation might be impossible to find
-            // analytically. I challenge someone to find it, it would be a great contribution.
-            double startAngle = glm::angle(startP1Dir, startP2Dir);
-            double endAngle = glm::angle(endP1Dir, endP2Dir);
-            scaling = endAngle / startAngle;
-        }
-
-        // compute camera z-axis rotation (roll)
-        {
-            rollAxis = endBarycenterDir;
-            // need to project all vectors on the rotation plane to compute the angle from
-            // this point of view.
-            rollAngle = -glm::orientedAngle(glm::normalize(startP2Dir - startP1Dir), glm::normalize(endP2Dir - endP1Dir), rollAxis);
-        }
+        rollAxis = endBarycenterDir;
+        // need to project all vectors on the rotation plane to compute the angle from
+        // this point of view.
+        rollAngle = -glm::orientedAngle(glm::normalize(startP2Dir - startP1Dir), glm::normalize(endP2Dir - endP1Dir), rollAxis);
     }
 
     glm::dquat roll = glm::angleAxis(rollAngle, rollAxis);
@@ -584,14 +577,9 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     std::cout << "orbit angle/axis " << orbitAngle << orbitAxis << std::endl;
 
     // apply transforms
-    CameraPose pose{
-        .position = roll * orbit * (_startPose.position - anchorPos) + anchorPos,
-        .rotation = roll * orbit * _startPose.rotation,
-    };
-
-    // const glm::dvec3 surface = anchorPos - camAxis * _anchor->interactionSphere(); // we scale the distance from the camera to the surface of the globle by scaling
-    // _lastPoses[1].position = (_startPose.position - surface) / scaling + surface;
-    // _lastPoses[1].rotation = rot * _startPose.rotation;
+    CameraPose pose;
+    pose.position = orbit * roll * (_startPose.position - anchorPos) + anchorPos;
+    pose.rotation = orbit * roll * _startPose.rotation;
 
     if (_useGlobeDisplay) {
         pose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
@@ -602,9 +590,8 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     _lastPoses[0] = _lastPoses[1];
     _lastPoses[1] = pose;
 
-    // TODO
-    // _startPose = _lastPoses[1];
-    // _startInputs = endInputs;
+    _startPose = _lastPoses[1];
+    _startInputs = endInputs;
 
     // Mark that a camera interaction happened
     interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
