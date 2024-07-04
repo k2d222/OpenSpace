@@ -402,8 +402,9 @@ void TouchInteraction::update(const std::vector<TouchInputHolder>& inputs)
     _debugProperties.nFingers = numFingers;
 #endif
 
-    if (_useGlobeDisplay && _anchor) {
-        _camera->setPositionVec3(_anchor->worldPosition() + glm::dvec3(0.0, 10.0, 0.0));
+    if (_useGlobeDisplay) {
+        const SceneGraphNode* anchor = global::navigationHandler->orbitalNavigator().anchorNode();
+        _camera->setPositionVec3(anchor->worldPosition() + glm::dvec3(0.0, 10.0, 0.0));
     }
 
     // just ended an interaction by relasing the last finger
@@ -454,8 +455,8 @@ void TouchInteraction::reset() {
 
 glm::dvec3 TouchInteraction::unprojectTouchOnSphere(const TouchInput& input) const {
     if (_useGlobeDisplay) {
-        double yaw = (1.5 - input.x) * glm::two_pi<double>();
-        double pitch = (0.5 - input.y) * glm::half_pi<double>();
+        double yaw = (1.5 - input.x) * glm::two_pi<double>(); // range 0 to 2pi
+        double pitch = (input.y - 0.5) * glm::pi<double>(); // range -pi/2 to pi/2
         glm::dvec3 dir = glm::normalize(glm::dvec3(cos(yaw) * cos(pitch), sin(pitch), sin(yaw) * cos(pitch)));
         return dir;
     }
@@ -521,6 +522,8 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     const glm::dvec3 startBarycenterDir = unprojectTouchesOnSphere(_startInputs);
     const glm::dvec3 endBarycenterDir = unprojectTouchesOnSphere(endInputs);
 
+    std::cout << "p1    start dir  " << startP1Dir << " end dir "<< endP1Dir << std::endl;
+
     // check if raycast failed (outside anchor sphere)
     if (startP1Dir == glm::dvec3(0.0) || endP1Dir == glm::dvec3(0.0)) {
         return false;
@@ -549,6 +552,8 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         const glm::dvec3 startP2Dir = unprojectTouchOnSphere(_startInputs.back());
         const glm::dvec3 endP2Dir = unprojectTouchOnSphere(endInputs.back());
 
+        std::cout << "p2    start dir  " << startP2Dir << " end dir "<< endP2Dir << std::endl;
+
         // check if raycast failed (outside anchor sphere)
         if (startP2Dir == glm::dvec3(0.0) || endP2Dir == glm::dvec3(0.0)) {
             return false;
@@ -565,19 +570,18 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
 
         // compute camera z-axis rotation (roll)
         {
-            rollAxis = endP1Dir;
+            rollAxis = endBarycenterDir;
             // need to project all vectors on the rotation plane to compute the angle from
             // this point of view.
-            rollAngle = -glm::orientedAngle(startP2Dir, endP2Dir, rollAxis);
+            rollAngle = -glm::orientedAngle(glm::normalize(startP2Dir - startP1Dir), glm::normalize(endP2Dir - endP1Dir), rollAxis);
         }
     }
 
     glm::dquat roll = glm::angleAxis(rollAngle, rollAxis);
     glm::dquat orbit = glm::angleAxis(-orbitAngle, orbitAxis); // invert the angle as we want to rotate the camera around the sphere, not the opposite
 
-    std::cout << "roll " << rollAngle << rollAxis << std::endl;
-    std::cout << "orbit " << orbitAngle << orbitAxis << std::endl;
-    std::cout << "p1 " << startP1Dir << endP1Dir << std::endl;
+    std::cout << "roll  angle/axis " << rollAngle << rollAxis << std::endl;
+    std::cout << "orbit angle/axis " << orbitAngle << orbitAxis << std::endl;
 
     // apply transforms
     CameraPose pose{
@@ -591,6 +595,7 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
 
     if (_useGlobeDisplay) {
         pose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
+        pose.rotation = _startPose.rotation * roll * orbit;
     }
 
     _camera->setPose(pose);
@@ -690,6 +695,11 @@ void TouchInteraction::tap() {
 
 void TouchInteraction::setCamera(Camera* camera) {
     _camera = camera;
+
+    if (_useGlobeDisplay) {
+        const SceneGraphNode* anchor = global::navigationHandler->orbitalNavigator().anchorNode();
+        _camera->setPositionVec3(anchor->worldPosition() + glm::dvec3(0.0, 10.0, 0.0));
+    }
 }
 
 void FrameTimeAverage::updateWithNewFrame(double sample) {

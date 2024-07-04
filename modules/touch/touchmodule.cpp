@@ -187,9 +187,11 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&) {
 
 
         bool gotNewInput = processNewInput();
-        if ((gotNewInput || true) && global::windowDelegate->isMaster()) {
+        if (global::windowDelegate->isMaster()) {
             _touchInteraction.setCamera(global::navigationHandler->camera());
-            _touchInteraction.update(_touches);
+            if (gotNewInput) {
+                _touchInteraction.update(_touches);
+            }
         }
     });
 
