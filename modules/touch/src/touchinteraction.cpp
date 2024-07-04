@@ -22,6 +22,7 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
+#include "openspace/camera/camerapose.h"
 #include <glm/geometric.hpp>
 #include <modules/touch/include/touchinteraction.h>
 
@@ -434,21 +435,22 @@ void TouchInteraction::reset() {
     }
 }
 
-glm::dvec3 TouchInteraction::unprojectTouchOnSphere(const glm::vec2& input) const {
+glm::dvec3 TouchInteraction::unprojectTouchOnSphere(const TouchInput& input) const {
     const glm::dvec3& camPos = _startPose.position;
     const glm::dquat& camQuat = _startPose.rotation;
 
-    // convert touch input in range [0, 1] to NDC in range [-1, 1]
+    // convert touch input in range [0, 1] to NDC in range [-1, 1], then unproject
     glm::vec4 inputNdc(input.x * 2.f - 1.f, -(input.y * 2.f - 1.f), -1.f, 1.f);
-    glm::mat4 ndcToCam = glm::inverse(_camera->projectionMatrix());
-    glm::dvec3 inputWorldSpace = camQuat * glm::dvec3(ndcToCam * inputNdc); // it's not really in world space, the origin is the camera position.
+    glm::mat4 ndcToCam = glm::inverse(_camera->sgctInternal.projectionMatrix());
+    // it's not really in world space, the origin is the camera position
+    glm::dvec3 inputWorldSpace = camQuat * glm::dvec3(ndcToCam * inputNdc);
     glm::dvec3 rayDir = glm::normalize(inputWorldSpace);
 
-    // Compute positions on anchor node, by checking if touch input
-    // intersect interaction sphere
+    // Compute positions on anchor node, by checking if touch input intersects the
+    // interaction sphere
     double intersectionDist = 0.0;
     const bool intersected = glm::intersectRaySphere(
-        glm::dvec3(0.0), // it's more stable to do the computation at camera origin
+        glm::dvec3(0.0), // it's more stable to do the computation at the camera origin
         rayDir,
         _anchor->worldPosition() - camPos,
         _anchor->interactionSphere() * _anchor->interactionSphere(),
@@ -456,11 +458,23 @@ glm::dvec3 TouchInteraction::unprojectTouchOnSphere(const glm::vec2& input) cons
     );
 
     if (intersected) {
-        return camPos + rayDir * intersectionDist;
+        const glm::dvec3 worldPos = camPos + rayDir * intersectionDist;
+        const glm::dvec3 worldDir = glm::normalize(worldPos - _anchor->worldPosition());
+        return worldDir;
     }
     else {
         return glm::dvec3(0.0);
     }
+}
+
+glm::dvec3 TouchInteraction::unprojectTouchesOnSphere(const std::vector<TouchInput>& inputs) const {
+    glm::dvec3 acc;
+
+    for (const TouchInput input : inputs) {
+        acc += unprojectTouchOnSphere(input);
+    }
+
+    return glm::normalize(acc);
 }
 
 bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs) {
@@ -473,97 +487,100 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         return false;
     }
 
-    // compute all the constants
+    // constants
     const std::vector<TouchInput> endInputs = lastInputs(inputs);
     const glm::dvec3 anchorPos = _anchor->worldPosition();
-    const glm::dvec3 camAxis = glm::normalize(_startPose.position - anchorPos);
-    const glm::dvec2 startCenterScreen = touchBarycenter(_startInputs);
-    const glm::dvec2 endCenterScreen = touchBarycenter(endInputs);
-    const glm::dvec3 startCenterWorld = unprojectTouchOnSphere(startCenterScreen);
-    const glm::dvec3 endCenterWorld = unprojectTouchOnSphere(endCenterScreen);
-    const glm::dvec3 startCenterDir = glm::normalize(startCenterWorld - anchorPos);
-    const glm::dvec3 endCenterDir = glm::normalize(endCenterWorld - anchorPos);
+    const glm::dvec3 camAxis = glm::normalize(anchorPos - _startPose.position);
 
-    const glm::vec2 startP1(_startInputs[0].x, _startInputs[0].y);
-    const glm::vec2 endP1(endInputs[0].x, endInputs[0].y);
-    const glm::dvec3 startP1World = unprojectTouchOnSphere(startP1);
-    const glm::dvec3 endP1World = unprojectTouchOnSphere(endP1);
-    const glm::dvec3 startP1Dir = glm::normalize(startP1World - anchorPos);
-    const glm::dvec3 endP1Dir = glm::normalize(endP1World - anchorPos);
+    const glm::dvec3 startP1Dir = unprojectTouchOnSphere(_startInputs.front());
+    const glm::dvec3 endP1Dir = unprojectTouchOnSphere(endInputs.front());
+    const glm::dvec3 startBarycenterDir = unprojectTouchesOnSphere(_startInputs);
+    const glm::dvec3 endBarycenterDir = unprojectTouchesOnSphere(endInputs);
 
     // check if raycast failed (outside anchor sphere)
-    if (startCenterWorld == glm::dvec3(0.0) || endCenterWorld == glm::dvec3(0.0)) {
+    if (startP1Dir == glm::dvec3(0.0) || endP1Dir == glm::dvec3(0.0)) {
         return false;
     }
-    
-    // compute camera orbit rotation (bringing startP1 to endP1)
-    // glm::dvec3 orbitAxis = glm::normalize(glm::cross(startP1Dir, endP1Dir));
-    // double orbitAngle = -glm::acos(glm::dot(startP1Dir, endP1Dir));
-    glm::dvec3 orbitAxis = glm::normalize(glm::cross(startCenterDir, endCenterDir));
-    double orbitAngle = -glm::acos(glm::dot(startCenterDir, endCenterDir));
 
-    // rotAxis is NaN when startVec and endVec are parallel (no rotation needed)
-    if (glm::any(glm::isnan(orbitAxis))) {
-        orbitAxis = glm::dvec3(1.0, 0.0, 0.0);
-        orbitAngle = 0.0;
-    }
-
-    // constrain to rotations around camera x and y axes (no roll)
-    glm::dvec3 cameraRight = _camera->rotationQuaternion() * glm::dvec3(1.0, 0.0, 0.0);
-    glm::dvec3 cameraUp = _camera->rotationQuaternion() * glm::dvec3(0.0, 1.0, 0.0);
-    glm::dquat rotationX = glm::angleAxis(orbitAngle * glm::dot(orbitAxis, cameraRight), cameraRight);
-    glm::dquat rotationY = glm::angleAxis(orbitAngle * glm::dot(orbitAxis, cameraUp), cameraUp);
-    glm::dquat orbit = rotationY * rotationX;
-
-    // compute camera z-axis rotation (roll)
+    // transform parameters
+    double scaling = 1.0;
+    glm::dvec3 orbitAxis = glm::dvec3(1.0, 0.0, 0.0);
+    double orbitAngle = 0.0;
+    glm::dvec3 rollAxis = glm::dvec3(1.0, 0.0, 0.0);
     double rollAngle = 0.0;
-    glm::dvec3 rollAxis(0.0);
-    double zoom = 1.0;
+
+    // compute orbit
+    {
+        orbitAxis = glm::normalize(glm::cross(startP1Dir, endP1Dir));
+        orbitAngle = glm::acos(glm::dot(startP1Dir, endP1Dir));
+
+        // failure can happen if startP1Dir and endP1Dir are colinear (no orbit)
+        if (glm::any(glm::isnan(orbitAxis))) {
+            orbitAxis = glm::dvec3(1.0, 0.0, 0.0);
+            orbitAngle = 0.0;
+        }
+    }
 
     if (inputs.size() >= 2) {
-        const glm::vec2 startP2(_startInputs[1].x, _startInputs[1].y);
-        const glm::vec2 endP2(endInputs[1].x, endInputs[1].y);
-        const glm::dvec3 startP2World = unprojectTouchOnSphere(startP2);
-        const glm::dvec3 endP2World = unprojectTouchOnSphere(endP2);
-        const glm::dvec3 startP2Dir = glm::normalize(startP2World - anchorPos);
-        const glm::dvec3 endP2Dir = glm::normalize(endP2World - anchorPos);
+        const glm::dvec3 startP2Dir = unprojectTouchOnSphere(_startInputs.back());
+        const glm::dvec3 endP2Dir = unprojectTouchOnSphere(endInputs.back());
 
-        rollAxis = endCenterDir;
+        // check if raycast failed (outside anchor sphere)
+        if (startP2Dir == glm::dvec3(0.0) || endP2Dir == glm::dvec3(0.0)) {
+            return false;
+        }
 
-        // need to project all vectors on the rotation plane to compute the angle from
-        // this point of view.
-        const glm::dvec3 startP1Proj = startP1World - glm::dot(startP1World, rollAxis) * rollAxis;
-        const glm::dvec3 startP2Proj = startP2World - glm::dot(startP2World, rollAxis) * rollAxis;
-        const glm::dvec3 endP1Proj = endP1World - glm::dot(endP1World, rollAxis) * rollAxis;
-        const glm::dvec3 endP2Proj = endP2World - glm::dot(endP2World, rollAxis) * rollAxis;
-        const glm::dvec3 startDir = glm::normalize(startP2Proj - startP1Proj);
-        const glm::dvec3 endDir = glm::normalize(endP2Proj - endP1Proj);
-    
-        rollAngle = -glm::orientedAngle(startDir, endDir, rollAxis);
+        // compute scaling
+        {
+            // this is a simplified scaling. Proper scaling calculation might be impossible to find
+            // analytically. I challenge someone to find it, it would be a great contribution.
+            double startAngle = glm::angle(startP1Dir, startP2Dir);
+            double endAngle = glm::angle(endP1Dir, endP2Dir);
+            scaling = endAngle / startAngle;
+        }
 
-        double angle = glm::angle(camAxis, startP2Dir);
-        double x1 = glm::length(startP2 - startP1);
-        double x2 = glm::length(endP2 - endP1);
-        double r1 = x1 * glm::length(_startPose.position - anchorPos) / (x1 * glm::cos(angle) + glm::sin(angle) * 1.0 * cos(_camera->maxFov() / 2.0));
-        double r2 = x2 * glm::length(_startPose.position - anchorPos) / (x2 * glm::cos(angle) + glm::sin(angle) * 1.0 * cos(_camera->maxFov() / 2.0));
-        zoom = r2 / r1;
+        // compute camera z-axis rotation (roll)
+        {
+            rollAxis = endP1Dir;
+            // need to project all vectors on the rotation plane to compute the angle from
+            // this point of view.
+            const glm::dvec3 startP1Proj = startP1World - glm::dot(startP1World, rollAxis) * rollAxis;
+            const glm::dvec3 startP2Proj = startP2World - glm::dot(startP2World, rollAxis) * rollAxis;
+            const glm::dvec3 endP1Proj = endP1World - glm::dot(endP1World, rollAxis) * rollAxis;
+            const glm::dvec3 endP2Proj = endP2World - glm::dot(endP2World, rollAxis) * rollAxis;
+            const glm::dvec3 startDir = glm::normalize(startP2Proj - startP1Proj);
+            const glm::dvec3 endDir = glm::normalize(endP2Proj - endP1Proj);
+
+            rollAngle = -glm::orientedAngle(startP1Dir, endP1Dir, rollAxis);
+        }
     }
-    glm::dquat roll = glm::angleAxis(rollAngle, rollAxis);
 
-    glm::dquat rotQuat = roll * orbit;
+    glm::dquat roll = glm::angleAxis(rollAngle, rollAxis);
+    glm::dquat orbit = glm::angleAxis(-orbitAngle, orbitAxis); // invert the angle as we want to rotate the camera around the sphere, not the opposite
+
+    std::cout << "roll " << rollAngle << rollAxis << std::endl;
+    std::cout << "orbit " << orbitAngle << orbitAxis << std::endl;
+    std::cout << "p1 " << startP1Dir << endP1Dir << std::endl;
 
     // apply transforms
+    CameraPose pose{
+        .position = roll * orbit * (_startPose.position - anchorPos) + anchorPos,
+        .rotation = roll * orbit * _startPose.rotation,
+    };
+
+    // const glm::dvec3 surface = anchorPos - camAxis * _anchor->interactionSphere(); // we scale the distance from the camera to the surface of the globle by scaling
+    // _lastPoses[1].position = (_startPose.position - surface) / scaling + surface;
+    // _lastPoses[1].rotation = rot * _startPose.rotation;
+
+    _camera->setPose(pose);
     _lastPoses[0] = _lastPoses[1];
-    _lastPoses[1].position = rotQuat * (_startPose.position - anchorPos) + anchorPos;
-    _lastPoses[1].position = (_lastPoses[1].position - anchorPos) / zoom + anchorPos;
-    _lastPoses[1].rotation = rotQuat * _startPose.rotation;
-    _camera->setPose(_lastPoses[1]);
+    _lastPoses[1] = pose;
 
     // TODO
-    _startPose = _lastPoses[1];
-    _startInputs = endInputs;
+    // _startPose = _lastPoses[1];
+    // _startInputs = endInputs;
 
-    // Mark that a camera interaction happeneddD
+    // Mark that a camera interaction happened
     interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
     orbNav.updateOnCameraInteraction();
 
@@ -583,8 +600,7 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
     };
 
     _startInputs = lastInputs(inputs);
-    const glm::vec2 startCenter = touchBarycenter(_startInputs);
-    glm::dvec3 proj = unprojectTouchOnSphere(startCenter);
+    glm::dvec3 proj = unprojectTouchesOnSphere(_startInputs);
 
     // check if touch is inside interaction sphere
     bool isInside = proj != glm::dvec3(0.0);
@@ -607,7 +623,7 @@ void TouchInteraction::endDirectControl() {
     // XXX: idk why y and x axes are swapped here.
     // TODO: compute dt to have correct velocity
     // TODO: ensure _lastPoses were computed
-    orbNav.touchStates().setGlobalRotationVelocity(glm::dvec2(angularVel.y, angularVel.x));
+    // orbNav.touchStates().setGlobalRotationVelocity(glm::dvec2(angularVel.y, angularVel.x));
 }
 
 double TouchInteraction::computeTapZoomDistance(double zoomGain) {

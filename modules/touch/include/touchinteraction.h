@@ -100,7 +100,13 @@ private:
     /**
      * Compute the touchInput position on the target node's interaction sphere.
      */
-    glm::dvec3 unprojectTouchOnSphere(const glm::vec2& input) const;
+    glm::dvec3 unprojectTouchOnSphere(const TouchInput& input) const;
+
+    /**
+     * Compute the unprojected barycenter of a set touchInputs on the target node's
+     * interaction sphere.
+     */
+    glm::dvec3 unprojectTouchesOnSphere(const std::vector<TouchInput>& inputs) const;
 
     Camera* _camera = nullptr;
     CameraPose _startPose = {};
