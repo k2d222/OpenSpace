@@ -25,7 +25,6 @@
 include(${PROJECT_SOURCE_DIR}/support/cmake/module_definition.cmake)
 
 set(HEADER_FILES
-  ext/levmarq.h
   include/tuioear.h
   include/touchinteraction.h
   include/touchmarker.h
@@ -34,7 +33,6 @@ set(HEADER_FILES
 source_group("Header Files" FILES ${HEADER_FILES})
 
 set(SOURCE_FILES
-  ext/levmarq.cpp
   src/tuioear.cpp
   src/touchinteraction.cpp
   src/touchmarker.cpp
