@@ -51,10 +51,14 @@ public:
     void initialize();
     void deinitialize();
 
-    void render(const std::vector<openspace::TouchInputHolder>& list);
+    /**
+     * Render a list of finger markers.
+     * The list contains coordinates in NDC (range -1, 1), z = -1 (near plane).
+     */
+    void render(const std::vector<glm::vec2>& list);
 
 private:
-    void createVertexList(const std::vector<openspace::TouchInputHolder>& list);
+    void createVertexList(const std::vector<glm::vec2>& list);
 
     properties::BoolProperty _visible;
     properties::FloatProperty _radiusSize;

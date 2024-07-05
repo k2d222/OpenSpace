@@ -24,6 +24,7 @@
 
 #include <modules/touch/touchmodule.h>
 
+#include <ghoul/glm.h>
 #include <modules/touch/include/tuioear.h>
 #include <modules/touch/include/win32_touch.h>
 #include <openspace/camera/camera.h>
@@ -196,7 +197,39 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&) {
     });
 
     global::callback::render->push_back([this]() {
-        _markers.render(_touches);
+        properties::Property* prop = _touchInteraction.property("UseGlobeDisplay");
+
+        // with globe display, the points must be projected on the current camera's NDC.
+        if (prop && std::any_cast<bool>(prop->get()) == true) {
+            Camera* cam = global::navigationHandler->camera();
+
+            const SceneGraphNode* anchor = global::navigationHandler->orbitalNavigator().anchorNode();
+            if (!cam || !anchor) {
+                return;
+            }
+
+            std::vector<glm::vec2> list;
+            for (const TouchInputHolder& input : _touches) {
+                double yaw = (1.5 - input.latestInput().x) * glm::two_pi<float>(); // range 0 to 2pi
+                double pitch = (input.latestInput().y - 0.5) * glm::pi<float>(); // range -pi/2 to pi/2
+                glm::dvec3 dir = glm::normalize(glm::vec3(cos(yaw) * cos(pitch), sin(pitch), sin(yaw) * cos(pitch)));
+                glm::dvec4 pos = glm::dvec4(cam->rotationQuaternion() * dir * anchor->interactionSphere() + anchor->worldPosition(), 1.0);
+                glm::dvec4 proj = glm::dmat4(cam->sgctInternal.projectionMatrix()) * cam->combinedViewMatrix() * pos;
+                proj /= proj.w;
+                list.emplace_back(proj.x, proj.y);
+            }
+            _markers.render(list);
+            return;
+        }
+
+        std::vector<glm::vec2> list;
+        for (const TouchInputHolder& input : _touches) {
+            list.emplace_back(
+                2.f * (input.latestInput().x - 0.5f),
+                -2.f * (input.latestInput().y - 0.5f)
+            );
+        }
+        _markers.render(list);
     });
 }
 

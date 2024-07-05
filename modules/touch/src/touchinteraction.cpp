@@ -262,7 +262,7 @@ namespace {
     constexpr openspace::properties::Property::PropertyInfo
         GlobeDisplayInfo =
     {
-        "GlobeDisplay",
+        "UseGlobeDisplay",
         "Spherical display",
         "Enable this for spherical touch displays (e.g. Pufferfish touch)."
         "The camera will be fixed at the anchor position. Use in conjuntion with the "
@@ -449,17 +449,18 @@ glm::dvec3 TouchInteraction::unprojectTouchOnSphere(const TouchInput& input) con
         double yaw = (1.5 - input.x) * glm::two_pi<double>(); // range 0 to 2pi
         double pitch = (input.y - 0.5) * glm::pi<double>(); // range -pi/2 to pi/2
         glm::dvec3 dir = glm::normalize(glm::dvec3(cos(yaw) * cos(pitch), sin(pitch), sin(yaw) * cos(pitch)));
+        // NOTE: on spherical displays, that direction is relative to the camera space.
         return dir;
     }
 
     const glm::dvec3& camPos = _startPose.position;
-    const glm::dquat& camQuat = _startPose.rotation;
+    const glm::dquat& camRot = _startPose.rotation;
 
     // convert touch input in range [0, 1] to NDC in range [-1, 1], then unproject
     glm::vec4 inputNdc(input.x * 2.f - 1.f, -(input.y * 2.f - 1.f), -1.f, 1.f);
     glm::mat4 ndcToCam = glm::inverse(_camera->sgctInternal.projectionMatrix());
     // it's not really in world space, the origin is the camera position
-    glm::dvec3 inputWorldSpace = camQuat * glm::dvec3(ndcToCam * inputNdc);
+    glm::dvec3 inputWorldSpace = camRot * glm::dvec3(ndcToCam * inputNdc);
     glm::dvec3 rayDir = glm::normalize(inputWorldSpace);
 
     // Compute positions on anchor node, by checking if touch input intersects the
@@ -527,7 +528,7 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     glm::dvec3 rollAxis = glm::dvec3(1.0, 0.0, 0.0);
     double rollAngle = 0.0;
 
-    // compute scaling (first because orbit depends on it)
+    // compute scaling (first because orbit and roll depend on it)
     if (inputs.size() >= 2) {
         // this is a simplified scaling. Proper scaling calculation might be impossible to find
         // analytically. I challenge someone to find it, it would be a great contribution.

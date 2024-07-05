@@ -99,6 +99,7 @@ private:
 
     /**
      * Compute the touchInput position on the target node's interaction sphere.
+     * Returns a direction from the node's position.
      */
     glm::dvec3 unprojectTouchOnSphere(const TouchInput& input) const;
 
