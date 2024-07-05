@@ -22,13 +22,11 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#include "openspace/camera/camerapose.h"
-#include <glm/geometric.hpp>
 #include <modules/touch/include/touchinteraction.h>
 
-#include <modules/touch/include/directinputsolver.h>
 #include <modules/touch/touchmodule.h>
 #include <openspace/camera/camera.h>
+#include <openspace/camera/camerapose.h>
 #include <openspace/engine/globals.h>
 #include <openspace/engine/moduleengine.h>
 #include <openspace/engine/windowdelegate.h>
@@ -45,6 +43,7 @@
 #include <ghoul/format.h>
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/invariants.h>
+#include <glm/geometric.hpp>
 #include <glm/common.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <cmath>
@@ -394,7 +393,9 @@ void TouchInteraction::update(const std::vector<TouchInputHolder>& inputs)
 
     if (_useGlobeDisplay) {
         const SceneGraphNode* anchor = global::navigationHandler->orbitalNavigator().anchorNode();
-        _camera->setPositionVec3(anchor->worldPosition() + glm::dvec3(0.0, 10.0, 0.0));
+        if (anchor) {
+            _camera->setPositionVec3(anchor->worldPosition() + glm::dvec3(0.0, 10.0, 0.0));
+        }
     }
 
     // just ended an interaction by relasing the last finger
@@ -514,8 +515,6 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     glm::dvec3 startP2Dir = unprojectTouchOnSphere(_startInputs.back());
     glm::dvec3 endP2Dir = unprojectTouchOnSphere(endInputs.back());
 
-    std::cout << "p1    start dir  " << startP1Dir << " end dir "<< endP1Dir << std::endl;
-
     // check if raycast failed (outside anchor sphere)
     if (startP1Dir == glm::dvec3(0.0) || endP1Dir == glm::dvec3(0.0)) {
         return false;
@@ -546,8 +545,6 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         if (startP2Dir == glm::dvec3(0.0) || endP2Dir == glm::dvec3(0.0)) {
             return false;
         }
-
-        std::cout << "scale " << scaling << std::endl;
     }
 
     // compute orbit
@@ -572,9 +569,6 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
 
     glm::dquat roll = glm::angleAxis(rollAngle, rollAxis);
     glm::dquat orbit = glm::angleAxis(-orbitAngle, orbitAxis); // invert the angle as we want to rotate the camera around the sphere, not the opposite
-
-    std::cout << "roll  angle/axis " << rollAngle << rollAxis << std::endl;
-    std::cout << "orbit angle/axis " << orbitAngle << orbitAxis << std::endl;
 
     // apply transforms
     CameraPose pose;
@@ -601,7 +595,6 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
 }
 
 bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& inputs) {
-    std::cout << "startDirectControl" << std::endl;
     if (inputs.size() == 0 || !_camera || !_anchor) {
         return false;
     }
@@ -627,7 +620,6 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
 }
 
 void TouchInteraction::endDirectControl() {
-    std::cout << "startDirectControl" << std::endl;
     glm::dquat rotDiff = glm::inverse(_lastPoses[0].rotation) * _lastPoses[1].rotation;
     glm::vec3 axisAngle = glm::axis(rotDiff) * glm::angle(rotDiff);
     glm::vec3 angularVel = glm::inverse(_camera->viewMatrix()) * glm::vec4(axisAngle, 0.f);

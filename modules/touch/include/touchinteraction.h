@@ -25,7 +25,6 @@
 #ifndef __OPENSPACE_MODULE_TOUCH___TOUCH_INTERACTION___H__
 #define __OPENSPACE_MODULE_TOUCH___TOUCH_INTERACTION___H__
 
-#include <modules/touch/include/directinputsolver.h>
 #include <openspace/camera/camerapose.h>
 #include <openspace/properties/propertyowner.h>
 #include <openspace/properties/scalar/boolproperty.h>
@@ -36,6 +35,7 @@
 #include <openspace/properties/triggerproperty.h>
 #include <openspace/properties/vector/ivec2property.h>
 #include <openspace/properties/vector/vec4property.h>
+#include <openspace/util/touch.h>
 #include <array>
 #include <chrono>
 
