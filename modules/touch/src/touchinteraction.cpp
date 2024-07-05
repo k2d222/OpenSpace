@@ -46,6 +46,7 @@
 #include <glm/geometric.hpp>
 #include <glm/common.hpp>
 #include <glm/gtx/quaternion.hpp>
+
 #include <cmath>
 #include <functional>
 #include <numeric>
@@ -338,7 +339,6 @@ TouchInteraction::TouchInteraction()
     , _enableDirectManipulation(EnableDirectManipulationInfo, true)
     , _directTouchDistanceThreshold(DirectManipulationThresholdInfo, 5.f, 0.f, 10.f)
     , _useGlobeDisplay(GlobeDisplayInfo, false)
-    , _pinchInputs({ TouchInput(0, 0, 0.f, 0.f, 0.0), TouchInput(0, 0, 0.f, 0.f, 0.0) })
 {
     addProperty(_disableZoom);
     addProperty(_disableRoll);
@@ -504,6 +504,9 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         return false;
     }
 
+    _startPose = _camera->pose();
+    _endPose = _startPose;
+
     // constants
     const std::vector<TouchInput> endInputs = lastInputs(inputs);
     const glm::dvec3 anchorPos = _anchor->worldPosition();
@@ -529,7 +532,7 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     double rollAngle = 0.0;
 
     // compute scaling (first because orbit and roll depend on it)
-    if (inputs.size() >= 2) {
+    if (!_disableZoom && inputs.size() >= 2) {
         // this is a simplified scaling. Proper scaling calculation might be impossible to find
         // analytically. I challenge someone to find it, it would be a great contribution.
         double startAngle = glm::distance(startP1Dir, startP2Dir);
@@ -561,7 +564,7 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     }
 
     // compute camera z-axis rotation (roll)
-    if (inputs.size() >= 2) {
+    if (!_disableRoll && inputs.size() >= 2) {
         rollAxis = endBarycenterDir;
         // need to project all vectors on the rotation plane to compute the angle from
         // this point of view.
@@ -572,20 +575,16 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     glm::dquat orbit = glm::angleAxis(-orbitAngle, orbitAxis); // invert the angle as we want to rotate the camera around the sphere, not the opposite
 
     // apply transforms
-    CameraPose pose;
-    pose.position = orbit * roll * (_startPose.position - anchorPos) + anchorPos;
-    pose.rotation = orbit * roll * _startPose.rotation;
+    _endPose.position = orbit * roll * (_startPose.position - anchorPos) + anchorPos;
+    _endPose.rotation = orbit * roll * _startPose.rotation;
 
     if (_useGlobeDisplay) {
-        pose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
-        pose.rotation = _startPose.rotation * roll * orbit;
+        _endPose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
+        _endPose.rotation = _startPose.rotation * roll * orbit;
     }
 
-    _camera->setPose(pose);
-    _lastPoses[0] = _lastPoses[1];
-    _lastPoses[1] = pose;
-
-    _startPose = _lastPoses[1];
+    _camera->setPose(_endPose);
+    _lastDt = endInputs.back().timestamp - _startInputs.back().timestamp;
     _startInputs = endInputs;
 
     // Mark that a camera interaction happened
@@ -600,12 +599,7 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
         return false;
     }
 
-    // TODO: implement Camera::pose() (also used in OrbitalNavigator)
-    _startPose = {
-        .position = _camera->positionVec3(),
-        .rotation = _camera->rotationQuaternion(),
-    };
-
+    _lastDt = 0.0;
     _startInputs = lastInputs(inputs);
     glm::dvec3 proj = unprojectTouchesOnSphere(_startInputs);
 
@@ -621,15 +615,15 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
 }
 
 void TouchInteraction::endDirectControl() {
-    glm::dquat rotDiff = glm::inverse(_lastPoses[0].rotation) * _lastPoses[1].rotation;
-    glm::vec3 axisAngle = glm::axis(rotDiff) * glm::angle(rotDiff);
-    glm::vec3 angularVel = glm::inverse(_camera->viewMatrix()) * glm::vec4(axisAngle, 0.f);
+    if (_lastDt == 0.0) {
+        return;
+    }
+
+    glm::dquat rotDiff = glm::inverse(_endPose.rotation) * _startPose.rotation;
+    glm::vec3 angularVel = glm::axis(rotDiff) * glm::angle(rotDiff) / _lastDt;
 
     interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
-    // XXX: idk why y and x axes are swapped here.
-    // TODO: compute dt to have correct velocity
-    // TODO: ensure _lastPoses were computed
-    // orbNav.touchStates().setGlobalRotationVelocity(glm::dvec2(angularVel.y, angularVel.x));
+    orbNav.touchStates().setGlobalRotationVelocity(glm::dvec2(-angularVel.y, -angularVel.x));
 }
 
 double TouchInteraction::computeTapZoomDistance(double zoomGain) {

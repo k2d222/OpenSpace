@@ -111,9 +111,10 @@ private:
 
     Camera* _camera = nullptr;
     CameraPose _startPose = {};
+    CameraPose _endPose = {};
     float _startZoom = 0.f;
     std::vector<TouchInput> _startInputs;
-    CameraPose _lastPoses[2]; // store two last poses to compute velocity
+    double _lastDt = 0.f;
     bool _isDirectControlActive = false;
     const SceneGraphNode* _anchor = nullptr;
 
@@ -161,10 +162,8 @@ private:
     double pinchConsecZoomFactor = 0;
     int stepVelUpdate = 0;
 #endif
-    std::array<TouchInputHolder, 2> _pinchInputs;
 
     // Class variables
-
     double _timeSlack = 0.0;
     std::chrono::milliseconds _time;
 
