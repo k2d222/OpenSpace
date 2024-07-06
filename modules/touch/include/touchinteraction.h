@@ -109,14 +109,19 @@ private:
      */
     glm::dvec3 unprojectTouchesOnSphere(const std::vector<TouchInput>& inputs) const;
 
-    Camera* _camera = nullptr;
-    CameraPose _startPose = {};
-    CameraPose _endPose = {};
-    float _startZoom = 0.f;
+
+    struct Transforms {
+        glm::dquat rotation;
+        double scaling;
+        double dt;
+    } _lastTransforms;
+
     std::vector<TouchInput> _startInputs;
-    double _lastDt = 0.f;
-    bool _isDirectControlActive = false;
+    CameraPose _startPose = {};
+
+    Camera* _camera = nullptr;
     const SceneGraphNode* _anchor = nullptr;
+    bool _isDirectControlActive = false;
 
     // Property variables
     properties::BoolProperty _unitTest;

@@ -50,6 +50,7 @@
 #include <cmath>
 #include <functional>
 #include <numeric>
+#include <iostream>
 
 #ifdef WIN32
 #pragma warning (push)
@@ -505,7 +506,6 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     }
 
     _startPose = _camera->pose();
-    _endPose = _startPose;
 
     // constants
     const std::vector<TouchInput> endInputs = lastInputs(inputs);
@@ -571,20 +571,26 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         rollAngle = -glm::orientedAngle(glm::normalize(startP2Dir - startP1Dir), glm::normalize(endP2Dir - endP1Dir), rollAxis);
     }
 
-    glm::dquat roll = glm::angleAxis(rollAngle, rollAxis);
-    glm::dquat orbit = glm::angleAxis(-orbitAngle, orbitAxis); // invert the angle as we want to rotate the camera around the sphere, not the opposite
+    glm::dquat rotation =
+        glm::angleAxis(-orbitAngle, orbitAxis) *
+        glm::angleAxis(rollAngle, rollAxis);
 
     // apply transforms
-    _endPose.position = orbit * roll * (_startPose.position - anchorPos) + anchorPos;
-    _endPose.rotation = orbit * roll * _startPose.rotation;
+    CameraPose endPose;
+    endPose.position = rotation * (_startPose.position - anchorPos) + anchorPos;
+    endPose.rotation = rotation * _startPose.rotation;
 
     if (_useGlobeDisplay) {
-        _endPose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
-        _endPose.rotation = _startPose.rotation * roll * orbit;
+        endPose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
+        endPose.rotation = _startPose.rotation * rotation;
     }
 
-    _camera->setPose(_endPose);
-    _lastDt = endInputs.back().timestamp - _startInputs.back().timestamp;
+    _camera->setPose(endPose);
+
+    // update last transforms
+    _lastTransforms.rotation = glm::inverse(_startPose.rotation) * endPose.rotation;
+    _lastTransforms.scaling = scaling - 1.0;
+    _lastTransforms.dt = endInputs.back().timestamp - _startInputs.back().timestamp;
     _startInputs = endInputs;
 
     // Mark that a camera interaction happened
@@ -599,7 +605,6 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
         return false;
     }
 
-    _lastDt = 0.0;
     _startInputs = lastInputs(inputs);
     glm::dvec3 proj = unprojectTouchesOnSphere(_startInputs);
 
@@ -615,15 +620,19 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
 }
 
 void TouchInteraction::endDirectControl() {
-    if (_lastDt == 0.0) {
+    if (_lastTransforms.dt == 0.0) {
         return;
     }
 
-    glm::dquat rotDiff = glm::inverse(_endPose.rotation) * _startPose.rotation;
-    glm::vec3 angularVel = glm::axis(rotDiff) * glm::angle(rotDiff) / _lastDt;
+    const glm::dquat rot = _lastTransforms.rotation;
+    glm::dvec3 angularVel = glm::axis(rot) * glm::angle(rot) / _lastTransforms.dt;
+    double truckVelocity = _lastTransforms.scaling / _lastTransforms.dt;
+    std::cout << truckVelocity << std::endl;
 
     interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
-    orbNav.touchStates().setGlobalRotationVelocity(glm::dvec2(-angularVel.y, -angularVel.x));
+    orbNav.touchStates().setGlobalRotationVelocity(glm::dvec2(angularVel.y, angularVel.x));
+    orbNav.touchStates().setGlobalRollVelocity(glm::dvec2(angularVel.z, 0.0));
+    orbNav.touchStates().setTruckMovementVelocity(glm::dvec2(0.0, truckVelocity));
 }
 
 double TouchInteraction::computeTapZoomDistance(double zoomGain) {
