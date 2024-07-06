@@ -124,33 +124,28 @@ private:
     bool _isDirectControlActive = false;
 
     // Property variables
-    properties::BoolProperty _unitTest;
-    properties::BoolProperty _disableZoom;
-    properties::BoolProperty _disableRoll;
-    properties::TriggerProperty _reset;
-    properties::IntProperty _maxTapTime;
-    properties::IntProperty _deceleratesPerSecond;
-    properties::FloatProperty _touchScreenSize;
-    properties::FloatProperty _tapZoomFactor;
-    properties::FloatProperty _pinchZoomFactor;
+    properties::BoolProperty _enableOrbit;
+    properties::BoolProperty _enablePinchZoom;
+    properties::BoolProperty _enableTapZoom;
+    properties::BoolProperty _enableRoll;
+    properties::BoolProperty  _enablePan;
+    properties::BoolProperty _enableDirectManipulation;
+
+    properties::IntProperty _doubleTapThreshold;
     properties::FloatProperty _rollAngleThreshold;
-    properties::FloatProperty _zoomSensitivityExponential;
-    properties::FloatProperty _zoomSensitivityProportionalDist;
-    properties::FloatProperty _zoomSensitivityDistanceThreshold;
+    properties::FloatProperty _panDistanceThreshold;
+    properties::FloatProperty _stationaryThreshold;
+    properties::FloatProperty _centroidStillThreshold;
+    properties::FloatProperty _directManipulationThreshold;
+
+    properties::FloatProperty _tapZoomFactor;
     properties::FloatProperty _zoomInBoundarySphereMultiplier;
     properties::FloatProperty _zoomOutBoundarySphereMultiplier;
     properties::DoubleProperty _zoomInLimit;
     properties::DoubleProperty _zoomOutLimit;
-    properties::FloatProperty _inputStillThreshold;
-    properties::FloatProperty _centroidStillThreshold;
-    properties::BoolProperty  _panEnabled;
-    properties::FloatProperty _interpretPan;
-    properties::Vec4Property _friction;
-    properties::FloatProperty _constTimeDecay_secs;
 
-    properties::BoolProperty _enableDirectManipulation;
-    properties::FloatProperty _directTouchDistanceThreshold;
-    properties::BoolProperty _useGlobeDisplay;
+    properties::BoolProperty _useSphericalDisplay;
+    properties::TriggerProperty _reset;
 
 #ifdef TOUCH_DEBUG_PROPERTIES
     struct DebugProperties : PropertyOwner {
