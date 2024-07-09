@@ -501,18 +501,21 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     endPose.position = rotation * (_startPose.position - anchorPos) + anchorPos;
     endPose.rotation = rotation * _startPose.rotation;
 
-    if (_useSphericalDisplay) {
-        endPose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
-        endPose.rotation = _startPose.rotation * rotation;
-    }
-
     _camera->setPose(endPose);
 
     // update last transforms
-    _lastTransforms.rotation = glm::inverse(_startPose.rotation) * endPose.rotation;
+    _lastTransforms.rotation = glm::inverse(_startPose.rotation) * rotation * _startPose.rotation; // transform global to local rotation
     _lastTransforms.scaling = scaling - 1.0;
     _lastTransforms.dt = endInputs.back().timestamp - _startInputs.back().timestamp;
     _startInputs = endInputs;
+
+    if (_useSphericalDisplay) {
+        // on spherical displays the rotation is applied locally
+        endPose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
+        endPose.rotation = _startPose.rotation * rotation; 
+        _camera->setPose(endPose);
+        _lastTransforms.rotation = rotation;
+    }
 
     // Mark that a camera interaction happened
     interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
@@ -535,6 +538,7 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
     if (isInside) {
         interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
         orbNav.resetVelocities();
+        _lastTransforms.dt = 0.0;
     }
 
     return isInside;
@@ -550,9 +554,22 @@ void TouchInteraction::endDirectControl() {
     double truckVelocity = _lastTransforms.scaling / _lastTransforms.dt;
 
     interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
+    // components x and y are swapped because angularVel refers to rotation around the x
+    // and y axes of the camera, while the rotation velocity refers to
+    // x=panning and y=tilting. This is mildly confusing.
+    // @see OrbitalNavigator::rotateAroundAnchorUp() and translateHorizontally().
     orbNav.touchStates().setGlobalRotationVelocity(glm::dvec2(angularVel.y, angularVel.x));
     orbNav.touchStates().setGlobalRollVelocity(glm::dvec2(angularVel.z, 0.0));
     orbNav.touchStates().setTruckMovementVelocity(glm::dvec2(0.0, truckVelocity));
+
+    if (_useSphericalDisplay) {
+        // on spherical displays the rotation is applied locally
+        orbNav.touchStates().setGlobalRotationVelocity(glm::dvec2(0.0, 0.0));
+        orbNav.touchStates().setGlobalRollVelocity(glm::dvec2(0.0, 0.0));
+        orbNav.touchStates().setTruckMovementVelocity(glm::dvec2(0.0, 0.0));
+        orbNav.touchStates().setLocalRotationVelocity(glm::dvec2(angularVel.y, angularVel.x));
+        orbNav.touchStates().setLocalRollVelocity(glm::dvec2(angularVel.z, 0.0));
+    }
 }
 
 double TouchInteraction::computeTapZoomDistance(double zoomGain) {

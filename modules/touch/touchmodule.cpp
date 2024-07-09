@@ -197,7 +197,7 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&) {
     });
 
     global::callback::render->push_back([this]() {
-        properties::Property* prop = _touchInteraction.property("UseGlobeDisplay");
+        properties::Property* prop = _touchInteraction.property("SphericalDisplay");
 
         // with globe display, the points must be projected on the current camera's NDC.
         if (prop && std::any_cast<bool>(prop->get()) == true) {
