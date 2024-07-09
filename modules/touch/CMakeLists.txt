@@ -29,6 +29,7 @@ set(HEADER_FILES
   include/touchinteraction.h
   include/touchmarker.h
   include/win32_touch.h
+  include/ringbuffer.h
 )
 source_group("Header Files" FILES ${HEADER_FILES})
 

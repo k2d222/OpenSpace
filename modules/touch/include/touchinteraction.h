@@ -25,6 +25,7 @@
 #ifndef __OPENSPACE_MODULE_TOUCH___TOUCH_INTERACTION___H__
 #define __OPENSPACE_MODULE_TOUCH___TOUCH_INTERACTION___H__
 
+#include <modules/touch/include/ringbuffer.h>
 #include <openspace/camera/camerapose.h>
 #include <openspace/properties/propertyowner.h>
 #include <openspace/properties/scalar/boolproperty.h>
@@ -36,8 +37,6 @@
 #include <openspace/properties/vector/ivec2property.h>
 #include <openspace/properties/vector/vec4property.h>
 #include <openspace/util/touch.h>
-#include <array>
-#include <chrono>
 
 // #define TOUCH_DEBUG_PROPERTIES
 
@@ -45,21 +44,6 @@ namespace openspace {
 
 class Camera;
 class SceneGraphNode;
-
-// Class used for keeping track of the recent average frame time
-class FrameTimeAverage {
-public:
-    // Update the circular buffer with the most recent frame time
-    void updateWithNewFrame(double sample);
-    // Get the value of the most recent average frame time (seconds)
-    double averageFrameTime() const;
-
-private:
-    static constexpr int TotalSamples = 10;
-    int _nSamples = 0;
-    double _samples[TotalSamples];
-    int _index = 0;
-};
 
 class TouchInteraction : public properties::PropertyOwner {
 public:
@@ -110,11 +94,14 @@ private:
     glm::dvec3 unprojectTouchesOnSphere(const std::vector<TouchInput>& inputs) const;
 
 
+    // transforms keep track of the last N transformations to apply velocity when the
+    // interaction is ended.
     struct Transforms {
         glm::dquat rotation;
         double scaling;
-        double dt;
-    } _lastTransforms;
+        double timestamp;
+    };
+    RingBuffer<Transforms> _lastTransforms;
 
     std::vector<TouchInput> _startInputs;
     CameraPose _startPose = {};
@@ -162,12 +149,6 @@ private:
     double pinchConsecZoomFactor = 0;
     int stepVelUpdate = 0;
 #endif
-
-    // Class variables
-    double _timeSlack = 0.0;
-    std::chrono::milliseconds _time;
-
-    FrameTimeAverage _frameTimeAvg;
 };
 
 } // openspace namespace

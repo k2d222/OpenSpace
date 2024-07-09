@@ -49,7 +49,6 @@
 
 #include <cmath>
 #include <functional>
-#include <numeric>
 
 #ifdef WIN32
 #pragma warning (push)
@@ -235,6 +234,7 @@ namespace openspace {
 
 TouchInteraction::TouchInteraction()
     : properties::PropertyOwner({ "TouchInteraction", "Touch Interaction" })
+    , _lastTransforms(5)
     , _enableOrbit(EnableOrbitInfo, true)
     , _enablePinchZoom(EnablePinchZoomInfo, true)
     , _enableTapZoom(EnableTapZoomInfo, true)
@@ -298,9 +298,6 @@ TouchInteraction::TouchInteraction()
     _zoomOutBoundarySphereMultiplier.setExponent(20.f);
     _zoomInLimit.setExponent(20.f);
     _zoomOutLimit.setExponent(20.f);
-    _time = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::high_resolution_clock::now().time_since_epoch()
-    );
 
     _reset.onChange([this]() { resetPropertiesToDefault(); });
 }
@@ -496,26 +493,26 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         glm::angleAxis(-orbitAngle, orbitAxis) *
         glm::angleAxis(rollAngle, rollAxis);
 
-    // apply transforms
+    // compute transforms
     CameraPose endPose;
     endPose.position = rotation * (_startPose.position - anchorPos) + anchorPos;
     endPose.rotation = rotation * _startPose.rotation;
 
-    _camera->setPose(endPose);
-
-    // update last transforms
-    _lastTransforms.rotation = glm::inverse(_startPose.rotation) * rotation * _startPose.rotation; // transform global to local rotation
-    _lastTransforms.scaling = scaling - 1.0;
-    _lastTransforms.dt = endInputs.back().timestamp - _startInputs.back().timestamp;
+    Transforms transforms;
+    transforms.rotation = glm::inverse(_startPose.rotation) * rotation * _startPose.rotation; // transform global to local rotation
+    transforms.scaling = scaling - 1.0;
+    transforms.timestamp = endInputs.back().timestamp;
     _startInputs = endInputs;
 
     if (_useSphericalDisplay) {
         // on spherical displays the rotation is applied locally
         endPose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
         endPose.rotation = _startPose.rotation * rotation; 
-        _camera->setPose(endPose);
-        _lastTransforms.rotation = rotation;
+        transforms.rotation = rotation;
     }
+
+    _camera->setPose(endPose);
+    _lastTransforms.push(transforms);
 
     // Mark that a camera interaction happened
     interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
@@ -538,20 +535,45 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
     if (isInside) {
         interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
         orbNav.resetVelocities();
-        _lastTransforms.dt = 0.0;
+        _lastTransforms.clear();
+        _lastTransforms.push(Transforms {
+            .rotation = glm::dquat(),
+            .scaling = 0.0,
+            .timestamp = inputs.back().latestInput().timestamp
+        });
     }
 
     return isInside;
 }
 
 void TouchInteraction::endDirectControl() {
-    if (_lastTransforms.dt == 0.0) {
+    if (_lastTransforms.size() < 2) {
         return;
     }
 
-    const glm::dquat rot = _lastTransforms.rotation;
-    glm::dvec3 angularVel = glm::axis(rot) * glm::angle(rot) / _lastTransforms.dt;
-    double truckVelocity = _lastTransforms.scaling / _lastTransforms.dt;
+    double dt = _lastTransforms.back().timestamp - _lastTransforms.front().timestamp;
+
+    if (dt == 0.0) {
+        return;
+    }
+
+    glm::dquat rotation;
+    double scaling = 0.0;
+
+    for (size_t i = 0; i < _lastTransforms.size(); ++i) {
+        rotation = _lastTransforms.at(i).rotation * rotation;
+        scaling = _lastTransforms.at(i).scaling * scaling;
+    }
+
+    if (_useSphericalDisplay) {
+        rotation = glm::dquat();
+        scaling = 0.0;
+        for (size_t i = 0; i < _lastTransforms.size(); ++i) {
+            rotation = rotation * _lastTransforms.at(i).rotation;
+        }
+    }
+
+    glm::dvec3 angularVel = glm::axis(rotation) * glm::angle(rotation) / dt;
 
     interaction::OrbitalNavigator& orbNav = global::navigationHandler->orbitalNavigator();
     // components x and y are swapped because angularVel refers to rotation around the x
@@ -560,7 +582,7 @@ void TouchInteraction::endDirectControl() {
     // @see OrbitalNavigator::rotateAroundAnchorUp() and translateHorizontally().
     orbNav.touchStates().setGlobalRotationVelocity(glm::dvec2(angularVel.y, angularVel.x));
     orbNav.touchStates().setGlobalRollVelocity(glm::dvec2(angularVel.z, 0.0));
-    orbNav.touchStates().setTruckMovementVelocity(glm::dvec2(0.0, truckVelocity));
+    orbNav.touchStates().setTruckMovementVelocity(glm::dvec2(0.0, scaling));
 
     if (_useSphericalDisplay) {
         // on spherical displays the rotation is applied locally
@@ -621,28 +643,6 @@ void TouchInteraction::setCamera(Camera* camera) {
     if (_useSphericalDisplay) {
         const SceneGraphNode* anchor = global::navigationHandler->orbitalNavigator().anchorNode();
         _camera->setPositionVec3(anchor->worldPosition() + glm::dvec3(0.0, 10.0, 0.0));
-    }
-}
-
-void FrameTimeAverage::updateWithNewFrame(double sample) {
-    if (sample > 0.0005) {
-        _samples[_index++] = sample;
-        if (_index >= TotalSamples) {
-            _index = 0;
-        }
-        if (_nSamples < TotalSamples) {
-            _nSamples++;
-        }
-    }
-}
-
-double FrameTimeAverage::averageFrameTime() const {
-    if (_nSamples == 0) {
-        // Just guess at 60fps if no data is available yet
-        return 1.0 / 60.0;
-    }
-    else {
-        return std::accumulate(_samples, _samples + _nSamples, 0.0) / (double)(_nSamples);
     }
 }
 
