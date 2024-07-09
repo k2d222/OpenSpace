@@ -110,6 +110,16 @@ namespace {
         openspace::properties::Property::Visibility::AdvancedUser
     };
 
+    constexpr openspace::properties::Property::PropertyInfo
+        EnableVelocityInfo =
+    {
+        "EnableVelocity",
+        "Enable velocity",
+        "Compute and apply a velocity to the OrbitalNavigator at the end of the "
+        "interaction.",
+        openspace::properties::Property::Visibility::User
+    };
+
     constexpr openspace::properties::Property::PropertyInfo DoubleTapThresholdInfo = {
         "DoubleTapThreshold",
         "Maximum double tap delay (ms)",
@@ -200,6 +210,18 @@ namespace {
     };
 
     constexpr openspace::properties::Property::PropertyInfo
+        VelocitySampleCountInfo =
+    {
+        "VelocitySampleCount",
+        "Velocity sample count",
+        "Number of touch samples to keep in memory, to compute the average velocity at "
+        "the end of interaction. The previous steps will be averaged. It should "
+        "correspond to roughly 0.1 seconds worth of sampling, check your touch device "
+        "sampling rate.",
+        openspace::properties::Property::Visibility::AdvancedUser
+    };
+
+    constexpr openspace::properties::Property::PropertyInfo
         SphericalDisplayInfo =
     {
         "SphericalDisplay",
@@ -234,13 +256,14 @@ namespace openspace {
 
 TouchInteraction::TouchInteraction()
     : properties::PropertyOwner({ "TouchInteraction", "Touch Interaction" })
-    , _lastTransforms(5)
+    , _lastTransforms(10)
     , _enableOrbit(EnableOrbitInfo, true)
     , _enablePinchZoom(EnablePinchZoomInfo, true)
     , _enableTapZoom(EnableTapZoomInfo, true)
     , _enableRoll(EnableRollInfo, true)
     , _enablePan(EnablePanInfo, false)
     , _enableDirectManipulation(EnableDirectManipulationInfo, true)
+    , _enableVelocity(EnableVelocityInfo, true)
     , _doubleTapThreshold(DoubleTapThresholdInfo, 300, 10, 1000)
     , _rollAngleThreshold(RollAngleThresholdInfo, 0.025f, 0.f, 0.05f, 0.001f)
     , _panDistanceThreshold(PanDistanceThresholdInfo, 0.015f, 0.f, 0.1f)
@@ -267,6 +290,7 @@ TouchInteraction::TouchInteraction()
         1000.f,
         4e+27f
     )
+    , _velocitySampleCount(VelocitySampleCountInfo, 10, 2, 100)
     , _useSphericalDisplay(SphericalDisplayInfo, false)
     , _reset(ResetInfo)
 {
@@ -276,6 +300,7 @@ TouchInteraction::TouchInteraction()
     addProperty(_enableRoll);
     addProperty(_enablePan);
     addProperty(_enableDirectManipulation);
+    addProperty(_enableVelocity);
     addProperty(_doubleTapThreshold);
     addProperty(_rollAngleThreshold);
     addProperty(_panDistanceThreshold);
@@ -287,6 +312,7 @@ TouchInteraction::TouchInteraction()
     addProperty(_zoomOutBoundarySphereMultiplier);
     addProperty(_zoomInLimit);
     addProperty(_zoomOutLimit);
+    addProperty(_velocitySampleCount);
     addProperty(_useSphericalDisplay);
     addProperty(_reset);
 
@@ -299,7 +325,15 @@ TouchInteraction::TouchInteraction()
     _zoomInLimit.setExponent(20.f);
     _zoomOutLimit.setExponent(20.f);
 
-    _reset.onChange([this]() { resetPropertiesToDefault(); });
+    _lastTransforms.resize(_velocitySampleCount.value());
+
+    _velocitySampleCount.onChange([this]() {
+        _lastTransforms.resize(_velocitySampleCount.value());
+    });
+
+    _reset.onChange([this]() {
+        resetPropertiesToDefault();
+    });
 }
 
 void TouchInteraction::update(const std::vector<TouchInputHolder>& inputs)
@@ -547,7 +581,7 @@ bool TouchInteraction::startDirectControl(const std::vector<TouchInputHolder>& i
 }
 
 void TouchInteraction::endDirectControl() {
-    if (_lastTransforms.size() < 2) {
+    if (!_enableVelocity || _lastTransforms.size() < 2) {
         return;
     }
 

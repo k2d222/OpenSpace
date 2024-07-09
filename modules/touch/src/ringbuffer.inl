@@ -7,14 +7,23 @@ namespace openspace {
 
 template <typename T>
 RingBuffer<T>::RingBuffer(size_t capacity)
-    : _buffer(capacity)
+    : _buffer()
     , _head(0)
     , _capacity(capacity)
-{}
+{
+    _buffer.reserve(capacity);
+}
 
 template <typename T>
 void RingBuffer<T>::resize(size_t capacity) {
-    _buffer.resize(capacity);
+    std::vector<T> newBuffer;
+    newBuffer.reserve(capacity);
+    
+    for (size_t i = 0; i < std::min(_buffer.size(), capacity); ++i) {
+        newBuffer.push_back(at(i));
+    }
+
+    _buffer = newBuffer;
     _head = 0;
     _capacity = capacity;
 }

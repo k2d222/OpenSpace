@@ -117,6 +117,7 @@ private:
     properties::BoolProperty _enableRoll;
     properties::BoolProperty  _enablePan;
     properties::BoolProperty _enableDirectManipulation;
+    properties::BoolProperty _enableVelocity;
 
     properties::IntProperty _doubleTapThreshold;
     properties::FloatProperty _rollAngleThreshold;
@@ -130,7 +131,7 @@ private:
     properties::FloatProperty _zoomOutBoundarySphereMultiplier;
     properties::DoubleProperty _zoomInLimit;
     properties::DoubleProperty _zoomOutLimit;
-
+    properties::IntProperty _velocitySampleCount;
     properties::BoolProperty _useSphericalDisplay;
     properties::TriggerProperty _reset;
 
