@@ -108,7 +108,7 @@ json GetPropertyTopic::propertyFromKey(const std::string& key) {
         return wrappedPayload(node);
     }
 
-    return wrappedError(std::format("Property '{}' not found", key), 404);
+    return wrappedPayload(std::format("Property '{}' not found", key), StatusCode::NotFound);
 }
 
 } // namespace openspace

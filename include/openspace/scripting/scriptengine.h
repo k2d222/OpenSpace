@@ -29,11 +29,11 @@
 #include <openspace/scripting/lualibrary.h>
 #include <ghoul/lua/luastate.h>
 #include <ghoul/misc/boolean.h>
+#include <ghoul/misc/dictionary.h>
 #include <filesystem>
 #include <mutex>
-#include <optional>
 #include <queue>
-#include <functional>
+#include <variant>
 
 namespace openspace { class SyncBuffer; }
 
@@ -49,7 +49,8 @@ namespace openspace::scripting {
  */
 class ScriptEngine : public Syncable {
 public:
-    using ScriptCallback = std::function<void(ghoul::Dictionary)>;
+    using ScriptResult = std::variant<ghoul::Dictionary, std::string>; // string holds the error.
+    using ScriptCallback = std::function<void(ScriptResult)>;
     BooleanType(ShouldBeSynchronized);
     BooleanType(ShouldSendToRemote);
 
