@@ -22,6 +22,7 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
+#include "ghoul/lua/lua_helper.h"
 #include <openspace/engine/globals.h>
 #include <openspace/scene/scene.h>
 #include <openspace/properties/propertyowner.h>
@@ -413,14 +414,12 @@ int propertySetValue(lua_State* L) {
     if (optimization) {
         properties::Property* prop = property(uriOrRegex);
         if (!prop) {
-            LERRORC(
-                "property_setValue",
-                std::format(
+            const std::string s = std::format(
                     "{}: Property with URI '{}' was not found",
                     ghoul::lua::errorLocation(L), uriOrRegex
-                )
-            );
-            return 0;
+                );
+            LERRORC("propertySetValue", s);
+            return ghoul::lua::luaError(L, s);
         }
         return setPropertyCallSingle(
             *prop,
@@ -457,14 +456,12 @@ int propertyGetValue(lua_State* L) {
 
     properties::Property* prop = property(uri);
     if (!prop) {
-        LERRORC(
-            "propertyGetValue",
-            std::format(
+        const std::string s = std::format(
                 "{}: Property with URI '{}' was not found",
                 ghoul::lua::errorLocation(L), uri
-            )
-        );
-        return 0;
+            );
+        LERRORC("propertyGetValue", s);
+        return ghoul::lua::luaError(L, s);
     }
     else {
         prop->getLuaValue(L);
