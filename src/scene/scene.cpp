@@ -798,7 +798,13 @@ scripting::LuaLibrary Scene::luaLibrary() {
             {
                 "setPropertyValue",
                 &luascriptfunctions::propertySetValue<false>,
-                {},
+                {
+                    { "uri", "String" },
+                    { "value", "" },
+                    { "duration", "Number?" },
+                    { "easing", "String" },
+                    { "postscript", "String" }
+                },
                 "",
                 "Sets all property(s) identified by the URI (with potential wildcards) "
                 "in the first argument. The second argument can be any type, but it has "
@@ -820,7 +826,13 @@ scripting::LuaLibrary Scene::luaLibrary() {
             {
                 "setPropertyValueSingle",
                 &luascriptfunctions::propertySetValue<true>,
-                {},
+                {
+                    { "uri", "String" },
+                    { "value", "" },
+                    { "duration", "Number?" },
+                    { "easing", "String" },
+                    { "postscript", "String" }
+                },
                 "",
                 "Sets the property identified by the URI in the first argument. The "
                 "second argument can be any type, but it has to match the type that the "
@@ -847,7 +859,9 @@ scripting::LuaLibrary Scene::luaLibrary() {
             {
                 "getPropertyValue",
                 &luascriptfunctions::propertyGetValueDeprecated,
-                {},
+                {
+                    { "uri", "String" }
+                },
                 "",
                 "Returns the value the property, identified by the provided URI. "
                 "Deprecated in favor of the 'propertyValue' function",
@@ -856,10 +870,11 @@ scripting::LuaLibrary Scene::luaLibrary() {
             {
                 "propertyValue",
                 &luascriptfunctions::propertyGetValue,
-                {},
+                {
+                    { "uri", "String" }
+                },
                 "",
-                "Returns the value the property, identified by the provided URI. "
-                "Deprecated in favor of the 'propertyValue' function",
+                "Returns the value the property, identified by the provided URI. ",
                 {}
             },
             codegen::lua::HasProperty,
