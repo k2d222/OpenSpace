@@ -82,6 +82,7 @@ public:
 
     // Accessors
     // Remove Vec3 from the name when psc is gone
+    CameraPose pose() const;
     const glm::dvec3& positionVec3() const;
     glm::dvec3 eyePositionVec3() const;
     const glm::dvec3& unsynchedPositionVec3() const;

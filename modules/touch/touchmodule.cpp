@@ -24,8 +24,10 @@
 
 #include <modules/touch/touchmodule.h>
 
+#include <ghoul/glm.h>
 #include <modules/touch/include/tuioear.h>
 #include <modules/touch/include/win32_touch.h>
+#include <openspace/camera/camera.h>
 #include <openspace/engine/globals.h>
 #include <openspace/engine/globalscallbacks.h>
 #include <openspace/engine/openspaceengine.h>
@@ -33,8 +35,13 @@
 #include <openspace/interaction/interactionmonitor.h>
 #include <openspace/navigation/navigationhandler.h>
 #include <openspace/rendering/renderable.h>
+#include <openspace/scene/scenegraphnode.h>
 #include <openspace/util/factorymanager.h>
+#include <openspace/util/touch.h>
 #include <algorithm>
+#include <format>
+#include <memory>
+#include <thread>
 
 using namespace TUIO;
 
@@ -67,6 +74,12 @@ namespace {
         "relatively spherical objects.",
         openspace::properties::Property::Visibility::AdvancedUser
     };
+
+    // max press duration to trigger a tap
+    constexpr const double TAP_MAX_DURATION = 0.18;
+    // max distance travelled by the finger to trigger a tap
+    constexpr const double TAP_MAX_DISTANCE = 0.0004;
+
 } // namespace openspace
 
 namespace openspace {
@@ -77,12 +90,11 @@ TouchModule::TouchModule()
     , _hasActiveTouchEvent(EventsInfo, false)
     , _defaultDirectTouchRenderableTypes(DefaultDirectTouchRenderableTypesInfo)
 {
-    addPropertySubOwner(_touch);
+    addPropertySubOwner(_touchInteraction);
     addPropertySubOwner(_markers);
     addProperty(_touchIsEnabled);
     _touchIsEnabled.onChange([this]() {
-        _touch.resetAfterInput();
-        _lastTouchInputs.clear();
+        _touchInteraction.reset();
     });
 
     _hasActiveTouchEvent.setReadOnly(true);
@@ -117,8 +129,8 @@ bool TouchModule::isDefaultDirectTouchType(std::string_view renderableType) cons
         _sortedDefaultRenderableTypes.end();
 }
 
-void TouchModule::internalInitialize(const ghoul::Dictionary&){
-    _ear.reset(new TuioEar());
+void TouchModule::internalInitialize(const ghoul::Dictionary&) {
+    _ear = std::make_unique<TuioEar>();
 
     global::callback::initializeGL->push_back([this]() {
         LDEBUG("Initializing TouchMarker OpenGL");
@@ -139,10 +151,12 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&){
     });
 
     // These are handled in UI thread, which (as of 20th dec 2019) is in main/rendering
-    // thread so we don't need a mutex here
+    // thread so we don't need a mutex here:
+    // touchDetected, touchUpdated, touchExit, preSync.
+    // TODO: check comment above, im not sure it's true.
     global::callback::touchDetected->push_back(
         [this](TouchInput i) {
-            addTouchInput(i);
+            updateOrAddTouchInput(i);
             return true;
         }
     );
@@ -158,7 +172,6 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&){
         std::bind(&TouchModule::removeTouchInput, this, std::placeholders::_1)
     );
 
-
     global::callback::preSync->push_back([this]() {
         if (!_touchIsEnabled) {
             return;
@@ -169,40 +182,60 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&){
             mode == OpenSpaceEngine::Mode::SessionRecordingPlayback)
         {
             // Reset everything, to avoid problems once we process inputs again
-            _lastTouchInputs.clear();
-            _touch.resetAfterInput();
-            clearInputs();
+            _touchInteraction.reset();
             return;
         }
 
-        _touch.setCamera(global::navigationHandler->camera());
 
         bool gotNewInput = processNewInput();
-        if (gotNewInput && global::windowDelegate->isMaster()) {
-            _touch.updateStateFromInput(_touchPoints, _lastTouchInputs);
+        if (global::windowDelegate->isMaster()) {
+            _touchInteraction.setCamera(global::navigationHandler->camera());
+            if (gotNewInput) {
+                _touchInteraction.update(_touches);
+            }
         }
-        else if (_touchPoints.empty()) {
-            _touch.resetAfterInput();
-        }
-
-        // Update last processed touch inputs
-        _lastTouchInputs.clear();
-        for (const TouchInputHolder& points : _touchPoints) {
-            _lastTouchInputs.emplace_back(points.latestInput());
-        }
-        // Calculate the new camera state for this frame
-        _touch.step(global::windowDelegate->deltaTime());
-        clearInputs();
     });
 
     global::callback::render->push_back([this]() {
-        _markers.render(_touchPoints);
+        properties::Property* prop = _touchInteraction.property("SphericalDisplay");
+
+        // with globe display, the points must be projected on the current camera's NDC.
+        if (prop && std::any_cast<bool>(prop->get()) == true) {
+            Camera* cam = global::navigationHandler->camera();
+
+            const SceneGraphNode* anchor = global::navigationHandler->orbitalNavigator().anchorNode();
+            if (!cam || !anchor) {
+                return;
+            }
+
+            std::vector<glm::vec2> list;
+            for (const TouchInputHolder& input : _touches) {
+                double yaw = (1.5 - input.latestInput().x) * glm::two_pi<float>(); // range 0 to 2pi
+                double pitch = (input.latestInput().y - 0.5) * glm::pi<float>(); // range -pi/2 to pi/2
+                glm::dvec3 dir = glm::normalize(glm::vec3(cos(yaw) * cos(pitch), sin(pitch), sin(yaw) * cos(pitch)));
+                glm::dvec4 pos = glm::dvec4(cam->rotationQuaternion() * dir * anchor->interactionSphere() + anchor->worldPosition(), 1.0);
+                glm::dvec4 proj = glm::dmat4(cam->sgctInternal.projectionMatrix()) * cam->combinedViewMatrix() * pos;
+                proj /= proj.w;
+                list.emplace_back(proj.x, proj.y);
+            }
+            _markers.render(list);
+            return;
+        }
+
+        std::vector<glm::vec2> list;
+        for (const TouchInputHolder& input : _touches) {
+            list.emplace_back(
+                2.f * (input.latestInput().x - 0.5f),
+                -2.f * (input.latestInput().y - 0.5f)
+            );
+        }
+        _markers.render(list);
     });
 }
 
 bool TouchModule::processNewInput() {
     // Get new input from listener
-    std::vector<TouchInput> earInputs = _ear->takeInput();
+    std::vector<TouchInput> earInputs = _ear->takeInputs();
     std::vector<TouchInput> earRemovals = _ear->takeRemovals();
 
     for (const TouchInput& input : earInputs) {
@@ -212,7 +245,7 @@ bool TouchModule::processNewInput() {
         removeTouchInput(removal);
     }
 
-    bool touchHappened = !_touchPoints.empty();
+    bool touchHappened = !_touches.empty();
     _hasActiveTouchEvent = touchHappened;
 
     // Set touch property to active (to void mouse input, mainly for mtdev bridges)
@@ -220,107 +253,38 @@ bool TouchModule::processNewInput() {
         global::interactionMonitor->markInteraction();
     }
 
-    // Erase old input ids that no longer exist
-    _lastTouchInputs.erase(
-        std::remove_if(
-            _lastTouchInputs.begin(),
-            _lastTouchInputs.end(),
-            [this](const TouchInput& input) {
-                return !std::any_of(
-                    _touchPoints.cbegin(),
-                    _touchPoints.cend(),
-                    [&input](const TouchInputHolder& holder) {
-                        return holder.holdsInput(input);
-                    }
-                );
-            }
-        ),
-        _lastTouchInputs.end()
-     );
-
-    if (_tap) {
-        _touch.tap();
-        _tap = false;
-        return true;
-    }
-
-    // Return true if we got new input
-    if (_touchPoints.size() == _lastTouchInputs.size() &&
-        !_touchPoints.empty())
-    {
-        // @TODO (emmbr26, 2023-02-03) Looks to me like this code will always return
-        // true? That's a bit weird and should probably be investigated
-        bool newInput = true;
-        // Go through list and check if the last registrered time is newer than the
-        // last processed touch inputs (last frame)
-        std::for_each(
-            _lastTouchInputs.begin(),
-            _lastTouchInputs.end(),
-            [this, &newInput](TouchInput& input) {
-                std::vector<TouchInputHolder>::iterator holder = std::find_if(
-                    _touchPoints.begin(),
-                    _touchPoints.end(),
-                    [&input](const TouchInputHolder& inputHolder) {
-                        return inputHolder.holdsInput(input);
-                    }
-                );
-                if (!holder->isMoving()) {
-                    newInput = true;
-                }
-            }
-        );
-        return newInput;
-    }
-    else {
-        return false;
-    }
-}
-
-void TouchModule::clearInputs() {
-    for (const TouchInput& input : _deferredRemovals) {
-        for (TouchInputHolder& inputHolder : _touchPoints) {
-            if (inputHolder.holdsInput(input)) {
-                inputHolder = std::move(_touchPoints.back());
-                _touchPoints.pop_back();
-                break;
-            }
-        }
-    }
-    _deferredRemovals.clear();
-}
-
-void TouchModule::addTouchInput(TouchInput input) {
-    _touchPoints.emplace_back(input);
+    return earInputs.size() != 0 || earRemovals.size() != 0;
 }
 
 void TouchModule::updateOrAddTouchInput(TouchInput input) {
-    for (TouchInputHolder& inputHolder : _touchPoints) {
-        if (inputHolder.holdsInput(input)) {
-            inputHolder.tryAddInput(input);
-            return;
-        }
+    auto iHolder = std::ranges::find_if(_touches, [&](const TouchInputHolder& holder) {
+        return holder.holdsInput(input);
+    });
+
+    if (iHolder != _touches.end()) {
+        iHolder->tryAddInput(input);
     }
-    _touchPoints.emplace_back(input);
+    else {
+        _touches.emplace_back(input);
+    }
 }
 
 void TouchModule::removeTouchInput(TouchInput input) {
-    _deferredRemovals.emplace_back(input);
-    // Check for "tap" gesture:
-    for (TouchInputHolder& inputHolder : _touchPoints) {
-        if (inputHolder.holdsInput(input)) {
-            inputHolder.tryAddInput(input);
-            const double totalTime = inputHolder.gestureTime();
-            const float totalDistance = inputHolder.gestureDistance();
-            // Magic values taken from tuioear.cpp:
-            const bool isWithinTapTime = totalTime < 0.18;
-            const bool wasStationary = totalDistance < 0.0004f;
-            if (isWithinTapTime && wasStationary && _touchPoints.size() == 1 &&
-                _deferredRemovals.size() == 1)
-            {
-                _tap = true;
-            }
-            return;
-        }
+    auto it = std::ranges::find_if(_touches, [&](const TouchInputHolder& holder) {
+        return holder.holdsInput(input);
+    });
+
+    if (it != _touches.end()) {
+
+        // Check for "tap" gesture:
+        // TODO(mbr): implement this
+        // const bool isWithinTapTime = it->gestureTime() < TAP_MAX_DURATION;
+        // const bool wasStationary = it->gestureDistance() < TAP_MAX_DISTANCE;
+        // if (isWithinTapTime && wasStationary) {
+        //     _taps.emplace_back(it->firstInput());
+        // }
+
+        _touches.erase(it);
     }
 }
 

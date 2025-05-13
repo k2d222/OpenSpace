@@ -22,57 +22,41 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_TOUCH___DIRECTINPUT_SOLVER___H__
-#define __OPENSPACE_MODULE_TOUCH___DIRECTINPUT_SOLVER___H__
+#ifndef __OPENSPACE_MODULE_TOUCH___RING_BUFFER___H__
+#define __OPENSPACE_MODULE_TOUCH___RING_BUFFER___H__
 
-#include <openspace/util/touch.h>
-#include <modules/touch/ext/levmarq.h>
 #include <vector>
+#include <cstddef> // for size_t
 
 namespace openspace {
 
-class Camera;
-class SceneGraphNode;
-
-/**
- * The DirectInputSolver is used to minimize the L2 error of touch input to 3D camera
- * position. It uses the levmarq algorithm in order to do this.
- */
-class DirectInputSolver {
+template <typename T>
+class RingBuffer {
 public:
-    /**
-     * Stores the selected node, the cursor ID as well as the surface coordinates the
-     * cursor touched
-     */
-    struct SelectedBody {
-        size_t id = 0;
-        SceneGraphNode* node = nullptr;
-        glm::dvec3 coordinates = glm::dvec3(0.0);
-    };
+    explicit RingBuffer(size_t capacity);
+    void resize(size_t capacity);
+    size_t capacity() const;
+    void push(const T& value);
+    void clear();
+    size_t size() const;
 
-    DirectInputSolver();
+    T& at(size_t index);
+    const T& at(size_t index) const;
 
-    /**
-     * Returns true if the error could be minimized within certain bounds. If the error is
-     * found to be outside the bounds after a certain amount of iterations, this function
-     * fails.
-     */
-    bool solve(const std::vector<TouchInputHolder>& list,
-        const std::vector<SelectedBody>& selectedBodies,
-        std::vector<double>* calculatedValues, const Camera& camera);
+    T& front();
+    const T& front() const;
 
-    int nDof() const;
-
-    const LMstat& levMarqStat();
-
-    void setLevMarqVerbosity(bool verbose);
+    T& back();
+    const T& back() const;
 
 private:
-    int _nDof = 0;
-    LMstat _lmstat;
+    std::vector<T> _buffer;
+    size_t _head;
+    size_t _capacity;
 };
 
 } // openspace namespace
 
-#endif // __OPENSPACE_MODULE_TOUCH___DIRECTINPUT_SOLVER___H__
+#include <modules/touch/src/ringbuffer.inl>
 
+#endif // __OPENSPACE_MODULE_TOUCH___RING_BUFFER___H__

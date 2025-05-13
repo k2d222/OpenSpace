@@ -25,18 +25,15 @@
 include(${PROJECT_SOURCE_DIR}/support/cmake/module_definition.cmake)
 
 set(HEADER_FILES
-  ext/levmarq.h
-  include/directinputsolver.h
   include/tuioear.h
   include/touchinteraction.h
   include/touchmarker.h
   include/win32_touch.h
+  include/ringbuffer.h
 )
 source_group("Header Files" FILES ${HEADER_FILES})
 
 set(SOURCE_FILES
-  ext/levmarq.cpp
-  src/directinputsolver.cpp
   src/tuioear.cpp
   src/touchinteraction.cpp
   src/touchmarker.cpp

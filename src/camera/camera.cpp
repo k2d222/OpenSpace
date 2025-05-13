@@ -88,6 +88,13 @@ void Camera::rotate(const glm::dquat& rotation) {
     _cachedCombinedViewMatrix.isDirty = true;
 }
 
+CameraPose Camera::pose() const {
+    return CameraPose{
+        .position = positionVec3(),
+        .rotation = rotationQuaternion()
+    };
+}
+
 const glm::dvec3& Camera::positionVec3() const {
     return _position;
 }
