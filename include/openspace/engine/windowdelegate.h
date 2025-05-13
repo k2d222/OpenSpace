@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -26,13 +26,15 @@
 #define __OPENSPACE_CORE__WINDOWDELEGATE___H__
 
 #include <ghoul/glm.h>
-#include <glbinding/glbinding.h>
 #include <vector>
 
 namespace openspace {
 
 struct WindowDelegate {
     enum class Frustum { Mono, LeftEye, RightEye };
+
+    enum class Cursor { Arrow, IBeam, CrossHair, PointingHand, ResizeEW, ResizeNS,
+        ResizeNWSE, ResizeNESW, ResizeAll, NotAllowed };
 
     void (*terminate)() = [](){};
 
@@ -97,9 +99,11 @@ struct WindowDelegate {
 
     int (*firstWindowId)() = []() { return 0; };
 
-    double (*getHorizFieldOfView)() = []() { return 0.0; };
+    std::string (*nameForWindow)(int windowIdx) = [](int) { return std::string(); };
 
-    void (*setHorizFieldOfView)(float hFovDeg) = [](float) { };
+    float (*horizFieldOfView)(int windowIdx) = [](int) { return 0.f; };
+
+    void (*setHorizFieldOfView)(int windowIdx, float hFovDeg) = [](int, float) {};
 
     void* (*getNativeWindowHandle)(size_t windowIndex) = [](size_t) -> void* {
         return nullptr;
@@ -126,6 +130,8 @@ struct WindowDelegate {
         [](const glm::vec2&) { return glm::vec2(0); };
 
     void (*setStatisticsGraphScale)(float scale) = [](float) {};
+
+    void (*setMouseCursor)(Cursor cursor) = [](Cursor) {};
 };
 
 } // namespace openspace

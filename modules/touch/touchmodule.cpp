@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -34,6 +34,7 @@
 #include <openspace/engine/windowdelegate.h>
 #include <openspace/interaction/interactionmonitor.h>
 #include <openspace/navigation/navigationhandler.h>
+#include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/rendering/renderable.h>
 #include <openspace/scene/scenegraphnode.h>
 #include <openspace/util/factorymanager.h>
@@ -41,7 +42,6 @@
 #include <algorithm>
 #include <format>
 #include <memory>
-#include <thread>
 
 using namespace TUIO;
 
@@ -142,7 +142,7 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&) {
         if (nativeWindowHandle) {
             _win32TouchHook = std::make_unique<Win32TouchHook>(nativeWindowHandle);
         }
-#endif
+#endif // WIN32
     });
 
     global::callback::deinitializeGL->push_back([this]() {
@@ -163,7 +163,7 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&) {
 
     global::callback::touchUpdated->push_back(
         [this](TouchInput i) {
-            updateOrAddTouchInput(i);
+            updateOrAddTouchInput(std::move(i));
             return true;
         }
     );
@@ -197,10 +197,10 @@ void TouchModule::internalInitialize(const ghoul::Dictionary&) {
     });
 
     global::callback::render->push_back([this]() {
-        properties::Property* prop = _touchInteraction.property("SphericalDisplay");
+        properties::BoolProperty* prop = dynamic_cast<properties::BoolProperty*>(_touchInteraction.property("SphericalDisplay"));
 
         // with globe display, the points must be projected on the current camera's NDC.
-        if (prop && std::any_cast<bool>(prop->get()) == true) {
+        if (prop && prop->value()) {
             Camera* cam = global::navigationHandler->camera();
 
             const SceneGraphNode* anchor = global::navigationHandler->orbitalNavigator().anchorNode();

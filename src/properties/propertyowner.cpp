@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -25,6 +25,7 @@
 #include <openspace/properties/propertyowner.h>
 
 #include <openspace/engine/globals.h>
+#include <openspace/engine/openspaceengine.h>
 #include <openspace/events/event.h>
 #include <openspace/events/eventengine.h>
 #include <openspace/properties/property.h>
@@ -38,6 +39,28 @@
 
 namespace {
     constexpr std::string_view _loggerCat = "PropertyOwner";
+
+    // The URIs have to be validated because it is not known in what order things are
+    // constructed. For example, a SceneGraphNode can be created before its Renderable,
+    // and vice versa. Invalid URIs are empty. The reason this works even though we don't
+    // know what is created first is because if the child is created first, it has not
+    // been added to the property tree so URI will be invalid and not sent. But the parent
+    // will be added later, which will include the child in it's subowners
+    void publishPropertyTreeUpdatedEvent(std::string_view uri) {
+        using namespace openspace;
+
+        if (!uri.empty()) {
+            global::eventEngine->publishEvent<events::EventPropertyTreeUpdated>(uri);
+        }
+    }
+
+    void publishPropertyTreePrunedEvent(std::string_view uri) {
+        using namespace openspace;
+
+        if (!uri.empty()) {
+            global::eventEngine->publishEvent<events::EventPropertyTreePruned>(uri);
+        }
+    }
 } // namespace
 
 namespace openspace::properties {
@@ -55,11 +78,6 @@ PropertyOwner::PropertyOwner(PropertyOwnerInfo info)
         _identifier.find_first_of('.') == std::string::npos,
         "Identifier must contain any dots"
     );
-}
-
-PropertyOwner::~PropertyOwner() {
-    _properties.clear();
-    _subOwners.clear();
 }
 
 const std::vector<Property*>& PropertyOwner::properties() const {
@@ -137,17 +155,30 @@ std::string PropertyOwner::uri() const {
     std::string identifier = _identifier;
     PropertyOwner* currentOwner = owner();
     while (currentOwner) {
+        // We have reached the top of the property tree and the uri is finished
+        if (currentOwner == global::rootPropertyOwner) {
+            return identifier;
+        }
         const std::string& ownerId = currentOwner->identifier();
         if (!ownerId.empty()) {
             identifier = std::format("{}.{}", ownerId, identifier);
         }
         currentOwner = currentOwner->owner();
     }
-    return identifier;
+    // If the uri hasn't been sent at this point it is not valid, so send an empty string
+    return "";
 }
 
 bool PropertyOwner::hasProperty(const std::string& uri) const {
     return property(uri) != nullptr;
+}
+
+void PropertyOwner::setPropertyOwner(PropertyOwner* owner) {
+    _owner = owner;
+}
+
+PropertyOwner* PropertyOwner::owner() const {
+    return _owner;
 }
 
 bool PropertyOwner::hasProperty(const Property* prop) const {
@@ -235,6 +266,12 @@ void PropertyOwner::addProperty(Property* prop) {
         else {
             _properties.push_back(prop);
             prop->setPropertyOwner(this);
+            if (global::openSpaceEngine) {
+                global::openSpaceEngine->invalidatePropertyCache();
+            }
+
+            // Notify change so we can update the UI
+            publishPropertyTreeUpdatedEvent(prop->uri());
         }
     }
 }
@@ -275,13 +312,21 @@ void PropertyOwner::addPropertySubOwner(openspace::properties::PropertyOwner* ow
         const bool hasProp = hasProperty(owner->identifier());
         if (hasProp) {
             LERROR(std::format(
-                "PropertyOwner '{}'s name already names a Property", owner->identifier()
+                "PropertyOwner '{}'s identifier is already in use for a Property",
+                owner->identifier()
             ));
             return;
         }
         else {
             _subOwners.push_back(owner);
             owner->setPropertyOwner(this);
+            updateUriCaches();
+            if (global::openSpaceEngine) {
+                global::openSpaceEngine->invalidatePropertyCache();
+            }
+
+            // Notify change so UI gets updated
+            publishPropertyTreeUpdatedEvent(owner->uri());
         }
     }
 }
@@ -302,7 +347,13 @@ void PropertyOwner::removeProperty(Property* prop) {
 
     // If we found the property identifier, we can delete it
     if (it != _properties.end() && (*it)->identifier() == prop->identifier()) {
+        // Notify change so we can update the UI
+        publishPropertyTreePrunedEvent(prop->uri());
+
         (*it)->setPropertyOwner(nullptr);
+        if (global::openSpaceEngine) {
+            global::openSpaceEngine->invalidatePropertyCache();
+        }
         _properties.erase(it);
     }
     else {
@@ -330,6 +381,16 @@ void PropertyOwner::removePropertySubOwner(openspace::properties::PropertyOwner*
 
     // If we found the propertyowner, we can delete it
     if (it != _subOwners.end() && (*it)->identifier() == owner->identifier()) {
+        // Notify the change so the UI can update
+        publishPropertyTreePrunedEvent(owner->uri());
+
+        // When a PropertyOwner is removed as a subowner, it means that it will probably
+        // be deleted soon and we wouldn't need to invalidate the cache, but we can't be
+        // 100% sure of that, so we are invalidating the cache anyway
+        owner->updateUriCaches();
+        if (global::openSpaceEngine) {
+            global::openSpaceEngine->invalidatePropertyCache();
+        }
         _subOwners.erase(it);
     }
     else {
@@ -384,6 +445,15 @@ void PropertyOwner::addTag(std::string tag) {
 
 void PropertyOwner::removeTag(const std::string& tag) {
     _tags.erase(std::remove(_tags.begin(), _tags.end(), tag), _tags.end());
+}
+
+void PropertyOwner::updateUriCaches() {
+    for (Property* property : _properties) {
+        property->updateUriCache();
+    }
+    for (PropertyOwner* owner : _subOwners) {
+        owner->updateUriCaches();
+    }
 }
 
 } // namespace openspace::properties

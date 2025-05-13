@@ -6,6 +6,8 @@
 
 local globeIdentifier = asset.require("scene/solarsystem//planets/earth/moon/moon").Moon.Identifier
 
+
+
 local treks_LRO_WACGLD100_Gray_79S79N_256ppd = {
   Identifier = "LRO_WACGLD100_Gray_79S79N_256ppd",
   Name = [[LRO WAC-GLD100 DEM, Grayscale]],
@@ -14,15 +16,17 @@ local treks_LRO_WACGLD100_Gray_79S79N_256ppd = {
   Description = [[]]
 }
 
+
 asset.onInitialize(function()
   openspace.globebrowsing.addLayer(globeIdentifier, "ColorLayers", treks_LRO_WACGLD100_Gray_79S79N_256ppd)
 end)
 
 asset.onDeinitialize(function()
-  openspace.globebrowsing.deleteLayer(globeIdentifier, "ColorLayers", "treks_LRO_WACGLD100_Gray_79S79N_256ppd")
+  openspace.globebrowsing.deleteLayer(globeIdentifier, "ColorLayers", treks_LRO_WACGLD100_Gray_79S79N_256ppd)
 end)
 
 asset.export("LRO_WACGLD100_Gray_79S79N_256ppd", treks_LRO_WACGLD100_Gray_79S79N_256ppd)
+
 
 
 asset.meta = {

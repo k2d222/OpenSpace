@@ -1,4 +1,3 @@
-local propertyHelper = asset.require("../property_helper")
 local joystickHelper = asset.require("./joystick_helper")
 
 
@@ -76,6 +75,8 @@ asset.onDeinitialize(function()
     openspace.asset.remove("./util/joysticks/space-mouse-enterprise")
   end
 end)
+
+
 
 asset.meta = {
   Name = "Joystick controller: Any",

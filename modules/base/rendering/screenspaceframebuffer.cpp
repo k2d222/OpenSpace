@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -162,14 +162,7 @@ void ScreenSpaceFramebuffer::render(const RenderData& renderData) {
 }
 
 bool ScreenSpaceFramebuffer::isReady() const {
-    bool ready = true;
-    if (!_shader) {
-        ready &= false;
-    }
-    if (!_texture) {
-        ready &= false;
-    }
-    return ready;
+    return _shader && _texture;
 }
 
 void ScreenSpaceFramebuffer::setResolution(glm::uvec2 resolution) {
@@ -181,7 +174,7 @@ void ScreenSpaceFramebuffer::setResolution(glm::uvec2 resolution) {
     }
 }
 
-void ScreenSpaceFramebuffer::addRenderFunction(std::function<void()> renderFunction) {
+void ScreenSpaceFramebuffer::addRenderFunction(RenderFunction renderFunction) {
     _renderFunctions.push_back(std::move(renderFunction));
 }
 

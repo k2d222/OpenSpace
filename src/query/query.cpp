@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -25,6 +25,7 @@
 #include <openspace/query/query.h>
 
 #include <openspace/engine/globals.h>
+#include <openspace/engine/openspaceengine.h>
 #include <openspace/rendering/renderengine.h>
 #include <openspace/scene/scene.h>
 
@@ -61,7 +62,7 @@ properties::PropertyOwner* propertyOwner(const std::string& uri) {
 }
 
 std::vector<properties::Property*> allProperties() {
-    return global::rootPropertyOwner->propertiesRecursive();
+    return global::openSpaceEngine->allProperties();
 }
 
 }  // namespace openspace

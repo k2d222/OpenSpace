@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -46,6 +46,7 @@
 #include <glm/geometric.hpp>
 #include <glm/common.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/vector_angle.hpp>
 
 #include <cmath>
 #include <functional>
@@ -55,7 +56,7 @@
 #pragma warning (disable : 4310) // cast truncates constant value
 #endif // WIN32
 
-#include <glm/ext.hpp>
+#include <glm/gtx/intersect.hpp>
 
 #ifdef WIN32
 #pragma warning (pop)
@@ -318,7 +319,7 @@ TouchInteraction::TouchInteraction()
 
 #ifdef TOUCH_DEBUG_PROPERTIES
     addPropertySubOwner(_debugProperties);
-#endif
+#endif // TOUCH_DEBUG_PROPERTIES
 
     _zoomInBoundarySphereMultiplier.setExponent(20.f);
     _zoomOutBoundarySphereMultiplier.setExponent(20.f);
@@ -342,7 +343,7 @@ void TouchInteraction::update(const std::vector<TouchInputHolder>& inputs)
 
 #ifdef TOUCH_DEBUG_PROPERTIES
     _debugProperties.nFingers = numFingers;
-#endif
+#endif // TOUCH_DEBUG_PROPERTIES
 
     if (_useSphericalDisplay) {
         const SceneGraphNode* anchor = global::navigationHandler->orbitalNavigator().anchorNode();
@@ -450,7 +451,7 @@ glm::dvec3 TouchInteraction::unprojectTouchesOnSphere(const std::vector<TouchInp
 bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs) {
 #ifdef TOUCH_DEBUG_PROPERTIES
     LINFO("DirectControl");
-#endif
+#endif // TOUCH_DEBUG_PROPERTIES
 
     // check if direct control is possible
     if (inputs.size() == 0 || !_anchor || !_camera) {
@@ -647,23 +648,23 @@ double TouchInteraction::computeTapZoomDistance(double zoomGain) {
 
 // Reset all property values to default
 void TouchInteraction::resetPropertiesToDefault() {
-    _enableOrbit.set(true);
-    _enablePinchZoom.set(true);
-    _enableTapZoom.set(true);
-    _enableRoll.set(true);
-    _enablePan.set(false);
-    _enableDirectManipulation.set(true);
-    _doubleTapThreshold.set(300);
-    _rollAngleThreshold.set(0.025f);
-    _panDistanceThreshold.set(0.015f);
-    _stationaryThreshold.set(0.0005f);
-    _centroidStillThreshold.set(0.0018f);
-    _directManipulationThreshold.set(5.f);
-    _tapZoomFactor.set(0.2f);
-    _zoomInBoundarySphereMultiplier.set(1.001f);
-    _zoomOutBoundarySphereMultiplier.set(4e+27f);
-    _zoomInLimit.set(-1.f);
-    _zoomOutLimit.set(4e+27f);
+    _enableOrbit.setValue(true);
+    _enablePinchZoom.setValue(true);
+    _enableTapZoom.setValue(true);
+    _enableRoll.setValue(true);
+    _enablePan.setValue(false);
+    _enableDirectManipulation.setValue(true);
+    _doubleTapThreshold.setValue(300);
+    _rollAngleThreshold.setValue(0.025f);
+    _panDistanceThreshold.setValue(0.015f);
+    _stationaryThreshold.setValue(0.0005f);
+    _centroidStillThreshold.setValue(0.0018f);
+    _directManipulationThreshold.setValue(5.f);
+    _tapZoomFactor.setValue(0.2f);
+    _zoomInBoundarySphereMultiplier.setValue(1.001f);
+    _zoomOutBoundarySphereMultiplier.setValue(4e+27f);
+    _zoomInLimit.setValue(-1.f);
+    _zoomOutLimit.setValue(4e+27f);
 }
 
 void TouchInteraction::tap() {
@@ -715,6 +716,6 @@ TouchInteraction::DebugProperties::DebugProperties()
     addProperty(minDiff);
     addProperty(rollOn);
 }
-#endif
+#endif // TOUCH_DEBUG_PROPERTIES
 
 } // openspace namespace

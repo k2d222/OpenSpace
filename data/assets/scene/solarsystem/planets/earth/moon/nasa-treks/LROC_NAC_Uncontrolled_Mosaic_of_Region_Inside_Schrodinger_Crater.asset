@@ -6,6 +6,8 @@
 
 local globeIdentifier = asset.require("scene/solarsystem//planets/earth/moon/moon").Moon.Identifier
 
+
+
 local treks_SchrodingerMareNortheq = {
   Identifier = "SchrodingerMareNortheq",
   Name = [[LROC NAC Uncontrolled Mosaic of Region Inside Schrodinger Crater, 50cm/px]],
@@ -14,15 +16,17 @@ local treks_SchrodingerMareNortheq = {
   Description = [[This is a 50cm/px uncontrolled visible image mosaic generated using Lunar Reconnaissance Orbiter Camera (LROC) Narrow Angle Camera (NAC) images from the Lunar Reconnaissance Orbiter mission. Each NAC image was registered horizontally to the LRO's Lunar Orbiter Laser Altimeter (LOLA) global DEM, and then mosaicked together and color balanced.]]
 }
 
+
 asset.onInitialize(function()
   openspace.globebrowsing.addLayer(globeIdentifier, "ColorLayers", treks_SchrodingerMareNortheq)
 end)
 
 asset.onDeinitialize(function()
-  openspace.globebrowsing.deleteLayer(globeIdentifier, "ColorLayers", "treks_SchrodingerMareNortheq")
+  openspace.globebrowsing.deleteLayer(globeIdentifier, "ColorLayers", treks_SchrodingerMareNortheq)
 end)
 
 asset.export("SchrodingerMareNortheq", treks_SchrodingerMareNortheq)
+
 
 
 asset.meta = {

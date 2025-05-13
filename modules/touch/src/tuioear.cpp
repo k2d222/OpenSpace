@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -48,11 +48,11 @@ namespace {
 
 namespace openspace {
 
-void TuioEar::addTuioObject(TuioObject*) { }
+void TuioEar::addTuioObject(TuioObject*) {}
 
-void TuioEar::updateTuioObject(TuioObject*) { }
+void TuioEar::updateTuioObject(TuioObject*) {}
 
-void TuioEar::removeTuioObject(TuioObject*) { }
+void TuioEar::removeTuioObject(TuioObject*) {}
 
 void TuioEar::addTuioCursor(TuioCursor* tcur) {
     std::lock_guard lock(_mx);
@@ -73,13 +73,13 @@ void TuioEar::removeTuioCursor(TuioCursor* tcur) {
     _removalList.emplace_back(input);
 }
 
-void TuioEar::addTuioBlob(TuioBlob*) { }
+void TuioEar::addTuioBlob(TuioBlob*) {}
 
-void TuioEar::updateTuioBlob(TuioBlob*) { }
+void TuioEar::updateTuioBlob(TuioBlob*) {}
 
-void TuioEar::removeTuioBlob(TuioBlob*) { }
+void TuioEar::removeTuioBlob(TuioBlob*) {}
 
-void TuioEar::refresh(TuioTime) { } // about every 15ms
+void TuioEar::refresh(TuioTime) {} // about every 15ms
 
 std::vector<TouchInput> TuioEar::takeInputs() {
     std::vector<TouchInput> outputList;

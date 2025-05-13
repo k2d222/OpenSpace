@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -44,6 +44,10 @@ CefHost::CefHost([[maybe_unused]] const std::string& helperLocation) {
     LDEBUG("Initializing CEF...");
 
     CefSettings settings;
+    const std::filesystem::path root =
+        std::filesystem::path(helperLocation).parent_path();
+    const std::filesystem::path cefcache = std::format("{}/cefcache", root);
+    CefString(&settings.root_cache_path).FromString(cefcache.string());
 
 #ifndef __APPLE__
     // Apple will always look for helper in a fixed location
@@ -53,10 +57,8 @@ CefHost::CefHost([[maybe_unused]] const std::string& helperLocation) {
     settings.windowless_rendering_enabled = true;
     attachDebugSettings(settings);
 
-#ifdef WIN32
-    // Enable High-DPI support on Windows 7 or newer
-    CefEnableHighDPISupport();
-#endif // WIN32
+    // cf. https://github.com/chromiumembedded/cef/issues/3685
+    settings.chrome_runtime = true;
 
 #ifdef __APPLE__
     // Load the CEF framework library at runtime instead of linking directly as required

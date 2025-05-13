@@ -6,6 +6,8 @@
 
 local globeIdentifier = asset.require("scene/solarsystem//planets/earth/moon/moon").Moon.Identifier
 
+
+
 local treks_LRO_MiniRF_CPR_Gray_Global_128ppd = {
   Identifier = "LRO_MiniRF_CPR_Gray_Global_128ppd",
   Name = [[LRO Mini-RF Circular Polarization Ratio, Grayscale]],
@@ -14,15 +16,17 @@ local treks_LRO_MiniRF_CPR_Gray_Global_128ppd = {
   Description = [[]]
 }
 
+
 asset.onInitialize(function()
   openspace.globebrowsing.addLayer(globeIdentifier, "ColorLayers", treks_LRO_MiniRF_CPR_Gray_Global_128ppd)
 end)
 
 asset.onDeinitialize(function()
-  openspace.globebrowsing.deleteLayer(globeIdentifier, "ColorLayers", "treks_LRO_MiniRF_CPR_Gray_Global_128ppd")
+  openspace.globebrowsing.deleteLayer(globeIdentifier, "ColorLayers", treks_LRO_MiniRF_CPR_Gray_Global_128ppd)
 end)
 
 asset.export("LRO_MiniRF_CPR_Gray_Global_128ppd", treks_LRO_MiniRF_CPR_Gray_Global_128ppd)
+
 
 
 asset.meta = {

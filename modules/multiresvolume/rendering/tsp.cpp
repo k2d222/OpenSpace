@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -67,20 +67,20 @@ bool TSP::load() {
             return false;
         }
 
-        if (false) {
-            if (!calculateSpatialError()) {
-                LERROR("Could not calculate spatial error");
-                return false;
-            }
-            if (!calculateTemporalError()) {
-                LERROR("Could not calculate temporal error");
-                return false;
-            }
-            if (!writeCache()) {
-                LERROR("Could not write cache");
-                return false;
-            }
+#if 0
+        if (!calculateSpatialError()) {
+            LERROR("Could not calculate spatial error");
+            return false;
         }
+        if (!calculateTemporalError()) {
+            LERROR("Could not calculate temporal error");
+            return false;
+        }
+        if (!writeCache()) {
+            LERROR("Could not write cache");
+            return false;
+        }
+#endif
     }
     initalizeSSO();
 
@@ -571,11 +571,11 @@ bool TSP::writeCache() {
 }
 
 float TSP::spatialError(unsigned int brickIndex) const {
-    return *reinterpret_cast<const float*>(_data[brickIndex*NUM_DATA + SPATIAL_ERR]);
+    return *reinterpret_cast<const float*>(&_data[brickIndex*NUM_DATA + SPATIAL_ERR]);
 }
 
 float TSP::temporalError(unsigned int brickIndex) const {
-    return *reinterpret_cast<const float*>(_data[brickIndex*NUM_DATA + TEMPORAL_ERR]);
+    return *reinterpret_cast<const float*>(&_data[brickIndex*NUM_DATA + TEMPORAL_ERR]);
 }
 
 unsigned int TSP::firstOctreeChild(unsigned int brickIndex) const {

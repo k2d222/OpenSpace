@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -24,6 +24,7 @@
 
 #include <modules/exoplanets/exoplanetsmodule.h>
 
+#include <modules/exoplanets/datastructure.h>
 #include <modules/exoplanets/exoplanetshelper.h>
 #include <modules/exoplanets/rendering/renderableorbitdisc.h>
 #include <modules/exoplanets/tasks/exoplanetsdatapreparationtask.h>
@@ -50,13 +51,6 @@
 #include "exoplanetsmodule_lua.inl"
 
 namespace {
-    constexpr openspace::properties::Property::PropertyInfo EnabledInfo = {
-        "Enabled",
-        "Enabled",
-        "Decides if the GUI for this module should be enabled.",
-        openspace::properties::Property::Visibility::AdvancedUser
-    };
-
     constexpr openspace::properties::Property::PropertyInfo DataFolderInfo = {
         "DataFolder",
         "Data Folder",
@@ -91,6 +85,15 @@ namespace {
         "No Data Star Texture",
         "A path to a texture that is used to represent that there is missing data about "
         "the star. For example no color information.",
+        openspace::properties::Property::Visibility::AdvancedUser
+    };
+
+    constexpr openspace::properties::Property::PropertyInfo PlanetDefaultTextureInfo = {
+        "PlanetDefaultTexture",
+        "Planet Default Texture",
+        "The path to an image that should be used by default for the planets in all "
+        "added exoplanet systems. If not specified, the planets are rendered without a "
+        "texture when added.",
         openspace::properties::Property::Visibility::AdvancedUser
     };
 
@@ -164,9 +167,6 @@ namespace {
     constexpr std::string_view TeffToBvConversionFileName = "teff_bv.txt";
 
     struct [[codegen::Dictionary(ExoplanetsModule)]] Parameters {
-        // [[codegen::verbatim(EnabledInfo.description)]]
-        std::optional<bool> enabled;
-
         // [[codegen::verbatim(DataFolderInfo.description)]]
         std::optional<std::filesystem::path> dataFolder [[codegen::directory()]];
 
@@ -181,6 +181,9 @@ namespace {
 
        // [[codegen::verbatim(NoDataTextureInfo.description)]]
        std::optional<std::filesystem::path> noDataTexture;
+
+       // [[codegen::verbatim(PlanetDefaultTextureInfo.description)]]
+       std::optional<std::filesystem::path> planetDefaultTexture;
 
        // [[codegen::verbatim(OrbitDiscTextureInfo.description)]]
        std::optional<std::filesystem::path> orbitDiscTexture;
@@ -213,14 +216,18 @@ namespace openspace {
 
 using namespace exoplanets;
 
+documentation::Documentation ExoplanetsModule::Documentation() {
+    return codegen::doc<Parameters>("module_exoplanets");
+}
+
 ExoplanetsModule::ExoplanetsModule()
     : OpenSpaceModule(Name)
-    , _enabled(EnabledInfo)
     , _exoplanetsDataFolder(DataFolderInfo)
     , _bvColorMapPath(BvColorMapInfo)
     , _starTexturePath(StarTextureInfo)
     , _starGlareTexturePath(StarGlareTextureInfo)
     , _noDataTexturePath(NoDataTextureInfo)
+    , _planetDefaultTexturePath(PlanetDefaultTextureInfo)
     , _orbitDiscTexturePath(OrbitDiscTextureInfo)
     , _habitableZoneTexturePath(HabitableZoneTextureInfo)
     , _comparisonCircleColor(
@@ -237,14 +244,47 @@ ExoplanetsModule::ExoplanetsModule()
 {
     _exoplanetsDataFolder.setReadOnly(true);
 
-    addProperty(_enabled);
-
+    _exoplanetsDataFolder.onChange([this]() {
+        std::filesystem::path f = _exoplanetsDataFolder.value();
+       if (!std::filesystem::is_directory(f)) {
+            LERROR(std::format(
+                "Could not find directory: '{}' for module setting '{}'",
+                f, _exoplanetsDataFolder.identifier()
+            ));
+        }
+    });
     addProperty(_exoplanetsDataFolder);
+
+    auto createPathOnChange = [](const properties::StringProperty& p) {
+        return [&p]() {
+            std::filesystem::path f = p.value();
+            if (!std::filesystem::is_regular_file(f)) {
+                LERROR(std::format(
+                    "Could not find file: '{}' for module setting '{}'",
+                    f, p.identifier()
+                ));
+            }
+        };
+    };
+    _bvColorMapPath.onChange(createPathOnChange(_bvColorMapPath));
     addProperty(_bvColorMapPath);
+
+    _starTexturePath.onChange(createPathOnChange(_starTexturePath));
     addProperty(_starTexturePath);
+
+    _starGlareTexturePath.onChange(createPathOnChange(_starGlareTexturePath));
     addProperty(_starGlareTexturePath);
+
+    _noDataTexturePath.onChange(createPathOnChange(_noDataTexturePath));
     addProperty(_noDataTexturePath);
+
+    _planetDefaultTexturePath.onChange(createPathOnChange(_planetDefaultTexturePath));
+    addProperty(_planetDefaultTexturePath);
+
+    _orbitDiscTexturePath.onChange(createPathOnChange(_orbitDiscTexturePath));
     addProperty(_orbitDiscTexturePath);
+
+    _habitableZoneTexturePath.onChange(createPathOnChange(_habitableZoneTexturePath));
     addProperty(_habitableZoneTexturePath);
 
     _comparisonCircleColor.setViewOption(properties::Property::ViewOptions::Color);
@@ -301,6 +341,10 @@ std::filesystem::path ExoplanetsModule::noDataTexturePath() const {
     return _noDataTexturePath.value();
 }
 
+std::filesystem::path ExoplanetsModule::planetDefaultTexturePath() const {
+    return _planetDefaultTexturePath.value();
+}
+
 std::filesystem::path ExoplanetsModule::orbitDiscTexturePath() const {
     return _orbitDiscTexturePath.value();
 }
@@ -336,8 +380,6 @@ float ExoplanetsModule::habitableZoneOpacity() const {
 void ExoplanetsModule::internalInitialize(const ghoul::Dictionary& dict) {
     const Parameters p = codegen::bake<Parameters>(dict);
 
-    _enabled = p.enabled.value_or(_enabled);
-
     if (p.dataFolder.has_value()) {
         _exoplanetsDataFolder = p.dataFolder->string();
     }
@@ -352,6 +394,10 @@ void ExoplanetsModule::internalInitialize(const ghoul::Dictionary& dict) {
 
     if (p.starGlareTexture.has_value()) {
         _starGlareTexturePath = p.starGlareTexture->string();
+    }
+
+    if (p.planetDefaultTexture.has_value()) {
+        _planetDefaultTexturePath = p.planetDefaultTexture->string();
     }
 
     if (p.noDataTexture.has_value()) {
@@ -385,20 +431,24 @@ void ExoplanetsModule::internalInitialize(const ghoul::Dictionary& dict) {
 std::vector<documentation::Documentation> ExoplanetsModule::documentations() const {
     return {
         ExoplanetsDataPreparationTask::documentation(),
-        RenderableOrbitDisc::Documentation()
+        RenderableOrbitDisc::Documentation(),
+        ExoplanetSystem::Documentation()
     };
 }
 
 scripting::LuaLibrary ExoplanetsModule::luaLibrary() const {
     return {
-        "exoplanets",
-        {
-            codegen::lua::AddExoplanetSystem,
+        .name = "exoplanets",
+        .functions = {
             codegen::lua::RemoveExoplanetSystem,
+            codegen::lua::SystemData,
             codegen::lua::ListOfExoplanets,
             codegen::lua::ListOfExoplanetsDeprecated,
             codegen::lua::ListAvailableExoplanetSystems,
-            codegen::lua::LoadExoplanetsFromCsv
+            codegen::lua::LoadSystemDataFromCsv
+        },
+        .scripts = {
+            absPath("${MODULE_EXOPLANETS}/scripts/systemcreation.lua")
         }
     };
 }

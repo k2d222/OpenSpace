@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -39,20 +39,6 @@
 #include "skybrowsermodule_lua.inl"
 
 namespace {
-    constexpr openspace::properties::Property::PropertyInfo EnabledInfo = {
-        "Enabled",
-        "Enabled",
-        "Decides if the GUI for this module should be enabled.",
-        openspace::properties::Property::Visibility::User
-    };
-
-    constexpr openspace::properties::Property::PropertyInfo ShowTitleInGuiBrowserInfo = {
-        "ShowTitleInGuiBrowser",
-        "Show Title in Gui Browser",
-        "If true, the name of the currently selected sky browser is shown in the WebGUI "
-        "browser.",
-        openspace::properties::Property::Visibility::AdvancedUser
-    };
 
     constexpr openspace::properties::Property::PropertyInfo AllowRotationInfo = {
         "AllowCameraRotation",
@@ -124,9 +110,6 @@ namespace {
 
 
     struct [[codegen::Dictionary(SkyBrowserModule)]] Parameters {
-        // [[codegen::verbatim(EnabledInfo.description)]]
-        std::optional<bool> enabled;
-
         // [[codegen::verbatim(AllowRotationInfo.description)]]
         std::optional<bool> allowCameraRotation;
 
@@ -160,10 +143,12 @@ namespace {
 
 namespace openspace {
 
+documentation::Documentation SkyBrowserModule::Documentation() {
+    return codegen::doc<Parameters>("module_skybrowser");
+}
+
 SkyBrowserModule::SkyBrowserModule()
     : OpenSpaceModule(SkyBrowserModule::Name)
-    , _enabled(EnabledInfo)
-    , _showTitleInGuiBrowser(ShowTitleInGuiBrowserInfo, true)
     , _allowCameraRotation(AllowRotationInfo, true)
     , _cameraRotationSpeed(CameraRotSpeedInfo, 0.5, 0.0, 1.0)
     , _targetAnimationSpeed(TargetSpeedInfo, 0.2, 0.0, 1.0)
@@ -177,8 +162,6 @@ SkyBrowserModule::SkyBrowserModule()
         "https://data.openspaceproject.com/wwt/1/imagecollection.wtml"
     )
 {
-    addProperty(_enabled);
-    addProperty(_showTitleInGuiBrowser);
     addProperty(_allowCameraRotation);
     addProperty(_cameraRotationSpeed);
     addProperty(_targetAnimationSpeed);
@@ -248,7 +231,6 @@ SkyBrowserModule::SkyBrowserModule()
 void SkyBrowserModule::internalInitialize(const ghoul::Dictionary& dict) {
     const Parameters p = codegen::bake<Parameters>(dict);
 
-    _enabled = p.enabled.value_or(_enabled);
     _allowCameraRotation = p.allowCameraRotation.value_or(_allowCameraRotation);
     _cameraRotationSpeed = p.cameraRotSpeed.value_or(_cameraRotationSpeed);
     _targetAnimationSpeed = p.targetSpeed.value_or(_targetAnimationSpeed);
@@ -345,14 +327,9 @@ void SkyBrowserModule::moveHoverCircle(const std::string& imageUrl, bool useScri
     // Show the circle
     if (useScript) {
         const std::string script = std::format(
-            "openspace.setPropertyValueSingle('Scene.{}.Renderable.Fade', 1.0);",
-            id
+            "openspace.setPropertyValueSingle('Scene.{}.Renderable.Fade', 1.0);", id
         );
-        global::scriptEngine->queueScript(
-            script,
-            scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-            scripting::ScriptEngine::ShouldSendToRemote::Yes
-        );
+        global::scriptEngine->queueScript(script);
     }
     else {
         Renderable* renderable = _hoverCircle->renderable();
@@ -372,11 +349,7 @@ void SkyBrowserModule::moveHoverCircle(const std::string& imageUrl, bool useScri
         "openspace.setPropertyValueSingle('Scene.{}.Translation.Position', {});",
         id, ghoul::to_string(pos)
     );
-    global::scriptEngine->queueScript(
-        script,
-        scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-        scripting::ScriptEngine::ShouldSendToRemote::Yes
-    );
+    global::scriptEngine->queueScript(script);
 }
 
 void SkyBrowserModule::disableHoverCircle(bool useScript) {
@@ -386,14 +359,13 @@ void SkyBrowserModule::disableHoverCircle(bool useScript) {
                 "openspace.setPropertyValueSingle('Scene.{}.Renderable.Fade', 0.0);",
                 _hoverCircle->identifier()
             );
-            global::scriptEngine->queueScript(
-                script,
-                scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-                scripting::ScriptEngine::ShouldSendToRemote::Yes
-            );
+            global::scriptEngine->queueScript(script);
         }
         else {
-            _hoverCircle->renderable()->property("Fade")->set(0.f);
+            properties::Property* prop = _hoverCircle->renderable()->property("Fade");
+            properties::FloatProperty* floatProp = dynamic_cast<properties::FloatProperty*>(prop);
+            ghoul_assert(floatProp, "Fade property is not a float property");
+            *floatProp = 0.f;
         }
     }
 }

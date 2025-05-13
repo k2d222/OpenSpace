@@ -18,7 +18,7 @@ local Apollo11Lem = {
     Translation = {
       Type = "GlobeTranslation",
       Globe = moon_asset.Moon.Identifier,
-      Longitude = -360 + 23.47306,
+      Longitude = 23.47306,
       Latitude = 0.67402,
       Altitude = -1927.65,
       UseHeightMap = false
@@ -26,7 +26,7 @@ local Apollo11Lem = {
     Rotation = {
       Type = "GlobeRotation",
       Globe = moon_asset.Moon.Identifier,
-      Longitude = -360 + 23.47306,
+      Longitude = 23.47306,
       Latitude = 0.67402
     }
   },
@@ -77,3 +77,14 @@ end)
 
 asset.export(Apollo11Lem)
 asset.export(Apollo11LemModel)
+
+
+
+asset.meta = {
+  Name = "Apollo 11 Lunar Module",
+  Description = [[This asset provides a 3D model of the Apollo Lunar Module/Lunar
+    Excursion Module.]],
+  Author = "OpenSpace Team",
+  URL = "http://openspaceproject.com",
+  License = "MIT license"
+}

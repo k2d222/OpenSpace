@@ -6,6 +6,8 @@
 
 local globeIdentifier = asset.require("scene/solarsystem//planets/earth/moon/moon").Moon.Identifier
 
+
+
 local treks_20200415_lacusmortis_orthomos_filled_8bit_lzw = {
   Identifier = "20200415_lacusmortis_orthomos_filled_8bit_lzw",
   Name = [[LRO NAC Mosaic, Lacus Mortis, Extended Version]],
@@ -14,15 +16,17 @@ local treks_20200415_lacusmortis_orthomos_filled_8bit_lzw = {
   Description = [[This is an orthoimage mosaic produced by combining LROC NAC images, for the southwestern area of Lacus Mortis, including Rimae Bürg and the Lacus Mortis Pit. The images are projected onto a DEM mosaic produced by stereo reconstructions in which each of the images is paired with another LROC NAC.]]
 }
 
+
 asset.onInitialize(function()
   openspace.globebrowsing.addLayer(globeIdentifier, "ColorLayers", treks_20200415_lacusmortis_orthomos_filled_8bit_lzw)
 end)
 
 asset.onDeinitialize(function()
-  openspace.globebrowsing.deleteLayer(globeIdentifier, "ColorLayers", "treks_20200415_lacusmortis_orthomos_filled_8bit_lzw")
+  openspace.globebrowsing.deleteLayer(globeIdentifier, "ColorLayers", treks_20200415_lacusmortis_orthomos_filled_8bit_lzw)
 end)
 
 asset.export("20200415_lacusmortis_orthomos_filled_8bit_lzw", treks_20200415_lacusmortis_orthomos_filled_8bit_lzw)
+
 
 
 asset.meta = {

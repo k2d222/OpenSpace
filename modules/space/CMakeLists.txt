@@ -2,7 +2,7 @@
 #                                                                                        #
 # OpenSpace                                                                              #
 #                                                                                        #
-# Copyright (c) 2014-2023                                                                #
+# Copyright (c) 2014-2025                                                                #
 #                                                                                        #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this   #
 # software and associated documentation files (the "Software"), to deal in the Software  #
@@ -37,6 +37,7 @@ set(HEADER_FILES
   rendering/renderableorbitalkepler.h
   rendering/renderablestars.h
   rendering/renderabletravelspeed.h
+  timeframe/timeframekernel.h
   translation/gptranslation.h
   translation/keplertranslation.h
   translation/spicetranslation.h
@@ -59,6 +60,7 @@ set(SOURCE_FILES
   rendering/renderableorbitalkepler.cpp
   rendering/renderablestars.cpp
   rendering/renderabletravelspeed.cpp
+  timeframe/timeframekernel.cpp
   translation/gptranslation.cpp
   translation/keplertranslation.cpp
   translation/spicetranslation.cpp

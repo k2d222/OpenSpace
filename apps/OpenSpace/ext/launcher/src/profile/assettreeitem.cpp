@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -151,7 +151,7 @@ bool AssetTreeItem::insertColumns(int position, int columns) {
         _itemData.insert(_itemData.begin() + position, QVariant());
     }
 
-    for (AssetTreeItem* child : qAsConst(_childItems)) {
+    for (AssetTreeItem* child : _childItems) {
         child->insertColumns(position, columns);
     }
 

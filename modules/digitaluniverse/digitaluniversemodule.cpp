@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -34,7 +34,6 @@
 namespace openspace {
 
 ghoul::opengl::ProgramObjectManager DigitalUniverseModule::ProgramObjectManager;
-ghoul::opengl::TextureManager DigitalUniverseModule::TextureManager;
 
 DigitalUniverseModule::DigitalUniverseModule()
     : OpenSpaceModule(DigitalUniverseModule::Name)
@@ -50,7 +49,6 @@ void DigitalUniverseModule::internalInitialize(const ghoul::Dictionary&) {
 
 void DigitalUniverseModule::internalDeinitializeGL() {
     ProgramObjectManager.releaseAll(ghoul::opengl::ProgramObjectManager::Warnings::Yes);
-    TextureManager.releaseAll(ghoul::opengl::TextureManager::Warnings::Yes);
 }
 
 std::vector<documentation::Documentation> DigitalUniverseModule::documentations() const {

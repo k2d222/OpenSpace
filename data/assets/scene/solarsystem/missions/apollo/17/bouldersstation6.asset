@@ -68,8 +68,6 @@ local Station6Frag1Model = {
   }
 }
 
-
-
 local Station6Frag23Holder = {
   Identifier = "Station_6_Fragments_2_3",
   Parent = moonAsset.Moon.Identifier,
@@ -78,7 +76,6 @@ local Station6Frag23Holder = {
     Path = "/Solar System/Missions/Apollo/17/Station 6"
   }
 }
-
 
 local Station6Frag2Model = {
   Identifier = "A17S6F5",
@@ -178,3 +175,14 @@ asset.export(Station6Frag1Model)
 asset.export(Station6Frag23Holder)
 asset.export(Station6Frag2Model)
 asset.export(Station6Frag3Model)
+
+
+
+asset.meta = {
+  Name = "Apollo 17 - Boulder Station 6",
+  Description = [[This asset shows 3D models of the fragments at station 6, which have
+    been reconstructed from the imagery taken of the Apollo 17 crew.]],
+  Author = "OpenSpace Team",
+  URL = "http://openspaceproject.com",
+  License = "MIT license"
+}

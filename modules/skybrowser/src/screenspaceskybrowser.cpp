@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -193,7 +193,10 @@ ScreenSpaceSkyBrowser::~ScreenSpaceSkyBrowser() {
 
 bool ScreenSpaceSkyBrowser::initializeGL() {
     WwtCommunicator::initializeGL();
-    ScreenSpaceRenderable::initializeGL();
+    // @TODO (ylvse, 2024-08-23) Remove this once the skybrowser has been rewritten
+    ghoul::Dictionary dict;
+    dict.setValue("useAcceleratedRendering", false);
+    createShaders(dict);
     return true;
 }
 

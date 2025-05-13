@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -37,8 +37,6 @@
 #include <optional>
 
 namespace {
-    constexpr std::array<const char*, 2> UniformNames = { "lineColor", "opacity" };
-
     constexpr openspace::properties::Property::PropertyInfo SpeedInfo = {
         "TravelSpeed",
         "Speed of Travel",
@@ -89,13 +87,13 @@ namespace {
         openspace::properties::Property::Visibility::User
     };
 
-    // This renderable can be used to visualize a certain travel speed using a line that
+    // This `Renderable` can be used to visualize a certain travel speed using a line that
     // moves at the provided speed from a start object to a target. The start position
     // will be set from the `Parent` of this scene graph node, and the end position is
     // set from the provided `Target` scene graph node. Per default, the speed is set to
     // the speed of light.
     //
-    // The length of the traveling line is set based on the travel speed and can be used
+    // The length of the travelling line is set based on the travel speed and can be used
     // to show more information related to the distance traveled. For example, a length
     // of 1 shows how far an object would move over a duration of one second based on the
     // selected speed.
@@ -198,7 +196,7 @@ void RenderableTravelSpeed::initializeGL() {
     glGenVertexArrays(1, &_vaoId);
     glGenBuffers(1, &_vBufferId);
 
-    ghoul::opengl::updateUniformLocations(*_shaderProgram, _uniformCache, UniformNames);
+    ghoul::opengl::updateUniformLocations(*_shaderProgram, _uniformCache);
 }
 
 void RenderableTravelSpeed::deinitializeGL() {
@@ -287,9 +285,6 @@ void RenderableTravelSpeed::update(const UpdateData& data) {
     else { // in case we've reached the target
         reinitiateTravel();
     }
-
-    _shaderProgram->setUniform("lineColor", _lineColor);
-    _shaderProgram->setUniform("opacity", opacity());
 }
 
 void RenderableTravelSpeed::render(const RenderData& data, RendererTasks&) {
@@ -304,11 +299,14 @@ void RenderableTravelSpeed::render(const RenderData& data, RendererTasks&) {
     );
     _shaderProgram->setUniform("projectionTransform", data.camera.projectionMatrix());
 
+    _shaderProgram->setUniform("lineColor", _lineColor);
+    _shaderProgram->setUniform("opacity", opacity());
+
 #ifndef __APPLE__
     glLineWidth(_lineWidth);
-#else
+#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
     glLineWidth(1.f);
-#endif
+#endif // __APPLE__
     glBindVertexArray(_vaoId);
     glBindBuffer(GL_ARRAY_BUFFER, _vBufferId);
     glDrawArrays(GL_LINE_STRIP, 0, 3);

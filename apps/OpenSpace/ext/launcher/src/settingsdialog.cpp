@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -108,9 +108,14 @@ void SettingsDialog::createWidgets() {
             "If this setting is checked, the application will remember the profile that "
             "was loaded into OpenSpace and will use it at the next startup as well"
         );
+        
         connect(
             _rememberLastProfile,
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 7, 0))
+            &QCheckBox::checkStateChanged,
+#else // ^^^^ >=6.7.0 // !WIN32 <6.7.0
             &QCheckBox::stateChanged,
+#endif // (QT_VERSION >= QT_VERSION_CHECK(6, 7, 0))
             [this]() {
                 if (_rememberLastProfile->isChecked()) {
                     _currentEdit.rememberLastProfile = true;
@@ -166,7 +171,11 @@ void SettingsDialog::createWidgets() {
         );
         connect(
             _rememberLastConfiguration,
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 7, 0))
+            &QCheckBox::checkStateChanged,
+#else // ^^^^ >=6.7.0 // !WIN32 <6.7.0
             &QCheckBox::stateChanged,
+#endif // (QT_VERSION >= QT_VERSION_CHECK(6, 7, 0))
             [this]() {
                 if (_rememberLastConfiguration->isChecked()) {
                     _currentEdit.rememberLastConfiguration = true;
@@ -230,6 +239,7 @@ void SettingsDialog::createWidgets() {
                 updateSaveButton();
             }
         );
+        _propertyVisibility->setObjectName("dropdown");
         layout->addWidget(_propertyVisibility, 9, 1);
 
         _bypassLauncher = new QCheckBox("Bypass Launcher");
@@ -240,7 +250,11 @@ void SettingsDialog::createWidgets() {
         );
         connect(
             _bypassLauncher,
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 7, 0))
+            &QCheckBox::checkStateChanged,
+#else // ^^^^ >=6.7.0 // !WIN32 <6.7.0
             &QCheckBox::stateChanged,
+#endif // (QT_VERSION >= QT_VERSION_CHECK(6, 7, 0))
             [this]() {
                 if (_bypassLauncher->isChecked()) {
                     _currentEdit.bypassLauncher = _bypassLauncher->isChecked();
@@ -299,6 +313,7 @@ void SettingsDialog::createWidgets() {
                 updateSaveButton();
             }
         );
+        _layerServer->setObjectName("dropdown");
         layout->addWidget(_layerServer, 14, 1);
 
         _mrf.isEnabled = new QCheckBox("Enable MRF Caching");
@@ -311,7 +326,11 @@ void SettingsDialog::createWidgets() {
         );
         connect(
             _mrf.isEnabled,
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 7, 0))
+            &QCheckBox::checkStateChanged,
+#else // ^^^^ >=6.7.0 // !WIN32 <6.7.0
             &QCheckBox::stateChanged,
+#endif // (QT_VERSION >= QT_VERSION_CHECK(6, 7, 0))
             [this]() {
                 if (_mrf.isEnabled->isChecked()) {
                     _currentEdit.mrf.isEnabled = _mrf.isEnabled->isChecked();

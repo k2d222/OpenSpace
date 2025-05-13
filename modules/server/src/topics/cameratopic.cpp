@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -33,6 +33,7 @@
 #include <openspace/engine/globals.h>
 #include <openspace/properties/property.h>
 #include <openspace/util/distanceconversion.h>
+#include <openspace/util/geodetic.h>
 #include <ghoul/logging/logmanager.h>
 
 namespace {
@@ -82,8 +83,7 @@ void CameraTopic::handleJson(const nlohmann::json& json) {
 
 void CameraTopic::sendCameraData() {
 #ifdef OPENSPACE_MODULE_SPACE_ENABLED
-    GlobeBrowsingModule* module = global::moduleEngine->module<GlobeBrowsingModule>();
-    glm::dvec3 position = module->geoPosition();
+    glm::dvec3 position = geoPositionFromCamera();
     std::pair<double, std::string_view> altSimplified = simplifyDistance(position.z);
 
     const nlohmann::json jsonData = {

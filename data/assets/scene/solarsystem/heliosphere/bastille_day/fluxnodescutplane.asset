@@ -1,4 +1,3 @@
-local propertyHelper = asset.require("util/property_helper")
 local transforms = asset.require("scene/solarsystem/sun/transforms_heliosphere")
 local rot = asset.require("./carrington_to_heeq_rotation")
 
@@ -21,7 +20,7 @@ local TexturesPathMeridial = asset.resource({
 
 local EquatorialCutplane = {
   Identifier = "EquatorialCutplane-bastille-day-2000",
-  Parent = transforms.HEEQ180ReferenceFrame.Identifier,
+  Parent = transforms.HeliocentricEarthEquatorial180.Identifier,
   -- TODO Elon: 21 April 2022. Interaction sphere should not depend on the transform scale.
   -- InteractionSphere = sunAsset.Sun.Renderable.Radii[1] * 1.05,
   InteractionSphere = 695700000.0,
@@ -47,7 +46,7 @@ local EquatorialCutplane = {
 
 local MeridialCutplane = {
   Identifier = "MeridialCutplane-bastille-day-2000",
-  Parent = transforms.HEEQ180ReferenceFrame.Identifier,
+  Parent = transforms.HeliocentricEarthEquatorial180.Identifier,
   -- TODO Elon: 21 April 2022. Interaction sphere should not depend on the transform scale.
   -- InteractionSphere = sunAsset.Sun.Renderable.Radii[1] * 1.05,
   InteractionSphere = 695700000,
@@ -100,6 +99,7 @@ local ToggleEquatorial = {
   GuiPath = "/Bastille-Day 2000",
   IsLocal = false
 }
+
 local ToggleMeridial = {
   Identifier = "os.bastilleday.fluxnodescutplane.ToggleMeridial",
   Name = "Toggle meridial cutplane",

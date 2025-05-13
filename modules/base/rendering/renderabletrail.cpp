@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -46,14 +46,14 @@ namespace {
         "stride", "pointSize", "renderPhase", "useSplitRenderMode", "floatingOffset",
         "numberOfUniqueVertices"
     };
-#else
+#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
     constexpr std::array<const char*, 18> UniformNames = {
         "opacity", "modelViewTransform", "projectionTransform", "color", "useLineFade",
         "lineLength", "lineFadeAmount", "vertexSortingMethod", "idOffset", "nVertices",
         "stride", "pointSize", "renderPhase", "viewport", "lineWidth", "floatingOffset",
         "useSplitRenderMode", "numberOfUniqueVertices"
     };
-#endif
+#endif // __APPLE__
 
     // The possible values for the _renderingModes property
     enum RenderingMode {
@@ -188,10 +188,7 @@ RenderableTrail::Appearance::Appearance()
     , useLineFade(EnableFadeInfo, true)
     , lineWidth(LineWidthInfo, 10.f, 1.f, 20.f)
     , pointSize(PointSizeInfo, 1, 1, 64)
-    , renderingModes(
-          RenderingModeInfo,
-          properties::OptionProperty::DisplayType::Dropdown
-    )
+    , renderingModes(RenderingModeInfo)
     , lineLength(LineLengthInfo, 1.f, 0.f, 1.f)
     , lineFadeAmount(LineFadeAmountInfo, 1.f, 0.f, 1.f)
 {
@@ -219,9 +216,7 @@ RenderableTrail::RenderableTrail(const ghoul::Dictionary& dictionary)
     setRenderBin(RenderBin::Overlay);
     addProperty(Fadeable::_opacity);
 
-    _translation = Translation::createFromDictionary(
-        dictionary.value<ghoul::Dictionary>("Translation")
-    );
+    _translation = Translation::createFromDictionary(p.translation);
     addPropertySubOwner(_translation.get());
 
     _appearance.lineColor = p.color;
@@ -266,7 +261,7 @@ void RenderableTrail::initializeGL() {
             );
         }
     );
-#else
+#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
     _programObject = BaseModule::ProgramObjectManager.request(
         "EphemerisProgram",
         []() -> std::unique_ptr<ghoul::opengl::ProgramObject> {
@@ -277,7 +272,7 @@ void RenderableTrail::initializeGL() {
             );
         }
     );
-#endif
+#endif // __APPLE__
 
     ghoul::opengl::updateUniformLocations(*_programObject, _uniformCache, UniformNames);
 }
@@ -337,7 +332,7 @@ void RenderableTrail::internalRender(bool renderLines, bool renderPoints,
     _programObject->setUniform(_uniformCache.numberOfUniqueVertices,
         numberOfUniqueVertices);
 
-#if !defined(__APPLE__)
+#ifndef __APPLE__
     std::array<GLint, 4> viewport;
     global::renderEngine->openglStateCache().viewport(viewport.data());
     _programObject->setUniform(
@@ -351,7 +346,7 @@ void RenderableTrail::internalRender(bool renderLines, bool renderPoints,
         _uniformCache.lineWidth,
         std::ceil((2.f * 1.f + _appearance.lineWidth) * std::sqrt(2.f))
     );
-#endif // !defined(__APPLE__)
+#endif // __APPLE__
 
     if (renderPoints) {
         // The stride parameter determines the distance between larger points and
@@ -446,9 +441,9 @@ void RenderableTrail::render(const RenderData& data, RendererTasks&) {
     if (renderLines) {
 #ifdef __APPLE__
         glLineWidth(1);
-#else
+#else // ^^^^ __APPLE__ // !__APPLE__ vvvv
         glLineWidth(std::ceil((2.f * 1.f + _appearance.lineWidth) * std::sqrt(2.f)));
-#endif
+#endif // __APPLE__
     }
     if (renderPoints) {
         glEnable(GL_PROGRAM_POINT_SIZE);

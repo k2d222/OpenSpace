@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -85,11 +85,10 @@ namespace {
     }
 
     void createScreenSpace(int id) {
+        using namespace openspace;
         std::string idStr = std::to_string(id);
-        openspace::global::scriptEngine->queueScript(
-            "openspace.iswa.addScreenSpaceCygnet({CygnetId =" + idStr + "});",
-            openspace::scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-            openspace::scripting::ScriptEngine::ShouldSendToRemote::Yes
+        global::scriptEngine->queueScript(
+            "openspace.iswa.addScreenSpaceCygnet({CygnetId =" + idStr + "});"
         );
     }
 } // namespace
@@ -102,9 +101,9 @@ IswaManager::IswaManager()
     : properties::PropertyOwner({ "IswaManager", "Iswa Manager" })
     , _baseUrl("https://iswa-demo-server.herokuapp.com/")
 {
-    _type[CygnetType::Texture] = "Texture";
-    _type[CygnetType::Data] = "Data";
-    _type[CygnetType::Kameleon] = "Kameleon";
+    _cygnetType[CygnetType::Texture] = "Texture";
+    _cygnetType[CygnetType::Data] = "Data";
+    _cygnetType[CygnetType::Kameleon] = "Kameleon";
 
     _geom[CygnetGeometry::Plane] = "Plane";
     _geom[CygnetGeometry::Sphere] = "Sphere";
@@ -124,7 +123,6 @@ IswaManager::~IswaManager() {
     _groups.clear();
     _cygnetInformation.clear();
 }
-
 
 void IswaManager::initialize() {
     ghoul_assert(!isInitialized(), "IswaManager is already initialized");
@@ -157,10 +155,10 @@ void IswaManager::addIswaCygnet(int id, const std::string& type, std::string gro
         metaFuture.group = std::move(group);
 
         // Assign type of cygnet Texture/Data
-        if (type == _type[CygnetType::Texture]) {
+        if (type == _cygnetType[CygnetType::Texture]) {
             metaFuture.type = CygnetType::Texture;
         }
-        else if (type  == _type[CygnetType::Data]) {
+        else if (type  == _cygnetType[CygnetType::Data]) {
             metaFuture.type = CygnetType::Data;
         }
         else {
@@ -358,16 +356,24 @@ std::string IswaManager::jsonPlaneToLuaTable(MetadataFuture& data) {
     }
     nlohmann::json j = nlohmann::json::parse(data.json);
 
-    std::string parent = j["Central Body"];
-    std::string frame = j["Coordinates"];
-    std::string coordinateType = j["Coordinate Type"];
-    int updateTime = j["ISWA_UPDATE_SECONDS"];
+    std::string parent = j["Central Body"].get<std::string>();
+    std::string frame = j["Coordinates"].get<std::string>();
+    std::string coordinateType = j["Coordinate Type"].get<std::string>();
+    int updateTime = j["ISWA_UPDATE_SECONDS"].get<int>();
 
-    glm::vec3 max(j["Plot XMAX"], j["Plot YMAX"], j["Plot ZMAX"]);
-    glm::vec3 min(j["Plot XMIN"], j["Plot YMIN"], j["Plot ZMIN"]);
+    glm::vec3 max = glm::vec3(
+        j["Plot XMAX"].get<float>(),
+        j["Plot YMAX"].get<float>(),
+        j["Plot ZMAX"].get<float>()
+    );
+    glm::vec3 min = glm::vec3(
+        j["Plot XMIN"].get<float>(),
+        j["Plot YMIN"].get<float>(),
+        j["Plot ZMIN"].get<float>()
+    );
 
     glm::vec4 spatialScale(1.f, 1.f, 1.f, 10.f);
-    std::string spatial = j["Spatial Scale (Custom)"];
+    std::string spatial = j["Spatial Scale (Custom)"].get<std::string>();
     if (spatial == "R_E") {
         spatialScale.x = 6.371f;
         spatialScale.y = 6.371f;
@@ -390,7 +396,7 @@ std::string IswaManager::jsonPlaneToLuaTable(MetadataFuture& data) {
     "Name = '" + data.name +"' , "
     "Parent = '" + parent + "', "
     "Renderable = {"
-        "Type = '" + _type[data.type] + _geom[data.geom] + "', "
+        "Type = '" + _cygnetType[data.type] + _geom[data.geom] + "', "
         "Id = " + ghoul::to_string(data.id) + ", "
         "Frame = '" + frame + "' , "
         "GridMin = " + ghoul::to_string(min) + ", "
@@ -474,12 +480,12 @@ std::string IswaManager::jsonSphereToLuaTable(MetadataFuture& data) {
 
     nlohmann::json j = nlohmann::json::parse(data.json);
     j = j["metadata"];
-    std::string parent = j["central_body"];
+    std::string parent = j["central_body"].get<std::string>();
     parent[0] = static_cast<char>(toupper(static_cast<int>(parent[0])));
-    std::string frame = j["standard_grid_target"];
-    std::string coordinateType = j["grid_1_type"];
-    float updateTime = j["output_time_interval"];
-    float radius = j["radius"];
+    std::string frame = j["standard_grid_target"].get<std::string>();
+    std::string coordinateType = j["grid_1_type"].get<std::string>();
+    float updateTime = j["output_time_interval"].get<float>();
+    float radius = j["radius"].get<float>();
 
     glm::vec3 max(
         j["x"]["actual_max"],
@@ -497,7 +503,7 @@ std::string IswaManager::jsonSphereToLuaTable(MetadataFuture& data) {
     "Name = '" + data.name +"' , "
     "Parent = '" + parent + "', "
     "Renderable = {"
-        "Type = '" + _type[data.type] + _geom[data.geom] + "', "
+        "Type = '" + _cygnetType[data.type] + _geom[data.geom] + "', "
         "Id = " + std::to_string(data.id) + ", "
         "Frame = '" + frame + "' , "
         "GridMin = " + ghoul::to_string(min) + ", "
@@ -514,7 +520,9 @@ std::string IswaManager::jsonSphereToLuaTable(MetadataFuture& data) {
 
 void IswaManager::createPlane(MetadataFuture& data) {
     // check if this plane already exist
-    std::string name = _type[data.type] + _geom[data.geom] + std::to_string(data.id);
+    std::string name = std::format(
+        "{}{}{}", _cygnetType[data.type], _geom[data.geom], data.id
+    );
 
     if (!data.group.empty()) {
         std::string type;
@@ -546,19 +554,17 @@ void IswaManager::createPlane(MetadataFuture& data) {
     std::string luaTable = jsonPlaneToLuaTable(data);
     if (!luaTable.empty()) {
         std::string script = "openspace.addSceneGraphNode(" + luaTable + ");";
-        global::scriptEngine->queueScript(
-            script,
-            scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-            scripting::ScriptEngine::ShouldSendToRemote::Yes
-        );
+        global::scriptEngine->queueScript(script);
     }
 }
 
 void IswaManager::createSphere(MetadataFuture& data) {
     // check if this sphere already exist
-    std::string name = _type[data.type] + _geom[data.geom] + std::to_string(data.id);
+    std::string name = std::format(
+        "{}{}{}", _cygnetType[data.type], _geom[data.geom], data.id
+    );
 
-    if (!data.group.empty()){
+    if (!data.group.empty()) {
         std::string type = typeid(DataSphere).name();
         registerGroup(data.group, type);
 
@@ -580,11 +586,7 @@ void IswaManager::createSphere(MetadataFuture& data) {
     std::string luaTable = jsonSphereToLuaTable(data);
     if (luaTable != "") {
         std::string script = "openspace.addSceneGraphNode(" + luaTable + ");";
-        global::scriptEngine->queueScript(
-            script,
-            scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-            scripting::ScriptEngine::ShouldSendToRemote::Yes
-        );
+        global::scriptEngine->queueScript(script);
     }
 }
 
@@ -614,11 +616,7 @@ void IswaManager::createKameleonPlane(CdfInfo info, std::string cut) {
         std::string luaTable = parseKWToLuaTable(info, cut);
         if (!luaTable.empty()) {
             std::string script = "openspace.addSceneGraphNode(" + luaTable + ");";
-            global::scriptEngine->queueScript(
-                script,
-                scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-                scripting::ScriptEngine::ShouldSendToRemote::Yes
-            );
+            global::scriptEngine->queueScript(script);
         }
     }
     else {
@@ -656,11 +654,7 @@ void IswaManager::createFieldline(std::string name, std::filesystem::path cdfPat
         "}";
         if (!luaTable.empty()) {
             std::string script = "openspace.addSceneGraphNode(" + luaTable + ");";
-            global::scriptEngine->queueScript(
-                script,
-                scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-                scripting::ScriptEngine::ShouldSendToRemote::Yes
-            );
+            global::scriptEngine->queueScript(script);
         }
     }
     else {
@@ -681,18 +675,17 @@ void IswaManager::fillCygnetInfo(std::string jsonString) {
             for (size_t i = 0; i < jsonList.size(); i++) {
                 nlohmann::json jCygnet = jsonList.at(i);
 
-                std::string name = jCygnet["cygnetDisplayTitle"];
+                std::string name = jCygnet["cygnetDisplayTitle"].get<std::string>();
                 std::replace(name.begin(), name.end(),'.', ',');
 
                 CygnetInfo info = {
                     name,
-                    jCygnet["cygnetDescription"],
-                    jCygnet["cygnetUpdateInterval"],
+                    jCygnet["cygnetDescription"].get<std::string>(),
+                    jCygnet["cygnetUpdateInterval"].get<int>(),
                     false
                 };
-                _cygnetInformation[jCygnet["cygnetID"]] = std::make_shared<CygnetInfo>(
-                    info
-                );
+                _cygnetInformation[jCygnet["cygnetID"].get<int>()] =
+                    std::make_shared<CygnetInfo>(info);
             }
         }
     }
@@ -710,11 +703,12 @@ void IswaManager::addCdfFiles(std::string cdfpath) {
 
         if (jsonFile.is_open()) {
             nlohmann::json cdfGroups = nlohmann::json::parse(jsonFile);
-            for(size_t i = 0; i < cdfGroups.size(); i++) {
+            for (size_t i = 0; i < cdfGroups.size(); i++) {
                 nlohmann::json cdfGroup = cdfGroups.at(i);
 
-                std::string groupName = cdfGroup["group"];
-                std::string fieldlineSeedsIndexFile = cdfGroup["fieldlinefile"];
+                std::string groupName = cdfGroup["group"].get<std::string>();
+                std::string fieldlineSeedsIndexFile =
+                    cdfGroup["fieldlinefile"].get<std::string>();
 
                 if (_cdfInformation.find(groupName) != _cdfInformation.end()) {
                     LWARNING("CdfGroup with name" + groupName + " already exists");
@@ -727,9 +721,9 @@ void IswaManager::addCdfFiles(std::string cdfpath) {
                 for (size_t j = 0; j < cdfs.size(); j++) {
                     nlohmann::json cdf = cdfs.at(j);
 
-                    std::string name = cdf["name"];
-                    std::string path = cdf["path"];
-                    std::string date = cdf["date"];
+                    std::string name = cdf["name"].get<std::string>();
+                    std::string path = cdf["path"].get<std::string>();
+                    std::string date = cdf["date"].get<std::string>();
 
                     _cdfInformation[groupName].push_back({
                         name,

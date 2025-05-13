@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -48,6 +48,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/gtx/vector_angle.hpp>
 #include <vector>
+
 #include "pathnavigator_lua.inl"
 
 namespace {
@@ -127,10 +128,7 @@ namespace openspace::interaction {
 
 PathNavigator::PathNavigator()
     : properties::PropertyOwner({ "PathNavigator", "Path Navigator" })
-    , _defaultPathType(
-        DefaultCurveOptionInfo,
-        properties::OptionProperty::DisplayType::Dropdown
-    )
+    , _defaultPathType(DefaultCurveOptionInfo)
     , _includeRoll(IncludeRollInfo, false)
     , _speedScale(SpeedScaleInfo, 1.f, 0.01f, 2.f)
     , _applyIdleBehaviorOnFinish(IdleBehaviorOnFinishInfo, false)
@@ -344,11 +342,7 @@ void PathNavigator::startPath() {
     // moving. However, keep track of whether the time was running before the path
     // was started, so we can reset it on finish
     if (!global::timeManager->isPaused()) {
-        openspace::global::scriptEngine->queueScript(
-            "openspace.time.setPause(true)",
-            scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-            scripting::ScriptEngine::ShouldSendToRemote::Yes
-        );
+        openspace::global::scriptEngine->queueScript("openspace.time.setPause(true)");
 
         _startSimulationTimeOnFinish = true;
         LINFO("Pausing time simulation during path traversal");
@@ -471,11 +465,7 @@ void PathNavigator::handlePathEnd() {
     global::openSpaceEngine->resetMode();
 
     if (_startSimulationTimeOnFinish) {
-        openspace::global::scriptEngine->queueScript(
-            "openspace.time.setPause(false)",
-            scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-            scripting::ScriptEngine::ShouldSendToRemote::Yes
-        );
+        global::scriptEngine->queueScript("openspace.time.setPause(false)");
         _startSimulationTimeOnFinish = false;
     }
 
@@ -484,9 +474,7 @@ void PathNavigator::handlePathEnd() {
             "openspace.setPropertyValueSingle("
                 "'NavigationHandler.OrbitalNavigator.IdleBehavior.ApplyIdleBehavior',"
                 "true"
-            ");",
-            openspace::scripting::ScriptEngine::ShouldBeSynchronized::Yes,
-            openspace::scripting::ScriptEngine::ShouldSendToRemote::Yes
+            ");"
         );
     }
 
@@ -599,19 +587,10 @@ scripting::LuaLibrary PathNavigator::luaLibrary() {
     return {
         "pathnavigation",
         {
-            codegen::lua::IsFlying,
             codegen::lua::ContinuePath,
             codegen::lua::PausePath,
             codegen::lua::StopPath,
             codegen::lua::SkipToEnd,
-            codegen::lua::FlyTo,
-            codegen::lua::FlyToHeight,
-            codegen::lua::FlyToNavigationState,
-            codegen::lua::ZoomToFocus,
-            codegen::lua::ZoomToDistance,
-            codegen::lua::ZoomToDistanceRelative,
-            codegen::lua::JumpTo,
-            codegen::lua::JumpToNavigationState,
             codegen::lua::CreatePath
         }
     };

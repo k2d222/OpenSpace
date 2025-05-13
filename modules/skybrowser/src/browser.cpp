@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -109,7 +109,8 @@ Browser::Browser(const ghoul::Dictionary& dictionary)
     // Create browser and render handler
     _browserInstance = std::make_unique<BrowserInstance>(
         _renderHandler.get(),
-        _keyboardHandler.get()
+        _keyboardHandler.get(),
+        false
     );
 
     WebBrowserModule* webBrowser = global::moduleEngine->module<WebBrowserModule>();
@@ -177,7 +178,7 @@ void Browser::update() {
 }
 
 bool Browser::isReady() const {
-    return _texture.get();
+    return _texture != nullptr;
 }
 
 // Updates the browser size to match the size of the texture

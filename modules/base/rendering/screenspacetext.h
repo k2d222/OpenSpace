@@ -29,7 +29,7 @@
 #include <modules/base/rendering/screenspaceframebuffer.h>
 #include <openspace/rendering/screenspacerenderable.h>
 
-#include <openspace/properties/stringproperty.h>
+#include <openspace/properties/misc/stringproperty.h>
 #include <openspace/properties/vector/uvec4property.h>
 
 #include <ghoul/opengl/ghoul_gl.h>

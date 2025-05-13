@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2024                                                               *
+ * Copyright (c) 2014-2025                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -22,8 +22,9 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#include "ghoul/lua/lua_helper.h"
+#include <openspace/documentation/documentation.h>
 #include <openspace/engine/globals.h>
+#include <openspace/navigation/navigationhandler.h>
 #include <openspace/scene/scene.h>
 #include <openspace/properties/propertyowner.h>
 #include <openspace/properties/matrix/dmat2property.h>
@@ -54,20 +55,22 @@
 #include <openspace/properties/vector/vec3property.h>
 #include <openspace/properties/vector/vec4property.h>
 #include <openspace/rendering/renderable.h>
+#include <openspace/rendering/renderengine.h>
 #include <openspace/rendering/screenspacerenderable.h>
 #include <algorithm>
+#include <execution>
 #include <cctype>
 
 namespace {
 
 template <class T>
-openspace::properties::PropertyOwner* findPropertyOwnerWithMatchingGroupTag(T* prop,
+const openspace::properties::PropertyOwner* findPropertyOwnerWithMatchingGroupTag(T* prop,
                                                             const std::string& tagToMatch)
 {
     using namespace openspace;
 
-    properties::PropertyOwner* tagMatchOwner = nullptr;
-    properties::PropertyOwner* owner = prop->owner();
+    const properties::PropertyOwner* tagMatchOwner = nullptr;
+    const properties::PropertyOwner* owner = prop->owner();
 
     if (owner) {
         const std::vector<std::string>& tags = owner->tags();
@@ -88,9 +91,9 @@ openspace::properties::PropertyOwner* findPropertyOwnerWithMatchingGroupTag(T* p
 }
 
 std::vector<openspace::properties::Property*> findMatchesInAllProperties(
-                                                                const std::string& regex,
-                         const std::vector<openspace::properties::Property*>& properties,
-                                                            const std::string& groupName)
+                                                                   std::string_view regex,
+                          const std::vector<openspace::properties::Property*>& properties,
+                                                             const std::string& groupName)
 {
     using namespace openspace;
 
@@ -138,63 +141,65 @@ std::vector<openspace::properties::Property*> findMatchesInAllProperties(
         }
     }
 
-    // Stores whether we found at least one matching property. If this is false at the end
-    // of the loop, the property name regex was probably misspelled.
-    for (properties::Property* prop : properties) {
-        // Check the regular expression for all properties
-        const std::string id = prop->fullyQualifiedIdentifier();
+    std::mutex mutex;
+    std::for_each(
+        std::execution::par_unseq,
+        properties.cbegin(),
+        properties.cend(),
+        [&](properties::Property* prop) {
+            // Check the regular expression for all properties
+            const std::string_view uri = prop->uri();
 
-        if (isLiteral && id != propertyName) {
-            continue;
-        }
-        else if (!propertyName.empty()) {
-            size_t propertyPos = id.find(propertyName);
-            if (propertyPos != std::string::npos) {
-                // Check that the propertyName fully matches the property in id
-                if ((propertyPos + propertyName.length() + 1) < id.length()) {
-                    continue;
-                }
-
-                // Match node name
-                if (!nodeName.empty() && id.find(nodeName) == std::string::npos) {
-                    continue;
+            if (isLiteral && uri != propertyName) {
+                return;
+            }
+            else if (!propertyName.empty()) {
+                size_t propertyPos = uri.find(propertyName);
+                if (
+                    // Check if the propertyName appears in the URI at all
+                    (propertyPos == std::string::npos) ||
+                    // Check that the propertyName fully matches the property in uri
+                    ((propertyPos + propertyName.length() + 1) < uri.length()) ||
+                    // Match node name
+                    (!nodeName.empty() && uri.find(nodeName) == std::string::npos))
+                {
+                    return;
                 }
 
                 // Check tag
                 if (isGroupMode) {
-                    properties::PropertyOwner* matchingTaggedOwner =
+                    const properties::PropertyOwner* matchingTaggedOwner =
                         findPropertyOwnerWithMatchingGroupTag(prop, groupName);
                     if (!matchingTaggedOwner) {
-                        continue;
+                        return;
                     }
                 }
             }
-            else {
-                continue;
-            }
-        }
-        else if (!nodeName.empty()) {
-            size_t nodePos = id.find(nodeName);
-            if (nodePos != std::string::npos) {
-                // Check tag
-                if (isGroupMode) {
-                    properties::PropertyOwner* matchingTaggedOwner =
-                        findPropertyOwnerWithMatchingGroupTag(prop, groupName);
-                    if (!matchingTaggedOwner) {
-                        continue;
+            else if (!nodeName.empty()) {
+                size_t nodePos = uri.find(nodeName);
+                if (nodePos != std::string::npos) {
+                    // Check tag
+                    if (isGroupMode) {
+                        const properties::PropertyOwner* matchingTaggedOwner =
+                            findPropertyOwnerWithMatchingGroupTag(prop, groupName);
+                        if (!matchingTaggedOwner) {
+                            return;
+                        }
+                    }
+                    // Check that the nodeName fully matches the node in id
+                    else if (nodePos != 0) {
+                        return;
                     }
                 }
-                // Check that the nodeName fully matches the node in id
-                else if (nodePos != 0) {
-                    continue;
+                else {
+                    return;
                 }
             }
-            else {
-                continue;
-            }
+            std::lock_guard g(mutex);
+            matches.push_back(prop);
         }
-        matches.push_back(prop);
-    }
+    );
+
     return matches;
 }
 
@@ -209,7 +214,7 @@ void applyRegularExpression(lua_State* L, const std::string& regex,
     using ghoul::lua::errorLocation;
     using ghoul::lua::luaTypeToString;
 
-    const int type = lua_type(L, -1);
+    const ghoul::lua::LuaTypes type = ghoul::lua::fromLuaType(lua_type(L, -1));
 
     std::vector<properties::Property*> matchingProps = findMatchesInAllProperties(
         regex,
@@ -222,13 +227,13 @@ void applyRegularExpression(lua_State* L, const std::string& regex,
     bool foundMatching = false;
     for (properties::Property* prop : matchingProps) {
         // Check that the types match
-        if (type != prop->typeLua()) {
+        if (!typeMatch(type, prop->typeLua())) {
             LERRORC(
                 "property_setValue",
                 std::format(
                     "{}: Property '{}' does not accept input of type '{}'. Requested "
                     "type: {}",
-                    errorLocation(L), prop->fullyQualifiedIdentifier(),
+                    errorLocation(L), prop->uri(),
                     luaTypeToString(type), luaTypeToString(prop->typeLua())
                 )
             );
@@ -242,8 +247,8 @@ void applyRegularExpression(lua_State* L, const std::string& regex,
             // value from the stack, so we need to push it to the end
             lua_pushvalue(L, -1);
 
-            if (global::sessionRecording->isRecording()) {
-                global::sessionRecording->savePropertyBaseline(*prop);
+            if (global::sessionRecordingHandler->isRecording()) {
+                global::sessionRecordingHandler->savePropertyBaseline(*prop);
             }
             if (interpolationDuration == 0.0) {
                 global::renderEngine->scene()->removePropertyInterpolation(prop);
@@ -300,8 +305,8 @@ int setPropertyCallSingle(properties::Property& prop, const std::string& uri,
     using ghoul::lua::errorLocation;
     using ghoul::lua::luaTypeToString;
 
-    const int type = lua_type(L, -1);
-    if (type != prop.typeLua()) {
+    const ghoul::lua::LuaTypes type = ghoul::lua::fromLuaType(lua_type(L, -1));
+    if (!typeMatch(type, prop.typeLua())) {
         LERRORC(
             "property_setValue",
             std::format(
@@ -313,8 +318,8 @@ int setPropertyCallSingle(properties::Property& prop, const std::string& uri,
         );
     }
     else {
-        if (global::sessionRecording->isRecording()) {
-            global::sessionRecording->savePropertyBaseline(prop);
+        if (global::sessionRecordingHandler->isRecording()) {
+            global::sessionRecordingHandler->savePropertyBaseline(prop);
         }
         if (duration == 0.0) {
             global::renderEngine->scene()->removePropertyInterpolation(&prop);
@@ -335,6 +340,8 @@ int setPropertyCallSingle(properties::Property& prop, const std::string& uri,
 
 template <bool optimization>
 int propertySetValue(lua_State* L) {
+    ZoneScoped;
+
     int nParameters = ghoul::lua::checkArgumentsAndThrow(
         L,
         { 2, 6 },
@@ -541,27 +548,27 @@ namespace {
     std::vector<std::string> res;
     for (properties::Property* prop : props) {
         // Check the regular expression for all properties
-        const std::string& id = prop->fullyQualifiedIdentifier();
+        const std::string_view uri = prop->uri();
 
-        if (isLiteral && id != propertyName) {
+        if (isLiteral && uri != propertyName) {
             continue;
         }
         else if (!propertyName.empty()) {
-            size_t propertyPos = id.find(propertyName);
+            size_t propertyPos = uri.find(propertyName);
             if (propertyPos != std::string::npos) {
                 // Check that the propertyName fully matches the property in id
-                if ((propertyPos + propertyName.length() + 1) < id.length()) {
+                if ((propertyPos + propertyName.length() + 1) < uri.length()) {
                     continue;
                 }
 
                 // Match node name
-                if (!nodeName.empty() && id.find(nodeName) == std::string::npos) {
+                if (!nodeName.empty() && uri.find(nodeName) == std::string::npos) {
                     continue;
                 }
 
                 // Check tag
                 if (!groupName.empty()) {
-                    properties::PropertyOwner* matchingTaggedOwner =
+                    const properties::PropertyOwner* matchingTaggedOwner =
                         findPropertyOwnerWithMatchingGroupTag(prop, groupName);
                     if (!matchingTaggedOwner) {
                         continue;
@@ -573,11 +580,11 @@ namespace {
             }
         }
         else if (!nodeName.empty()) {
-            size_t nodePos = id.find(nodeName);
+            size_t nodePos = uri.find(nodeName);
             if (nodePos != std::string::npos) {
                 // Check tag
                 if (!groupName.empty()) {
-                    properties::PropertyOwner* matchingTaggedOwner =
+                    const properties::PropertyOwner* matchingTaggedOwner =
                         findPropertyOwnerWithMatchingGroupTag(prop, groupName);
                     if (!matchingTaggedOwner) {
                         continue;
@@ -593,7 +600,7 @@ namespace {
             }
         }
 
-        res.push_back(id);
+        res.push_back(std::string(uri));
     }
 
     return res;
@@ -1032,30 +1039,51 @@ void createCustomProperty(openspace::properties::Property::PropertyInfo info,
     openspace::global::userPropertyOwner->addProperty(p);
 }
 
+template <>
+void createCustomProperty<openspace::properties::TriggerProperty>(
+                                       openspace::properties::Property::PropertyInfo info,
+                                                      std::optional<std::string> onChange)
+{
+    using namespace openspace::properties;
+    TriggerProperty* p = new TriggerProperty(info);
+    if (onChange.has_value() && !onChange->empty()) {
+        p->onChange(
+            [script = *onChange]() {
+                using namespace ghoul::lua;
+                LuaState s;
+                openspace::global::scriptEngine->initializeLuaState(s);
+                ghoul::lua::runScript(s, script);
+            }
+        );
+    }
+    openspace::global::userPropertyOwner->addProperty(p);
+}
+
 enum class [[codegen::enum]] CustomPropertyType {
+    BoolProperty,
+    DoubleProperty,
     DMat2Property,
     DMat3Property,
     DMat4Property,
-    Mat2Property,
-    Mat3Property,
-    Mat4Property,
-    BoolProperty,
-    DoubleProperty,
-    FloatProperty,
-    IntProperty,
-    StringProperty,
-    StringListProperty,
-    LongProperty,
-    ShortProperty,
-    UShortProperty,
-    UIntProperty,
-    ULongProperty,
     DVec2Property,
     DVec3Property,
     DVec4Property,
+    FloatProperty,
+    IntProperty,
     IVec2Property,
     IVec3Property,
     IVec4Property,
+    LongProperty,
+    Mat2Property,
+    Mat3Property,
+    Mat4Property,
+    ShortProperty,
+    StringProperty,
+    StringListProperty,
+    TriggerProperty,
+    UShortProperty,
+    UIntProperty,
+    ULongProperty,
     UVec2Property,
     UVec3Property,
     UVec4Property,
@@ -1118,6 +1146,9 @@ enum class [[codegen::enum]] CustomPropertyType {
         description.has_value() ? description->c_str() : ""
     };
     switch (type) {
+        case CustomPropertyType::BoolProperty:
+            createCustomProperty<BoolProperty>(info, std::move(onChange));
+            return;
         case CustomPropertyType::DMat2Property:
             createCustomProperty<DMat2Property>(info, std::move(onChange));
             return;
@@ -1127,47 +1158,8 @@ enum class [[codegen::enum]] CustomPropertyType {
         case CustomPropertyType::DMat4Property:
             createCustomProperty<DMat4Property>(info, std::move(onChange));
             return;
-        case CustomPropertyType::Mat2Property:
-            createCustomProperty<Mat2Property>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::Mat3Property:
-            createCustomProperty<Mat3Property>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::Mat4Property:
-            createCustomProperty<Mat4Property>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::BoolProperty:
-            createCustomProperty<BoolProperty>(info, std::move(onChange));
-            return;
         case CustomPropertyType::DoubleProperty:
             createCustomProperty<DoubleProperty>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::FloatProperty:
-            createCustomProperty<FloatProperty>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::IntProperty:
-            createCustomProperty<IntProperty>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::StringProperty:
-            createCustomProperty<StringProperty>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::StringListProperty:
-            createCustomProperty<StringListProperty>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::LongProperty:
-            createCustomProperty<LongProperty>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::ShortProperty:
-            createCustomProperty<ShortProperty>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::UIntProperty:
-            createCustomProperty<UIntProperty>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::ULongProperty:
-            createCustomProperty<ULongProperty>(info, std::move(onChange));
-            return;
-        case CustomPropertyType::UShortProperty:
-            createCustomProperty<UShortProperty>(info, std::move(onChange));
             return;
         case CustomPropertyType::DVec2Property:
             createCustomProperty<DVec2Property>(info, std::move(onChange));
@@ -1178,6 +1170,12 @@ enum class [[codegen::enum]] CustomPropertyType {
         case CustomPropertyType::DVec4Property:
             createCustomProperty<DVec4Property>(info, std::move(onChange));
             return;
+        case CustomPropertyType::FloatProperty:
+            createCustomProperty<FloatProperty>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::IntProperty:
+            createCustomProperty<IntProperty>(info, std::move(onChange));
+            return;
         case CustomPropertyType::IVec2Property:
             createCustomProperty<IVec2Property>(info, std::move(onChange));
             return;
@@ -1186,6 +1184,39 @@ enum class [[codegen::enum]] CustomPropertyType {
             return;
         case CustomPropertyType::IVec4Property:
             createCustomProperty<IVec4Property>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::LongProperty:
+            createCustomProperty<LongProperty>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::Mat2Property:
+            createCustomProperty<Mat2Property>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::Mat3Property:
+            createCustomProperty<Mat3Property>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::Mat4Property:
+            createCustomProperty<Mat4Property>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::ShortProperty:
+            createCustomProperty<ShortProperty>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::StringProperty:
+            createCustomProperty<StringProperty>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::StringListProperty:
+            createCustomProperty<StringListProperty>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::TriggerProperty:
+            createCustomProperty<TriggerProperty>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::UIntProperty:
+            createCustomProperty<UIntProperty>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::ULongProperty:
+            createCustomProperty<ULongProperty>(info, std::move(onChange));
+            return;
+        case CustomPropertyType::UShortProperty:
+            createCustomProperty<UShortProperty>(info, std::move(onChange));
             return;
         case CustomPropertyType::UVec2Property:
             createCustomProperty<UVec2Property>(info, std::move(onChange));
@@ -1229,6 +1260,30 @@ enum class [[codegen::enum]] CustomPropertyType {
  */
 [[codegen::luawrap]] std::string makeIdentifier(std::string input) {
     return openspace::makeIdentifier(input);
+}
+
+/**
+ * Set a custom ordering of the items in a specific branch in the Scene GUI tree, i.e.
+ * for a specific GUI path.
+ *
+ * \param guiPath The GUI path for which the order should be set.
+ * \param list A list of names of scene graph nodes or subgroups in the GUI, in the order
+ *             of which they should appear in the tree. The list does not have to include
+ *             all items in the given GUI path. Any excluded items will be placed after
+ *             the ones in the list.
+ */
+[[codegen::luawrap]] void setGuiOrder(std::string guiPath, std::vector<std::string> list)
+{
+    return openspace::global::renderEngine->scene()->setGuiTreeOrder(guiPath, list);
+}
+
+/**
+ * Get a dictionary containing the current map with custom orderings for the Scene GUI
+ * tree. Each key in the dictionary corresponds to a branch in the tree, i.e. a specific
+ * GUI path.
+ */
+[[codegen::luawrap]] ghoul::Dictionary guiOrder() {
+    return openspace::global::renderEngine->scene()->guiTreeOrder();
 }
 
 } // namespace

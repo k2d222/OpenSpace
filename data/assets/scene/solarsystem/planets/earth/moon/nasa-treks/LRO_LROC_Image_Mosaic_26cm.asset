@@ -6,6 +6,8 @@
 
 local globeIdentifier = asset.require("scene/solarsystem//planets/earth/moon/moon").Moon.Identifier
 
+
+
 local treks_apollo11_26cm_mosaic_byte_geo_1_2_highContrast = {
   Identifier = "apollo11_26cm_mosaic_byte_geo_1_2_highContrast",
   Name = [[LRO LROC Image Mosaic 26cm, Apollo 11]],
@@ -14,15 +16,17 @@ local treks_apollo11_26cm_mosaic_byte_geo_1_2_highContrast = {
   Description = [[]]
 }
 
+
 asset.onInitialize(function()
   openspace.globebrowsing.addLayer(globeIdentifier, "ColorLayers", treks_apollo11_26cm_mosaic_byte_geo_1_2_highContrast)
 end)
 
 asset.onDeinitialize(function()
-  openspace.globebrowsing.deleteLayer(globeIdentifier, "ColorLayers", "treks_apollo11_26cm_mosaic_byte_geo_1_2_highContrast")
+  openspace.globebrowsing.deleteLayer(globeIdentifier, "ColorLayers", treks_apollo11_26cm_mosaic_byte_geo_1_2_highContrast)
 end)
 
 asset.export("apollo11_26cm_mosaic_byte_geo_1_2_highContrast", treks_apollo11_26cm_mosaic_byte_geo_1_2_highContrast)
+
 
 
 asset.meta = {
