@@ -44,3 +44,6 @@ doc
 config/schema/sgct.schema.json
 settings.json
 openspace.cfg.override
+
+compile_commands.json
+.cache/
