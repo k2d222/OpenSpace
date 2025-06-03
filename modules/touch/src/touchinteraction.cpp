@@ -400,7 +400,7 @@ void TouchInteraction::reset() {
 
 glm::dvec3 TouchInteraction::unprojectTouchOnSphere(const TouchInput& input) const {
     if (_useSphericalDisplay) {
-        double yaw = (1.5 - input.x) * glm::two_pi<double>(); // range 0 to 2pi
+        double yaw = (input.x - 0.5) * glm::two_pi<double>(); // range 0 to 2pi
         double pitch = (input.y - 0.5) * glm::pi<double>(); // range -pi/2 to pi/2
         glm::dvec3 dir = glm::normalize(glm::dvec3(cos(yaw) * cos(pitch), sin(pitch), sin(yaw) * cos(pitch)));
         // NOTE: on spherical displays, that direction is relative to the camera space.
