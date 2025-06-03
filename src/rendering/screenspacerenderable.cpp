@@ -687,9 +687,16 @@ void ScreenSpaceRenderable::draw(const glm::mat4& modelTransform,
     _shader->setUniform(_uniformCache.borderColor, _borderColor);
     _shader->setUniform(_uniformCache.borderFeather, _borderFeather);
     _shader->setUniform(_uniformCache.useAcceleratedRendering, useAcceleratedRendering);
+    
+    // spherical display patch (mbr):
+    // since with spherical display we look outside-in, the text appears mirrored.
+    // see apps/OpenSpace/ext/sgct/src/projection/nonlinearprojection.cpp for explanation.
+    glm::mat4 proj = global::renderEngine->scene()->camera()->viewProjectionMatrix();
+    proj = glm::scale(proj, glm::vec3(-1.0, 1.0, 1.0));
+    
     _shader->setUniform(
         _uniformCache.mvpMatrix,
-        global::renderEngine->scene()->camera()->viewProjectionMatrix() * modelTransform
+        proj * modelTransform
     );
 
     ghoul::opengl::TextureUnit unit;
