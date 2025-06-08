@@ -47,3 +47,4 @@ openspace.cfg.override
 
 compile_commands.json
 .cache/
+GPUCache/
