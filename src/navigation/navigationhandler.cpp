@@ -788,6 +788,8 @@ scripting::LuaLibrary NavigationHandler::luaLibrary() {
             codegen::lua::GetNavigationState,
             codegen::lua::SetNavigationState,
             codegen::lua::SaveNavigationState,
+            codegen::lua::CameraWorldPosition,
+            codegen::lua::CameraWorldRotation,
             codegen::lua::RetargetAnchor,
             codegen::lua::RetargetAim,
             codegen::lua::BindJoystickAxis,

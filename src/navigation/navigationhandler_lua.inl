@@ -127,6 +127,26 @@ namespace {
 }
 
 /**
+ * Returns the camera position in world space.
+ */
+[[codegen::luawrap]] glm::dvec3 cameraWorldPosition() {
+    using namespace openspace;
+
+    glm::dvec3 pos = global::navigationHandler->camera()->positionVec3();
+    return pos;
+}
+
+/**
+ * Returns the camera rotation matrix in world space.
+ */
+[[codegen::luawrap]] glm::dmat3 cameraWorldRotation() {
+    using namespace openspace;
+
+    glm::dmat3 rot = glm::mat3_cast(global::navigationHandler->camera()->rotationQuaternion());
+    return rot;
+}
+
+/**
  * Reset the camera direction to point at the anchor node.
  */
 [[codegen::luawrap]] void retargetAnchor() {
