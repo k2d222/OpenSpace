@@ -545,13 +545,13 @@ QWidget* WindowControl::createFisheyeWidget() {
     const QString fovTip = "Set the fisheye/dome field-of-view angle used in the fisheye "
         "renderer.";
     labelFov->setToolTip(fovTip);
-    layout->addWidget(labelFov, 1, 0);
+    layout->addWidget(labelFov, 3, 0);
 
     _fisheye.fov = new QDoubleSpinBox;
     _fisheye.fov->setToolTip(fovTip);
     _fisheye.fov->setMinimum(0.0);
     _fisheye.fov->setMaximum(360.0);
-    layout->addWidget(_fisheye.fov, 2, 1);
+    layout->addWidget(_fisheye.fov, 3, 1);
 
     return widget;
 }
