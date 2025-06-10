@@ -36,7 +36,7 @@ call :PostBuildCleanup
 move OpenSpace-Tracy.exe bin
 
 call :ZipDistributable OpenSpace-minimal
-if exist sync call :ZipDistributable OpenSpace, 1
+:: if exist sync call :ZipDistributable OpenSpace, 1
 
 echo ### Clean up
 rmdir /S /Q bin
