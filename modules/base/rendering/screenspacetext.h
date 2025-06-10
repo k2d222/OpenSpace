@@ -45,7 +45,7 @@ class ScreenSpaceText : public ScreenSpaceFramebuffer {
 public:
     ScreenSpaceText(const ghoul::Dictionary& dictionary);
 
-    bool initializeGL() override;
+    void initializeGL() override;
 
     static documentation::Documentation Documentation();
 

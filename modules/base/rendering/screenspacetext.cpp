@@ -180,9 +180,8 @@ void ScreenSpaceText::renderText() {
     global::renderEngine->openglStateCache().resetDepthState();
 }
 
-bool ScreenSpaceText::initializeGL() {
-    if (!ScreenSpaceFramebuffer::initializeGL())
-        return false;
+void ScreenSpaceText::initializeGL() {
+    ScreenSpaceFramebuffer::initializeGL();
     
 
     if (_font == nullptr) {
@@ -197,8 +196,6 @@ bool ScreenSpaceText::initializeGL() {
     resizeFramebuffer();
 
     addRenderFunction(std::bind(&ScreenSpaceText::renderText, this));
-
-    return true;
 }
 
 } // namespace openspace
