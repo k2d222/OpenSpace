@@ -302,8 +302,8 @@ nlohmann::json Property::generateJsonDescription() const {
 
     if (_metaData.viewOptions.size() > 0) {
         nlohmann::json viewOptions = nlohmann::json::object();
-        for (const std::pair<std::string, bool>& p : _metaData.viewOptions) {
-            viewOptions[p.first] = p.second;
+        for (const auto& [key, val] : _metaData.viewOptions) {
+            viewOptions[key] = val;
         }
         json["viewOptions"] = viewOptions;
     }
