@@ -46,7 +46,17 @@
 using namespace TUIO;
 
 namespace {
+} // namespace
+
+namespace {
     constexpr std::string_view _loggerCat = "TouchModule";
+
+    constexpr openspace::properties::Property::PropertyInfo TuioPortInfo = {
+        "TuioPort",
+        "TUIO Port",
+        "TUIO UDP port, by default 3333. The port cannot be changed after startup.",
+        openspace::properties::Property::Visibility::User
+    };
 
     constexpr openspace::properties::Property::PropertyInfo EnableTouchInfo = {
         "EnableTouchInteraction",
@@ -80,18 +90,27 @@ namespace {
     // max distance travelled by the finger to trigger a tap
     constexpr const double TAP_MAX_DISTANCE = 0.0004;
 
+    struct [[codegen::Dictionary(TouchModule)]] Parameters {
+        // [[codegen::verbatim(TuioPortInfo.description)]]
+        std::optional<int> tuioPort;
+    };
+
+    #include "touchmodule_codegen.cpp"
 } // namespace openspace
 
 namespace openspace {
 
 TouchModule::TouchModule()
     : OpenSpaceModule("Touch")
+    , _tuioPort(TuioPortInfo, 3333, 0, 65535)
     , _touchIsEnabled(EnableTouchInfo, true)
     , _hasActiveTouchEvent(EventsInfo, false)
     , _defaultDirectTouchRenderableTypes(DefaultDirectTouchRenderableTypesInfo)
 {
     addPropertySubOwner(_touchInteraction);
     addPropertySubOwner(_markers);
+    _tuioPort.setReadOnly(true);
+    addProperty(_tuioPort);
     addProperty(_touchIsEnabled);
     _touchIsEnabled.onChange([this]() {
         _touchInteraction.reset();
@@ -129,8 +148,11 @@ bool TouchModule::isDefaultDirectTouchType(std::string_view renderableType) cons
         _sortedDefaultRenderableTypes.end();
 }
 
-void TouchModule::internalInitialize(const ghoul::Dictionary&) {
-    _ear = std::make_unique<TuioEar>();
+void TouchModule::internalInitialize(const ghoul::Dictionary& dict) {
+    const Parameters p = codegen::bake<Parameters>(dict);
+
+    _tuioPort = p.tuioPort.value_or(_tuioPort);
+    _ear = std::make_unique<TuioEar>(_tuioPort);
 
     global::callback::initializeGL->push_back([this]() {
         LDEBUG("Initializing TouchMarker OpenGL");

@@ -491,7 +491,7 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
         double startAngle = glm::distance(startP1Dir, startP2Dir);
         double endAngle = glm::distance(endP1Dir, endP2Dir);
         scaling = endAngle / startAngle;
- 
+
         const glm::dvec3 surface = anchorPos - camAxis * _anchor->interactionSphere(); // we scale the distance from the camera to the surface of the globle by scaling
         _startPose.position = (_startPose.position - surface) / scaling + surface;
         startP2Dir = unprojectTouchOnSphere(_startInputs.back());
@@ -542,7 +542,7 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
     if (_useSphericalDisplay) {
         // on spherical displays the rotation is applied locally
         endPose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
-        endPose.rotation = _startPose.rotation * rotation; 
+        endPose.rotation = _startPose.rotation * rotation;
         transforms.rotation = rotation;
     }
 

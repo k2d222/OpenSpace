@@ -25,6 +25,7 @@
 #ifndef __OPENSPACE_MODULE_TOUCH___TOUCHMODULE___H__
 #define __OPENSPACE_MODULE_TOUCH___TOUCHMODULE___H__
 
+#include "openspace/properties/scalar/intproperty.h"
 #include <openspace/util/openspacemodule.h>
 
 #include <modules/touch/include/touchmarker.h>
@@ -72,6 +73,7 @@ private:
     TouchMarker _markers;
     std::vector<TouchInputHolder> _touches;
 
+    properties::IntProperty _tuioPort;
     properties::BoolProperty _touchIsEnabled;
     properties::BoolProperty _hasActiveTouchEvent;
     properties::StringListProperty _defaultDirectTouchRenderableTypes;
