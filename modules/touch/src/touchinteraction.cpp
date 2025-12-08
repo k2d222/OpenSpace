@@ -541,7 +541,7 @@ bool TouchInteraction::directControl(const std::vector<TouchInputHolder>& inputs
 
     if (_useSphericalDisplay) {
         // on spherical displays the rotation is applied locally
-        endPose.position = anchorPos + glm::dvec3(0.0, 10.0, 0.0);
+        endPose.position = anchorPos + glm::dvec3(0.0, 1000.0, 0.0);
         endPose.rotation = _startPose.rotation * rotation;
         transforms.rotation = rotation;
     }
@@ -677,7 +677,7 @@ void TouchInteraction::setCamera(Camera* camera) {
 
     if (_useSphericalDisplay) {
         const SceneGraphNode* anchor = global::navigationHandler->orbitalNavigator().anchorNode();
-        _camera->setPositionVec3(anchor->worldPosition() + glm::dvec3(0.0, 10.0, 0.0));
+        _camera->setPositionVec3(anchor->worldPosition() + glm::dvec3(0.0, 1000.0, 0.0));
     }
 }
 
