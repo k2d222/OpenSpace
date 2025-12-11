@@ -1,9 +1,12 @@
 {
   "additional_scripts": [
+    "openspace.setPropertyValueSingle(\"\", nil)",
     "openspace.setPropertyValueSingle(\"Scene.Earth.Renderable.Layers.ColorLayers.noaa-sos-land-forests-map.Remove\", nil)",
     "openspace.setPropertyValueSingle(\"Scene.Earth.Renderable.Layers.ColorLayers.noaa-sos-land-forests-gain.Remove\", nil)",
     "openspace.setPropertyValueSingle(\"Scene.Earth.Renderable.Layers.ColorLayers.noaa-sos-land-forests-loss.Remove\", nil)",
-    "openspace.setPropertyValueSingle(\"Scene.Earth.Renderable.Layers.ColorLayers.noaa-sos-land-forests.Remove\", nil)"
+    "openspace.setPropertyValueSingle(\"Scene.Earth.Renderable.Layers.ColorLayers.noaa-sos-land-forests.Remove\", nil)",
+    "openspace.setPropertyValueSingle(\"Scene.Earth.Renderable.Layers.Overlays.noaa-sos-overlays-currents-currents.Remove\", nil)",
+    "openspace.setPropertyValueSingle(\"Scene.Earth.Renderable.Layers.Overlays.noaa-sos-overlays-currents-labels.Remove\", nil)"
   ],
   "assets": [
     "base_blank",
@@ -21,7 +24,6 @@
     "scene/solarsystem/planets/earth/noaa-sos/land/forests",
     "scene/solarsystem/planets/earth/noaa-sos/land/top_quakes",
     "scene/solarsystem/planets/earth/noaa-sos/oceans/chlorophyll_model",
-    "scene/solarsystem/planets/earth/noaa-sos/oceans/currents",
     "scene/solarsystem/planets/earth/noaa-sos/oceans/vector_winds",
     "scene/solarsystem/planets/earth/noaa-sos/overlays/capitals",
     "scene/solarsystem/planets/earth/noaa-sos/overlays/continent_names",
