@@ -49,7 +49,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo UseFixedTimeInfo = {
         "UseFixedTime",
-        "Use Fixed Time",
+        "Use fixed time",
         "If this value is enabled, the time-varying timevarying dataset will always use "
         "the time that is specified in the 'FixedTime' property, rather than using the "
         "actual time from OpenSpace.",
@@ -58,7 +58,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo FixedTimeInfo = {
         "FixedTime",
-        "Fixed Time",
+        "Fixed time",
         "If the 'UseFixedTime' is enabled, this time will be used instead of the actual "
         "time taken from OpenSpace for the displayed tiles.",
         openspace::properties::Property::Visibility::AdvancedUser
@@ -297,8 +297,7 @@ TemporalTileProvider::TemporalTileProvider(const ghoul::Dictionary& dictionary)
         if (_folder.files.empty()) {
             throw ghoul::RuntimeError(std::format(
                 "Error loading layer '{}'. Folder '{}' does not contain any files that "
-                "matched the time format",
-                _identifier, _folder.folder
+                "matched the time format", _identifier, _folder.folder
             ));
         }
     }
@@ -455,7 +454,7 @@ DefaultTileProvider* TemporalTileProvider::retrieveTileProvider(const Time& t) {
             }
             default:
                 throw ghoul::MissingCaseException();
-        };
+        }
     }();
 
     DefaultTileProvider tileProvider = createTileProvider(timeStr);

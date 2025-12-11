@@ -30,7 +30,6 @@
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/stringhelper.h>
 #include <ghoul/opengl/texture.h>
-#include <iterator>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -179,7 +178,7 @@ void TransferFunction::setTextureFromTxt() {
         const float dist = fpos - prevKey->position;
         const float weight = dist / (currentKey->position - prevKey->position);
 
-        for (int channel = 0; channel < 4; ++channel) {
+        for (int channel = 0; channel < 4; channel++) {
             const size_t position = 4 * i + channel;
             // Interpolate linearly between prev and next mapping key
             float value = (prevKey->color[channel] * (1.f - weight) +
@@ -197,7 +196,7 @@ void TransferFunction::setTextureFromTxt() {
 
     _texture = std::make_unique<ghoul::opengl::Texture>(
         transferFunction,
-        glm::size3_t(width, 1, 1),
+        glm::uvec3(width, 1, 1),
         GL_TEXTURE_1D,
         ghoul::opengl::Texture::Format::RGBA,
         GL_RGBA,

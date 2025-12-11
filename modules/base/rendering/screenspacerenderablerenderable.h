@@ -25,7 +25,7 @@
 #ifndef __OPENSPACE_MODULE_BASE___SCREENSPACERENDERABLERENDERABLE___H__
 #define __OPENSPACE_MODULE_BASE___SCREENSPACERENDERABLERENDERABLE___H__
 
-#include <modules/base//rendering/screenspaceframebuffer.h>
+#include <openspace/rendering/screenspacerenderableframebuffer.h>
 
 #include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/properties/scalar/doubleproperty.h>
@@ -43,7 +43,7 @@ class Translation;
 
 namespace documentation { struct Documentation; }
 
-class ScreenSpaceRenderableRenderable : public ScreenSpaceFramebuffer {
+class ScreenSpaceRenderableRenderable : public ScreenSpaceRenderableFramebuffer {
 public:
     using RenderFunction = std::function<void()>;
 
@@ -58,10 +58,12 @@ public:
     static documentation::Documentation Documentation();
 
 private:
-    ghoul::mm_unique_ptr<Translation> _translation = nullptr;
-    ghoul::mm_unique_ptr<properties::PropertyOwner> _transform = nullptr;
-    ghoul::mm_unique_ptr<Rotation> _rotation = nullptr;
-    ghoul::mm_unique_ptr<Scale> _scale = nullptr;
+    struct {
+        ghoul::mm_unique_ptr<properties::PropertyOwner> parent = nullptr;
+        ghoul::mm_unique_ptr<Translation> translation = nullptr;
+        ghoul::mm_unique_ptr<Rotation> rotation = nullptr;
+        ghoul::mm_unique_ptr<Scale> scale = nullptr;
+    } _transform;
     ghoul::mm_unique_ptr<Renderable> _renderable = nullptr;
 
     double _previousTime = 0.0;

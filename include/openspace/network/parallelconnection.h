@@ -32,7 +32,7 @@
 
 namespace openspace {
 
-class ParallelConnection  {
+class ParallelConnection {
 public:
     enum class Status : uint32_t {
         Disconnected = 0,
@@ -68,7 +68,7 @@ public:
         std::vector<char> content;
     };
 
-    class ConnectionLostError : public ghoul::RuntimeError {
+    class ConnectionLostError final : public ghoul::RuntimeError {
     public:
         explicit ConnectionLostError(bool shouldLogError_ = true);
 

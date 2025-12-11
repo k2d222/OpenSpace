@@ -30,7 +30,7 @@
 namespace {
     constexpr openspace::properties::Property::PropertyInfo FilePathInfo = {
         "FilePath",
-        "File Path",
+        "File path",
         "The file path that is used for this image provider. The file must point to an "
         "image that is then loaded and used for all tiles.",
         openspace::properties::Property::Visibility::User
@@ -83,9 +83,9 @@ void SingleImageProvider::reset() {
 
     _tileTexture = ghoul::io::TextureReader::ref().loadTexture(_filePath.value(), 2);
     if (!_tileTexture) {
-        throw ghoul::RuntimeError(
-            std::format("Unable to load texture '{}'", _filePath.value())
-        );
+        throw ghoul::RuntimeError(std::format(
+            "Unable to load texture '{}'", _filePath.value()
+        ));
     }
 
     _tileTexture->uploadTexture();

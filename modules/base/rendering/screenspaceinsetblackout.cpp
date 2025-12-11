@@ -40,7 +40,7 @@
 namespace {
     constexpr glm::uvec2 BlackoutTextureSize = glm::uvec2(3840, 2160);
 
-    void checkCornerSpecification(std::vector<glm::vec2> corners) {
+    void checkCornerSpecification(const std::vector<glm::vec2>& corners) {
         if (corners.size() != 4) {
             openspace::documentation::TestResult res;
             res.success = false;
@@ -78,13 +78,14 @@ namespace {
         for (int i = 0; i < numberOfSegments; i++) {
             for (int s = 0; s < Subdivisions; s++) {
                 float tValue = stepSize * s;
-                splineData.push_back(ghoul::interpolateCatmullRom(
+                glm::vec2 value = ghoul::interpolateCatmullRom(
                     tValue,
                     *(controlPoints.begin() + i + 0),
                     *(controlPoints.begin() + i + 1),
                     *(controlPoints.begin() + i + 2),
                     *(controlPoints.begin() + i + 3)
-                ));
+                );
+                splineData.push_back(std::move(value));
             }
         }
         return splineData;
@@ -97,14 +98,13 @@ namespace {
         }
     }
 
-    std::string formatLine(std::string id, const std::vector<glm::vec2>& data)
-    {
+    std::string formatLine(std::string_view id, const std::vector<glm::vec2>& data) {
         if (data.empty()) {
             return "";
         }
 
         std::string str = std::format("{} = {{ ", id);
-        for (int i = 0; i < data.size(); ++i) {
+        for (size_t i = 0; i < data.size(); i++) {
             std::string xVal = std::format("{}", data[i].x);
             std::string yVal = std::format("{}", data[i].y);
             xVal += (xVal.find(".") == std::string::npos) ? ".0" : "";
@@ -143,7 +143,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo CalibrationPatternInfo = {
         "EnableCalibrationPattern",
-        "Enable Calibration Pattern",
+        "Enable calibration pattern",
         "Enables the calibration pattern. The calibration can be used to find which "
         "values to use when setting up the blackout shape.",
         openspace::properties::Property::Visibility::User
@@ -151,49 +151,49 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo CalibrationColorInfo = {
         "EnableCalibrationColor",
-        "Enable Calibration Color",
+        "Enable calibration color",
         "Set Blackout Shape to a bright color for easier calibration.",
         openspace::properties::Property::Visibility::User
     };
 
     constexpr openspace::properties::Property::PropertyInfo AddControlPointInfo = {
         "AddControlPoint",
-        "Add Control Point",
+        "Add control point",
         "Adds a new control point to the spline.",
         openspace::properties::Property::Visibility::User
     };
 
     constexpr openspace::properties::Property::PropertyInfo RemoveControlPointInfo = {
         "RemoveControlPoint",
-        "Remove Control Point",
+        "Remove control point",
         "Removes the selected control point from the spline.",
         openspace::properties::Property::Visibility::User
     };
 
     constexpr openspace::properties::Property::PropertyInfo RemoveSelectorInfo = {
         "RemoveSelector",
-        "Select Point To Remove",
+        "Select point to remove",
         "Removes the selected control point.",
         openspace::properties::Property::Visibility::User
     };
 
     constexpr openspace::properties::Property::PropertyInfo AddSelectorInfo = {
         "AddSelector",
-        "Select Where To Add",
+        "Select where to add",
         "Select where to add a new point.",
         openspace::properties::Property::Visibility::User
     };
 
     constexpr openspace::properties::Property::PropertyInfo NewPointPositionInfo = {
         "NewPointPosition",
-        "Point Position",
+        "Point position",
         "X and Y coordinates for where to add the new control point.",
         openspace::properties::Property::Visibility::User
     };
 
     constexpr openspace::properties::Property::PropertyInfo CalibrationTextureInfo = {
         "CalibrationTexture",
-        "Calibration Texture",
+        "Calibration texture",
         "Texture used as calibration pattern.",
         openspace::properties::Property::Visibility::Developer
     };
@@ -294,7 +294,7 @@ ScreenSpaceInsetBlackout::BlackoutShape::Spline::Spline(std::vector<glm::vec2>& 
     base = baseString;
 
     // Generate all Point objects and add them to GUI
-    for (int i = 0; i < data.size(); i++) {
+    for (size_t i = 0; i < data.size(); i++) {
         points.push_back(std::make_unique<Point>(
             data[i],
             std::format("Point{}Position", i),
@@ -317,8 +317,8 @@ ScreenSpaceInsetBlackout::BlackoutShape::Spline::Spline(std::vector<glm::vec2>& 
     addProperty(addButton);
 
     // Add options used when inserting a new point
-    for (int i = 0; i < points.size() + 1; i++) {
-        addSelector.addOption(i, std::format("At position #{}", i + 1));
+    for (size_t i = 0; i < points.size() + 1; i++) {
+        addSelector.addOption(static_cast<int>(i), std::format("At position #{}", i + 1));
     }
 
     // Only add controls for removing a point if there are any points that can be removed
@@ -329,8 +329,11 @@ ScreenSpaceInsetBlackout::BlackoutShape::Spline::Spline(std::vector<glm::vec2>& 
         });
         addProperty(removeSelector);
         addProperty(removeButton);
-        for (int i = 0; i < points.size(); i++) {
-            removeSelector.addOption(i, std::format("Point #{}", i + 1));
+        for (size_t i = 0; i < points.size(); i++) {
+            removeSelector.addOption(
+                static_cast<int>(i),
+                std::format("Point #{}", i + 1)
+            );
         }
     }
 }
@@ -475,7 +478,7 @@ void ScreenSpaceInsetBlackout::BlackoutShape::checkAndUpdateGUI() {
     // Remove GUI elements so that we can add them in correct order again
     if (updatePropertyTree) {
         std::vector<openspace::properties::PropertyOwner*> subs = propertySubOwners();
-        for (int i = 0; i < subs.size(); i++) {
+        for (size_t i = 0; i < subs.size(); i++) {
             removePropertySubOwner(subs[i]);
         }
         addPropertySubOwner(*corners);

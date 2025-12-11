@@ -49,6 +49,7 @@
 #include <ghoul/format.h>
 #include <ghoul/glm.h>
 #include <ghoul/io/texture/texturereader.h>
+#include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/dictionary.h>
 #include <ghoul/opengl/framebufferobject.h>
 #include <ghoul/opengl/programobject.h>
@@ -64,35 +65,35 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo StepSizeCoefficientInfo = {
         "StepSizeCoefficient",
-        "Stepsize Coefficient",
+        "Stepsize coefficient",
         "", // @TODO Missing documentation
         openspace::properties::Property::Visibility::AdvancedUser
     };
 
     constexpr openspace::properties::Property::PropertyInfo CurrentTimeInfo = {
         "CurrentTime",
-        "Current Time",
+        "Current time",
         "", // @TODO Missing documentation
         openspace::properties::Property::Visibility::User
     };
 
     constexpr openspace::properties::Property::PropertyInfo MemoryBudgetInfo = {
         "MemoryBudget",
-        "Memory Budget",
+        "Memory budget",
         "", // @TODO Missing documentation
         openspace::properties::Property::Visibility::AdvancedUser
     };
 
     constexpr openspace::properties::Property::PropertyInfo StreamingBudgetInfo = {
         "StreamingBudget",
-        "Streaming Budget",
+        "Streaming budget",
         "", // @TODO Missing documentation
         openspace::properties::Property::Visibility::AdvancedUser
     };
 
     constexpr openspace::properties::Property::PropertyInfo UseGlobalTimeInfo = {
         "UseGlobalTime",
-        "Global Time",
+        "Global time",
         "", // @TODO Missing documentation
         openspace::properties::Property::Visibility::User
     };
@@ -106,21 +107,21 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo SelectorNameInfo = {
         "Selector",
-        "Brick Selector",
+        "Brick selector",
         "", // @TODO Missing documentation
         openspace::properties::Property::Visibility::AdvancedUser
     };
 
     constexpr openspace::properties::Property::PropertyInfo StatsToFileInfo = {
         "PrintStats",
-        "Print Stats",
+        "Print stats",
         "", // @TODO Missing documentation
         openspace::properties::Property::Visibility::Developer
     };
 
     constexpr openspace::properties::Property::PropertyInfo StatsToFileNameInfo = {
         "PrintStatsFileName",
-        "Stats Filename",
+        "Stats filename",
         "", // @TODO Missing documentation
         openspace::properties::Property::Visibility::Developer
     };
@@ -345,24 +346,12 @@ void RenderableMultiresVolume::initializeGL() {
     constexpr unsigned int MaxInitialBudget = 2048;
     int initialBudget = std::min(MaxInitialBudget, maxNumBricks);
 
-    _currentTime = properties::IntProperty(
-        CurrentTimeInfo,
-        0,
-        0,
-        _tsp->header().numTimesteps - 1
-    );
-    _memoryBudget = properties::IntProperty(
-        MemoryBudgetInfo,
-        initialBudget,
-        0,
-        maxNumBricks
-    );
-    _streamingBudget = properties::IntProperty(
-        StreamingBudgetInfo,
-        initialBudget,
-        0,
-        maxNumBricks
-    );
+    _currentTime.setMaxValue(_tsp->header().numTimesteps - 1);
+    _memoryBudget = initialBudget;
+    _memoryBudget.setMaxValue(maxNumBricks);
+    _streamingBudget = initialBudget;
+    _streamingBudget.setMaxValue(maxNumBricks);
+
     addProperty(_currentTime);
     addProperty(_memoryBudget);
     addProperty(_streamingBudget);

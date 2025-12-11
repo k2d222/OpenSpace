@@ -103,7 +103,7 @@ createExtrudedGeometryVertices(const std::vector<std::vector<glm::vec3>>& edgeVe
     vertices.reserve(nVerts * 3);
 
     // Extrude polygon
-    for (size_t nBound = 0; nBound < edgeVertices.size(); ++nBound) {
+    for (size_t nBound = 0; nBound < edgeVertices.size(); nBound++) {
         const std::vector<glm::vec3>& boundary = edgeVertices[nBound];
         for (size_t i = 1; i < boundary.size(); i++) {
             const glm::vec3& v0 = boundary[i - 1];
@@ -118,9 +118,12 @@ createExtrudedGeometryVertices(const std::vector<std::vector<glm::vec3>>& edgeVe
                 const glm::vec3 n = glm::vec3(
                     glm::normalize(glm::cross(v1 - vOrigin, v0 - vOrigin))
                 );
-                vertices.push_back({ vOrigin.x, vOrigin.y, vOrigin.z, n.x, n.y, n.z });
-                vertices.push_back({ v1.x, v1.y, v1.z, n.x, n.y, n.z });
-                vertices.push_back({ v0.x, v0.y, v0.z, n.x, n.y, n.z });
+                vertices.push_back({
+                    { vOrigin.x, vOrigin.y, vOrigin.z },
+                    { n.x, n.y, n.z }
+                });
+                vertices.push_back({ { v1.x, v1.y, v1.z }, { n.x, n.y, n.z } });
+                vertices.push_back({ { v0.x, v0.y, v0.z }, { n.x, n.y, n.z } });
             }
             // Inner boundary
             else {
@@ -128,9 +131,12 @@ createExtrudedGeometryVertices(const std::vector<std::vector<glm::vec3>>& edgeVe
                 const glm::vec3 n = glm::normalize(
                     glm::cross(v0 - vOrigin, v1 - vOrigin)
                 );
-                vertices.push_back({ vOrigin.x, vOrigin.y, vOrigin.z, n.x, n.y, n.z });
-                vertices.push_back({ v0.x, v0.y, v0.z, n.x, n.y, n.z });
-                vertices.push_back({ v1.x, v1.y, v1.z, n.x, n.y, n.z });
+                vertices.push_back({
+                    { vOrigin.x, vOrigin.y, vOrigin.z },
+                    { n.x, n.y, n.z }
+                });
+                vertices.push_back({ { v0.x, v0.y, v0.z }, { n.x, n.y, n.z } });
+                vertices.push_back({ { v1.x, v1.y, v1.z }, { n.x, n.y, n.z } });
             }
 
             // TODO: Fix faulty triangle directions and draw triangles with correct
@@ -184,7 +190,7 @@ std::vector<PosHeightPair> subdivideLine(const glm::dvec3& v0, const glm::dvec3&
         positions.push_back({ glm::vec3(v0), h0 });
     }
 
-    for (int seg = 0; seg < nSegments; ++seg) {
+    for (int seg = 0; seg < nSegments; seg++) {
         const double t = static_cast<double>(seg) / static_cast<double>(nSegments);
 
         // Interpolate both position and height value
@@ -341,7 +347,7 @@ subdivideTriangle(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2,
         const glm::vec3 v =
             geometryhelper::computeOffsetedModelCoordinate(geodetic, globe, 0.f, 0.f);
 
-        vertices.push_back({ v.x, v.y, v.z, 0.f, 0.f, 0.f });
+        vertices.push_back({ { v.x, v.y, v.z }, { 0.f, 0.f, 0.f } });
 
         // Every third set of coordinates is a triangle => update normal of previous
         // triangle vertices

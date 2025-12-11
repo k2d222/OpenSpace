@@ -54,9 +54,15 @@ namespace {
     template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
     template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
+    struct SessionRecordingError final : public ghoul::RuntimeError {
+        explicit SessionRecordingError(std::string msg)
+            : ghoul::RuntimeError(std::move(msg), "SessionRecording")
+        {}
+    };
+
     constexpr openspace::properties::Property::PropertyInfo RenderPlaybackInfo = {
         "RenderInfo",
-        "Render Playback Information",
+        "Render playback information",
         "If enabled, information about a currently played back session recording is "
         "rendering to screen.",
         openspace::properties::Property::Visibility::AdvancedUser
@@ -64,7 +70,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo IgnoreRecordedScaleInfo = {
         "IgnoreRecordedScale",
-        "Ignore Recorded Scale",
+        "Ignore recorded scale",
         "If this value is enabled, the scale value from a recording is ignored and the "
         "computed values are used instead.",
         openspace::properties::Property::Visibility::AdvancedUser
@@ -72,7 +78,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo AddModelMatrixinAsciiInfo = {
         "AddModelMatrixinAscii",
-        "Add Model Matrix in ASCII recording",
+        "Add model matrix in ASCII recording",
         "If this is 'true', the model matrix is written into the ASCII recording format "
         "in the line before each camera keyframe. The model matrix is the full matrix "
         "that converts the position into a J2000+Galactic reference frame.",
@@ -165,7 +171,7 @@ void SessionRecordingHandler::tickPlayback(double dt) {
 
 
     if (!hasValidPrevCamera && !hasValidNextCamera) {
-        throw ghoul::RuntimeError("No valid camera keyframes found in recording");
+        throw SessionRecordingError("No valid camera keyframes found in recording");
     }
 
     // update camera with or without new keyframes
@@ -292,15 +298,13 @@ void SessionRecordingHandler::render() const {
 
 void SessionRecordingHandler::startRecording() {
     if (_state == SessionState::Recording) {
-        throw ghoul::RuntimeError(
-            "Unable to start recording while already in recording mode",
-            "SessionRecordingHandler"
+        throw SessionRecordingError(
+            "Unable to start recording while already in recording mode"
         );
     }
     else if (isPlayingBack()) {
-        throw ghoul::RuntimeError(
-            "Unable to start recording while in session playback mode",
-            "SessionRecordingHandler"
+        throw SessionRecordingError(
+            "Unable to start recording while in session playback mode"
         );
     }
 
@@ -329,9 +333,9 @@ void SessionRecordingHandler::stopRecording(const std::filesystem::path& filenam
     }
 
     if (!overwrite && std::filesystem::is_regular_file(filename)) {
-        throw ghoul::RuntimeError(std::format(
+        throw SessionRecordingError(std::format(
             "Unable to start recording. File '{}' already exists", filename
-        ), "SessionRecording");
+        ));
     }
 
     for (const auto& [prop, script] : _savePropertiesBaseline) {
@@ -358,13 +362,13 @@ void SessionRecordingHandler::startPlayback(SessionRecording timeline, bool loop
 
     if (_state == SessionState::Recording) {
         global::openSpaceEngine->setMode(prevMode);
-        throw ghoul::RuntimeError(
+        throw SessionRecordingError(
             "Unable to start playback while in session recording mode"
         );
     }
     else if (isPlayingBack()) {
         global::openSpaceEngine->setMode(prevMode);
-        throw ghoul::RuntimeError(
+        throw SessionRecordingError(
             "Unable to start new playback while in session playback mode"
         );
     }
@@ -381,11 +385,11 @@ void SessionRecordingHandler::startPlayback(SessionRecording timeline, bool loop
 
     if (timeline.entries.empty()) {
         global::openSpaceEngine->setMode(prevMode);
-        throw ghoul::RuntimeError("Session recording is empty");
+        throw SessionRecordingError("Session recording is empty");
     }
     if (!timeline.hasCameraFrame()) {
         global::openSpaceEngine->setMode(prevMode);
-        throw ghoul::RuntimeError("Session recording did not contain camera keyframes");
+        throw SessionRecordingError("Session recording did not contain camera keyframes");
     }
 
     _timeline = std::move(timeline);
@@ -432,7 +436,7 @@ void SessionRecordingHandler::setupPlayback(double startTime) {
         std::get<SessionRecording::Entry::Camera>(firstCamera->value).focusNode;
     auto it = std::find(_loadedNodes.begin(), _loadedNodes.end(), startFocusNode);
     if (it == _loadedNodes.end()) {
-        throw ghoul::RuntimeError(std::format(
+        throw SessionRecordingError(std::format(
             "Playback file requires scenegraph node '{}', which is "
             "not currently loaded", startFocusNode
         ));

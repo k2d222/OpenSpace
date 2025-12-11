@@ -42,9 +42,8 @@ namespace {
             tcur->getY(),
             static_cast<double>(tcur->getTuioTime().getTotalMilliseconds()) / 1000.0
         );
-
     }
-}
+} // namespace
 
 namespace openspace {
 
@@ -56,21 +55,18 @@ void TuioEar::removeTuioObject(TuioObject*) {}
 
 void TuioEar::addTuioCursor(TuioCursor* tcur) {
     std::lock_guard lock(_mx);
-    TouchInput input = touchInput(tcur);
-    _inputList.emplace_back(input);
+    _inputList.push_back(touchInput(tcur));
 }
 
 void TuioEar::updateTuioCursor(TuioCursor* tcur) {
     std::lock_guard lock(_mx);
-    TouchInput input = touchInput(tcur);
-    _inputList.emplace_back(input);
+    _inputList.push_back(touchInput(tcur));
 }
 
 // save id to be removed and remove it in clearInput
 void TuioEar::removeTuioCursor(TuioCursor* tcur) {
     std::lock_guard lock(_mx);
-    TouchInput input = touchInput(tcur);
-    _removalList.emplace_back(input);
+    _removalList.push_back(touchInput(tcur));
 }
 
 void TuioEar::addTuioBlob(TuioBlob*) {}

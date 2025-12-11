@@ -381,10 +381,6 @@ struct TimeTimeline {
 
 struct ScriptMessage {
     ScriptMessage() = default;
-    ScriptMessage(const std::vector<char>& buffer) {
-        deserialize(buffer);
-    }
-    virtual ~ScriptMessage() {}
 
     std::string _script;
     double _timestamp = 0.0;
@@ -444,8 +440,8 @@ struct ScriptMessage {
         ss << _script;
     }
 
-    virtual void read(std::istream* in) {
-        uint32_t strLen;
+    void read(std::istream* in) {
+        uint32_t strLen = 0;
         //Read string length from file
         in->read(reinterpret_cast<char*>(&strLen), sizeof(strLen));
         //Read back full string
@@ -465,7 +461,7 @@ struct ScriptMessage {
         }
         std::string tmpReadbackScript;
         _script.erase();
-        for (int i = 0; i < numScriptLines; ++i) {
+        for (int i = 0; i < numScriptLines; i++) {
             ghoul::getline(iss, tmpReadbackScript);
             size_t start = tmpReadbackScript.find_first_not_of(" ");
             tmpReadbackScript = tmpReadbackScript.substr(start);

@@ -55,12 +55,12 @@ namespace {
         "TuioPort",
         "TUIO Port",
         "TUIO UDP port, by default 3333. The port cannot be changed after startup.",
-        openspace::properties::Property::Visibility::User
+        openspace::properties::Property::Visibility::AdvancedUser
     };
 
     constexpr openspace::properties::Property::PropertyInfo EnableTouchInfo = {
         "EnableTouchInteraction",
-        "Enable Touch Interaction",
+        "Enable touch interaction",
         "Use this property to turn on/off touch input navigation in the 3D scene. "
         "Disabling will reset all current touch inputs to the navigation.",
         openspace::properties::Property::Visibility::User
@@ -68,7 +68,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo EventsInfo = {
         "DetectedTouchEvent",
-        "Detected Touch Event",
+        "Detected touch event",
         "True when there is an active touch event.",
         openspace::properties::Property::Visibility::Hidden
     };
@@ -77,7 +77,7 @@ namespace {
         DefaultDirectTouchRenderableTypesInfo =
     {
         "DefaultDirectTouchRenderableTypes",
-        "Default Direct Touch Renderable Types",
+        "Default direct touch renderable types",
         "A list of renderable types that will automatically use the \'direct "
         "manipulation\' scheme when interacted with, keeping the finger on a static "
         "position on the interaction sphere of the object when touching. Good for "
@@ -85,24 +85,19 @@ namespace {
         openspace::properties::Property::Visibility::AdvancedUser
     };
 
-    // max press duration to trigger a tap
-    constexpr const double TAP_MAX_DURATION = 0.18;
-    // max distance travelled by the finger to trigger a tap
-    constexpr const double TAP_MAX_DISTANCE = 0.0004;
-
     struct [[codegen::Dictionary(TouchModule)]] Parameters {
         // [[codegen::verbatim(TuioPortInfo.description)]]
-        std::optional<int> tuioPort;
+        std::optional<int> tuioPort [[codegen::inrange(1, 65535)]];
     };
 
     #include "touchmodule_codegen.cpp"
-} // namespace openspace
+} // namespace
 
 namespace openspace {
 
 TouchModule::TouchModule()
     : OpenSpaceModule("Touch")
-    , _tuioPort(TuioPortInfo, 3333, 0, 65535)
+    , _tuioPort(TuioPortInfo, 3333, 1, 65535)
     , _touchIsEnabled(EnableTouchInfo, true)
     , _hasActiveTouchEvent(EventsInfo, false)
     , _defaultDirectTouchRenderableTypes(DefaultDirectTouchRenderableTypesInfo)

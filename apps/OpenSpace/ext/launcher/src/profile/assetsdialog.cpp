@@ -27,7 +27,6 @@
 #include "profile/assetedit.h"
 #include "profile/line.h"
 #include <openspace/scene/profile.h>
-#include <ghoul/format.h>
 #include <QDialogButtonBox>
 #include <QHeaderView>
 #include <QLabel>
@@ -35,6 +34,7 @@
 #include <QVBoxLayout>
 #include <QTextEdit>
 #include <QTreeView>
+#include <filesystem>
 
 namespace {
     bool traverseToExpandSelectedItems(QTreeView& tree, AssetTreeModel& model, int rows,
@@ -329,7 +329,7 @@ bool SearchProxyModel::acceptIndex(const QModelIndex& idx) const {
     if (matchIt.hasNext()) {
         return true;
     }
-    for (int row = 0; row < idx.model()->rowCount(idx); ++row) {
+    for (int row = 0; row < idx.model()->rowCount(idx); row++) {
         const bool accept = acceptIndex(idx.model()->index(row, 0, idx));
         if (accept) {
             return true;

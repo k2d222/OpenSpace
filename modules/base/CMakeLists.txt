@@ -71,12 +71,13 @@ set(HEADER_FILES
   rendering/renderabletrailorbit.h
   rendering/renderabletrailtrajectory.h
   rendering/screenspacedashboard.h
-  rendering/screenspaceframebuffer.h
+  rendering/screenspacedate.h
   rendering/screenspaceimagelocal.h
   rendering/screenspacetext.h
   rendering/screenspaceimageonline.h
   rendering/screenspaceinsetblackout.h
   rendering/screenspacerenderablerenderable.h
+  rendering/screenspacetext.h
   rendering/screenspacetimevaryingimageonline.h
   rotation/timelinerotation.h
   rotation/constantrotation.h
@@ -150,12 +151,13 @@ set(SOURCE_FILES
   rendering/renderabletrailtrajectory.cpp
   rendering/screenspacedashboard.cpp
   rendering/screenspacedashboard_lua.inl
-  rendering/screenspaceframebuffer.cpp
+  rendering/screenspacedate.cpp
   rendering/screenspaceimagelocal.cpp
   rendering/screenspacetext.cpp
   rendering/screenspaceimageonline.cpp
   rendering/screenspaceinsetblackout.cpp
   rendering/screenspacerenderablerenderable.cpp
+  rendering/screenspacetext.cpp
   rendering/screenspacetimevaryingimageonline.cpp
   rotation/timelinerotation.cpp
   rotation/constantrotation.cpp

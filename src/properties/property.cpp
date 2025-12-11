@@ -29,8 +29,6 @@
 #include <openspace/properties/propertyowner.h>
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/lua/ghoul_lua.h>
-#include <ghoul/misc/dictionary.h>
-#include <ghoul/misc/dictionaryjsonformatter.h>
 #include <algorithm>
 
 namespace openspace::properties {
@@ -54,6 +52,7 @@ Property::Property(PropertyInfo info)
     ghoul_assert(!_guiName.empty(), "guiName must not be empty");
 
     setVisibility(info.visibility);
+    setNeedsConfirmation(info.needsConfirmation);
 }
 
 Property::~Property() {
@@ -127,8 +126,8 @@ bool Property::isReadOnly() const {
     return _metaData.readOnly.value_or(false);
 }
 
-void Property::setNeedsConfirmation(bool state) {
-    _metaData.needsConfirmation = state;
+void Property::setNeedsConfirmation(bool needsConfirmation) {
+    _metaData.needsConfirmation = needsConfirmation;
     notifyMetaDataChangeListeners();
 }
 
@@ -284,9 +283,9 @@ nlohmann::json Property::generateJsonDescription() const {
        { Visibility::Developer, "Developer" },
        { Visibility::Hidden, "Hidden" }
     };
+
     const std::string& vis = VisibilityConverter.at(_metaData.visibility);
     const bool isReadOnly = _metaData.readOnly.value_or(false);
-    const bool needsConfirmation = _metaData.needsConfirmation.value_or(false);
     const std::string groupId = groupIdentifier();
 
     nlohmann::json json = {
@@ -295,7 +294,7 @@ nlohmann::json Property::generateJsonDescription() const {
         { "guiName", _guiName },
         { "group", groupId },
         { "isReadOnly", isReadOnly },
-        { "needsConfirmation", needsConfirmation },
+        { "needsConfirmation", _metaData.needsConfirmation },
         { "type", className() },
         { "visibility", vis }
     };

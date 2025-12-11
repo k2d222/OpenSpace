@@ -29,7 +29,6 @@
 #include <openspace/engine/globals.h>
 #include <openspace/scripting/scriptengine.h>
 #include <openspace/util/time.h>
-#include <ghoul/logging/logmanager.h>
 
 #include "scriptscheduler_lua.inl"
 
@@ -45,7 +44,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo ShouldRunAllTimeJumpInfo = {
         "ShouldRunAllTimeJump",
-        "Should Run All Time Jump",
+        "Should run all time jump",
         "If 'true': In a time jump, all scheduled scripts between the old time and the "
         "new time is executed. If 'false': In a time jump, no scripts scheduled between "
         "the new time and the old time is executed.",

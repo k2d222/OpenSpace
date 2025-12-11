@@ -25,14 +25,11 @@
 #include "sgctedit/displaywindowunion.h"
 
 #include "sgctedit/windowcontrol.h"
-#include <ghoul/format.h>
 #include <ghoul/misc/assert.h>
-#include <QColor>
-#include <QFrame>
 #include <QPushButton>
 #include <QVBoxLayout>
-#include <array>
-#include <string>
+#include <algorithm>
+#include <optional>
 
 namespace {
     template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
@@ -113,7 +110,7 @@ DisplayWindowUnion::DisplayWindowUnion(const std::vector<QRect>& monitorResoluti
 void DisplayWindowUnion::initialize(const std::vector<QRect>& monitorSizeList,
                                     const sgct::config::Cluster& cluster)
 {
-    for (int i = 0; i < cluster.nodes.front().windows.size(); i++) {
+    for (size_t i = 0; i < cluster.nodes.front().windows.size(); i++) {
         addWindow();
     }
 
@@ -194,7 +191,11 @@ void DisplayWindowUnion::initialize(const std::vector<QRect>& monitorSizeList,
             },
             [&](const sgct::config::FisheyeProjection& p) {
                 if (p.quality.has_value()) {
-                    wCtrl->setProjectionFisheye(*p.quality, p.tilt.value_or(0.f), p.fov.value_or(180.0));
+                    wCtrl->setProjectionFisheye(
+                        *p.quality,
+                        p.tilt.value_or(0.f),
+                        p.fov.value_or(180.0)
+                    );
                 }
             },
             [&](const sgct::config::PlanarProjection& p) {

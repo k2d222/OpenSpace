@@ -39,11 +39,8 @@
 #include <ghoul/io/texture/texturereader.h>
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/profiling.h>
-#include <ghoul/misc/stringconversion.h>
 #include <ghoul/opengl/ghoul_gl.h>
-#include <ghoul/opengl/programobject.h>
 #include <ghoul/opengl/texture.h>
-#include <ghoul/opengl/textureunit.h>
 #include <random>
 #include <sstream>
 #include <thread>
@@ -609,10 +606,10 @@ void LoadingScreen::renderLogMessages() const {
                 if (charactersSinceNewLine > MessageLength) {
                     result << '\n';
                     charactersSinceNewLine = static_cast<int>(word.size());
-                    ++nRows;
+                    nRows++;
                 }
                 result << word << ' ';
-                ++charactersSinceNewLine;
+                charactersSinceNewLine++;
             }
         }
 
@@ -625,7 +622,7 @@ void LoadingScreen::renderLogMessages() const {
             it.message.size() < MessageLength ? it.message : result.str(),
             ghoul::toColor(it.level)
         );
-        ++nRows;
+        nRows++;
     }
 
     const glm::vec2 dpiScaling = global::windowDelegate->dpiScaling();
@@ -650,7 +647,7 @@ void LoadingScreen::renderLogMessages() const {
             text,
             ghoul::toColor(level)
         );
-        ++row;
+        row++;
     }
 }
 

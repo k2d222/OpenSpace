@@ -26,20 +26,14 @@
 
 #include "profile/line.h"
 #include "profile/scriptlogdialog.h"
-#include <ghoul/filesystem/filesystem.h>
 #include <QComboBox>
 #include <QDialogButtonBox>
-#include <QEvent>
-#include <QFile>
 #include <QKeyEvent>
 #include <QLabel>
-#include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QTextStream>
 #include <QVBoxLayout>
-#include <iostream>
 
 using namespace openspace;
 
@@ -409,10 +403,21 @@ void PropertiesDialog::selectLineFromScriptLog() {
                 }
 
                 // Remove the string markers around the property
-                const QString property = textList[0].mid(1, textList[0].size() - 2);
-                const QString value = textList[1];
+                const QString prop = textList[0].mid(1, textList[0].size() - 2).trimmed();
 
-                _propertyEdit->setText(property.trimmed());
+                QString value = textList[1].trimmed();
+                // If they exist, we need to replace the single string markers around the
+                // property, with double string markers
+                if (value.size() > 2) {
+                    if (value[0] == '\'') {
+                        value[0] = '"';
+                    }
+                    if (value[value.size() - 1] == '\'') {
+                        value[value.size() - 1] = '"';
+                    }
+                }
+
+                _propertyEdit->setText(prop);
                 _valueEdit->setText(value.trimmed());
                 listItemSave();
             }

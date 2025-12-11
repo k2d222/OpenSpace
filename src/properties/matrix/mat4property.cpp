@@ -24,16 +24,14 @@
 
 #include <openspace/properties/matrix/mat4property.h>
 
-#include <openspace/util/json_helper.h>
-#include <ghoul/lua/ghoul_lua.h>
+#include <ghoul/glm.h>
 #include <ghoul/lua/lua_helper.h>
 
 namespace openspace::properties {
 
-Mat4Property::Mat4Property(Property::PropertyInfo info, glm::mat4x4 value,
-                           glm::mat4x4 minValue, glm::mat4x4 maxValue,
-                           glm::mat4x4 stepValue)
-    : NumericalProperty<glm::mat4x4>(
+Mat4Property::Mat4Property(Property::PropertyInfo info, glm::mat4 value,
+                           glm::mat4 minValue, glm::mat4 maxValue, glm::mat4 stepValue)
+    : NumericalProperty<glm::mat4>(
         std::move(info),
         std::move(value),
         std::move(minValue),

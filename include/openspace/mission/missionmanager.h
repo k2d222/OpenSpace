@@ -27,8 +27,6 @@
 
 #include <openspace/mission/mission.h>
 
-#include <ghoul/misc/assert.h>
-#include <ghoul/misc/exception.h>
 #include <map>
 #include <string>
 
@@ -41,10 +39,6 @@ namespace scripting { struct LuaLibrary; }
  */
 class MissionManager {
 public:
-    struct MissionManagerException : public ghoul::RuntimeError {
-        explicit MissionManagerException(std::string error);
-    };
-
     MissionManager();
 
     /**

@@ -36,7 +36,7 @@ namespace {
 
     using namespace openspace::interaction;
 
-    class LoadingError : public ghoul::RuntimeError {
+    class LoadingError final : public ghoul::RuntimeError {
     public:
         LoadingError(std::string error_, std::filesystem::path file_, int entry_)
             : ghoul::RuntimeError(
@@ -456,13 +456,18 @@ namespace {
 
     template <>
     SessionRecording::Entry::Script readScript<DataMode::Binary>(std::istream& stream,
-                                                                 int)
+                                                                 int version)
     {
         SessionRecording::Entry::Script script;
 
         uint32_t scriptLength = 0;
         stream.read(reinterpret_cast<char*>(&scriptLength), sizeof(uint32_t));
         script.resize(scriptLength);
+
+        if (version == 0) {
+            uint32_t dummy;
+            stream.read(reinterpret_cast<char*>(&dummy), sizeof(uint32_t));
+        }
         stream.read(script.data(), scriptLength);
 
         return script;
@@ -623,7 +628,7 @@ SessionRecording loadSessionRecording(const std::filesystem::path& filename) {
         }
 
         sessionRecording.entries.push_back(std::move(*entry));
-    };
+    }
 
     ghoul_assert(
         std::is_sorted(

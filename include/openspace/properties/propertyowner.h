@@ -67,7 +67,7 @@ public:
      * \pre The \p info 's #PropertyOwnerInfo::identifier must not contain any whitespaces
      * \pre The \p info 's #PropertyOwnerInfo::identifier must not contain any `.`
      */
-    PropertyOwner(PropertyOwnerInfo info);
+    explicit PropertyOwner(PropertyOwnerInfo info);
 
     /**
      * The destructor will remove all Propertys and PropertyOwners it owns along with
@@ -139,6 +139,15 @@ public:
     std::vector<Property*> propertiesRecursive() const;
 
     /**
+     * Returns a list of all PropertyOwners directly or indirectly owned by this
+     * PropertyOwner.
+     *
+     * \return A list of all PropertyOwners directly or indirectly owned by this
+     *         PropertyOwner
+     */
+    std::vector<PropertyOwner*> subownersRecursive() const;
+
+    /**
      * Retrieves a Property identified by \p uri from this PropertyOwner. If \p uri does
      * not contain a `.`  it is an identifier and must refer to a Property directly owned
      * by this PropertyOwner. If the identifier contains one or more `.`, the first part
@@ -150,7 +159,7 @@ public:
      * \return If the Property cannot be found, `nullptr` is returned, otherwise the
      *         pointer to the Property is returned
      */
-    Property* property(const std::string& uri) const;
+    Property* property(std::string_view uri) const;
 
     /**
      * Retrieves a PropertyOwner identified by \p uri from this PropertyOwner. If \p uri
@@ -164,7 +173,7 @@ public:
      * \return If the PropertyOwner cannot be found, `nullptr` is returned, otherwise the
      *         pointer to the PropertyOwner is returned
      */
-    PropertyOwner* propertyOwner(const std::string& uri) const;
+    PropertyOwner* propertyOwner(std::string_view uri) const;
 
     /**
      * Returns a uri for this PropertyOwner. This is created by looking up all the owners
@@ -214,7 +223,7 @@ public:
      * \param identifier The identifier of the sub-owner that should be returned
      * \return The PropertyOwner with the given \p identifier, or `nullptr`
      */
-    PropertyOwner* propertySubOwner(const std::string& identifier) const;
+    PropertyOwner* propertySubOwner(std::string_view identifier) const;
 
     /**
      * Returns `true` if this PropertyOwner owns a sub-owner with the provided
@@ -250,7 +259,7 @@ public:
      * PropertyOwner. This method will also inform the Property about the change in
      * ownership by calling the Property::setPropertyOwner method.
      *
-     * \param prop The Property whose ownership is changed.
+     * \param prop The Property whose ownership is changed
      */
     void addProperty(Property* prop);
 
@@ -338,9 +347,14 @@ protected:
     /// Collection of string tag(s) assigned to this property
     std::vector<std::string> _tags;
 
+    /// A cached version of the full URI of this property owner, which includes the
+    /// identifiers of all owners
+    std::string _uriCache;
+    bool _isUriCacheDirty = true;
 
 private:
-    /// Will regenerate the uri caches for all directly or indirectly owned properties
+    /// Will regenerate the uri caches for this property owner and all directly or
+    /// indirectly owned properties
     void updateUriCaches();
 };
 

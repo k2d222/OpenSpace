@@ -42,7 +42,7 @@
 namespace {
     constexpr openspace::properties::Property::PropertyInfo EffectiveTemperatureInfo = {
         "EffectiveTemperature",
-        "Effective Temperature",
+        "Effective temperature",
         "The effective temperature of the corresponding star, in Kelvin. Used to compute "
         "the width and size of the disc.",
         openspace::properties::Property::Visibility::User
@@ -197,7 +197,7 @@ void RenderableHabitableZone::computeZone() {
 
     // Compute the coservative bounds normalized by the size of the disc, i.e. in [0, 1]
     _conservativeBounds = glm::vec2(innerConservative, outerConservative);
-    _conservativeBounds /= _size;
+    _conservativeBounds /= _size.value();
 }
 
 glm::dvec4 RenderableHabitableZone::computeKopparapuZoneBoundaries(float teff,

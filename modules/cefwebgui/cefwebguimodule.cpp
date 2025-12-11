@@ -55,21 +55,21 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo VisibleInfo = {
         "Visible",
-        "Is Visible",
+        "Is visible",
         "This setting determines whether the browser should be visible or not.",
         openspace::properties::Property::Visibility::User
     };
 
     constexpr openspace::properties::Property::PropertyInfo GuiUrlInfo = {
         "GuiUrl",
-        "GUI URL",
+        "Gui URL",
         "The URL of the webpage that is used to load the WebGUI from.",
         openspace::properties::Property::Visibility::AdvancedUser
     };
 
     constexpr openspace::properties::Property::PropertyInfo GuiScaleInfo = {
         "GuiScale",
-        "Gui Scale",
+        "Gui scale",
         "GUI scale multiplier.",
         openspace::properties::Property::Visibility::Always
     };
@@ -204,7 +204,7 @@ void CefWebGuiModule::internalInitialize(const ghoul::Dictionary& configuration)
     // We need this to make sure that the browser is reloaded
     // once the endpoint comes online, on OpenSpace startup.
 
-    // TODO: See if the hardcoded endpoint `frontend` below can be removed.
+    // TODO: See if the hardcoded endpoint `gui` below can be removed.
     // Possible fix: Reload browser if cefwebgui is routed to localhost
     // and the same endpoint that just came online.
     WebGuiModule* webGuiModule = global::moduleEngine->module<WebGuiModule>();
@@ -212,7 +212,7 @@ void CefWebGuiModule::internalInitialize(const ghoul::Dictionary& configuration)
     _endpointCallback = webGuiModule->addEndpointChangeCallback(
         [this](const std::string& endpoint, bool exists) {
             ZoneScopedN("CefWebGuiModule::endpointCallback");
-            if (exists && endpoint == "frontend" && _instance) {
+            if (exists && endpoint == "gui" && _instance) {
                 _instance->reloadBrowser();
             }
         }

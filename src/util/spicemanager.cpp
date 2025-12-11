@@ -24,19 +24,14 @@
 
 #include <openspace/util/spicemanager.h>
 
-#include <openspace/engine/globals.h>
 #include <openspace/scripting/lualibrary.h>
 #include <ghoul/logging/logmanager.h>
-#include <ghoul/lua/lua_helper.h>
-#include <ghoul/filesystem/file.h>
 #include <ghoul/filesystem/filesystem.h>
 #include <ghoul/misc/assert.h>
 #include <ghoul/misc/profiling.h>
 #include <algorithm>
 #include <filesystem>
 #include <format>
-#include "SpiceUsr.h"
-#include "SpiceZpr.h"
 
 #include "spicemanager_lua.inl"
 
@@ -637,8 +632,24 @@ std::string SpiceManager::dateFromEphemerisTime(double ephemerisTime, const char
         et2utc_c(ephemerisTime, "C", SecondsPrecision, BufferSize, Buffer.data());
     }
 
-
     return std::string(Buffer.data());
+}
+
+void SpiceManager::dateFromEphemerisTime(double ephemerisTime, char* outBuf,
+                                         int bufferSize, const std::string& format) const
+{
+    timout_c(ephemerisTime, format.c_str(), bufferSize, outBuf);
+    if (failed_c()) {
+        throwSpiceError(std::format(
+            "Error converting ephemeris time '{}' to date with format '{}'",
+            ephemerisTime, format
+        ));
+    }
+    if (outBuf[0] == '*') {
+        // The conversion failed and we need to use et2utc
+        constexpr int SecondsPrecision = 3;
+        et2utc_c(ephemerisTime, "C", SecondsPrecision, bufferSize, outBuf);
+    }
 }
 
 glm::dvec3 SpiceManager::targetPosition(const std::string& target,

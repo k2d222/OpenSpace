@@ -28,7 +28,6 @@
 #include <openspace/engine/openspaceengine.h>
 #include <openspace/scripting/scriptengine.h>
 #include <ghoul/logging/logmanager.h>
-#include <ghoul/misc/exception.h>
 #include <algorithm>
 #include <cmath>
 #include <utility>
@@ -211,21 +210,21 @@ void JoystickCameraStates::updateStateFromInput(
     }
 
     if (zoom.first) {
-        _truckMovementState.velocity.set(glm::dvec2(zoom.second), deltaTime);
+        _truckMovementState.velocity.set(zoom.second, deltaTime);
     }
     else {
         _truckMovementState.velocity.decelerate(deltaTime);
     }
 
     if (localRoll.first) {
-        _localRollState.velocity.set(glm::dvec2(localRoll.second), deltaTime);
+        _localRollState.velocity.set(localRoll.second, deltaTime);
     }
     else {
         _localRollState.velocity.decelerate(deltaTime);
     }
 
     if (globalRoll.first) {
-        _globalRollState.velocity.set(glm::dvec2(globalRoll.second), deltaTime);
+        _globalRollState.velocity.set(globalRoll.second, deltaTime);
     }
     else {
         _globalRollState.velocity.decelerate(deltaTime);

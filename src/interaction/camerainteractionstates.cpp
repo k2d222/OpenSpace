@@ -26,16 +26,20 @@
 
 namespace openspace::interaction {
 
-CameraInteractionStates::InteractionState::InteractionState(double scaleFactor)
-    : previousPosition(0.0, 0.0)
+template <typename T>
+CameraInteractionStates::InteractionState<T>::InteractionState(double scaleFactor)
+    : previousValue(T(0.0))
     , velocity(scaleFactor, 1)
 {}
 
-void CameraInteractionStates::InteractionState::setFriction(double friction) {
+template <typename T>
+void CameraInteractionStates::InteractionState<T>::setFriction(double friction) {
     velocity.setFriction(friction);
 }
 
-void CameraInteractionStates::InteractionState::setVelocityScaleFactor(double scaleFactor)
+template <typename T>
+void CameraInteractionStates::InteractionState<T>::setVelocityScaleFactor(
+                                                                       double scaleFactor)
 {
     velocity.setScaleFactor(scaleFactor);
 }
@@ -79,9 +83,9 @@ void CameraInteractionStates::setVelocityScaleFactor(double scaleFactor) {
 void CameraInteractionStates::resetVelocities() {
     _globalRotationState.velocity.setHard({ 0.0, 0.0 });
     _localRotationState.velocity.setHard({ 0.0, 0.0 });
-    _truckMovementState.velocity.setHard({ 0.0, 0.0 });
-    _localRollState.velocity.setHard({ 0.0, 0.0 });
-    _globalRollState.velocity.setHard({ 0.0, 0.0 });
+    _truckMovementState.velocity.setHard(0.0);
+    _localRollState.velocity.setHard(0.0);
+    _globalRollState.velocity.setHard(0.0);
 }
 
 bool CameraInteractionStates::hasNonZeroVelocities(bool checkOnlyMovement) const {

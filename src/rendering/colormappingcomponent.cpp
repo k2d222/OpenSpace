@@ -25,8 +25,6 @@
 #include <openspace/rendering/colormappingcomponent.h>
 
 #include <openspace/documentation/documentation.h>
-#include <openspace/documentation/verifier.h>
-#include <ghoul/filesystem/filesystem.h>
 #include <ghoul/logging/logmanager.h>
 
 namespace {
@@ -34,14 +32,14 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo EnabledInfo = {
         "Enabled",
-        "Color Map Enabled",
+        "Color map enabled",
         "Decides if the color mapping should be used or not.",
         openspace::properties::Property::Visibility::NoviceUser
     };
 
     constexpr openspace::properties::Property::PropertyInfo FileInfo = {
         "File",
-        "Color Map File",
+        "Color map file",
         "The path to the color map file to use. Should be a .cmap file",
         openspace::properties::Property::Visibility::AdvancedUser
     };
@@ -56,7 +54,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo RangeInfo = {
         "ValueRange",
-        "Value Range",
+        "Value range",
         "The range of values to use in the color mapping. The lowest value will be "
         "mapped to the first color in the color map.",
         openspace::properties::Property::Visibility::User
@@ -64,7 +62,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo SetRangeFromDataInfo = {
         "SetRangeFromData",
-        "Set Data Range from Data",
+        "Set data range from data",
         "Set the data range for the color mapping based on the available data for the "
         "curently selected data column.",
         openspace::properties::Property::Visibility::User
@@ -72,7 +70,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo HideOutsideInfo = {
         "HideValuesOutsideRange",
-        "Hide Values Outside Range",
+        "Hide values outside range",
         "If true, points with values outside the provided range for the coloring will be "
         "hidden, i.e. not rendered at all.",
         openspace::properties::Property::Visibility::AdvancedUser
@@ -80,7 +78,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo UseNoDataColorInfo = {
         "ShowMissingData",
-        "Show Missing Data",
+        "Show missing data",
         "If true, use a separate color (see NoDataColor) for items with values "
         "corresponding to missing data values.",
         openspace::properties::Property::Visibility::User
@@ -88,7 +86,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo NoDataColorInfo = {
         "NoDataColor",
-        "No Data Color",
+        "No data color",
         "The color to use for items with values corresponding to missing data values, "
         "if enabled. This color can also be read from the color map, but setting this "
         "value overrides any value in the color map. If a color value for the below "
@@ -99,7 +97,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo UseAboveRangeColorInfo = {
         "UseAboveRangeColor",
-        "Use Above Range Color",
+        "Use above range color",
         "If true, use a separate color (see AboveRangeColor) for items with values "
         "larger than the one in the provided data range. Otherwise, the values will "
         "be clamped to use the color at the upper limit of the color map. If a color is "
@@ -109,7 +107,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo AboveRangeColorInfo = {
         "AboveRangeColor",
-        "Above Range Color",
+        "Above range color",
         "The color to use for items with values larger than the one in the provided "
         "data range, if enabled. This color can also be read from the color map, but "
         "setting this value overrides any value in the color map. If a color value for "
@@ -120,7 +118,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo UseBelowRangeColorInfo = {
         "UseBelowRangeColor",
-        "Use Below Range Color",
+        "Use below range color",
         "If true, use a separate color (see BelowRangeColor) for items with values "
         "smaller than the one in the provided data range. Otherwise, the values will "
         "be clamped to use the color at the lower limit of the color map. If a color is "
@@ -130,7 +128,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo BelowRangeColorInfo = {
         "BelowRangeColor",
-        "Below Range Color",
+        "Below range color",
         "The color to use for items with values smaller than the one in the provided "
         "data range, if enabled. This color can also be read from the color map, but "
         "setting this value overrides any value in the color map. If a color value for "
@@ -141,7 +139,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo InvertColorMapInfo = {
         "Invert",
-        "Invert Color Map",
+        "Invert color map",
         "If true, the colors of the color map will be read in the inverse order.",
         openspace::properties::Property::Visibility::AdvancedUser
     };

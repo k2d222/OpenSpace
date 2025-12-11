@@ -26,19 +26,19 @@
 
 #include <openspace/events/eventengine.h>
 #include <openspace/engine/globals.h>
-#include <openspace/scripting/scriptengine.h>
-#include <ghoul/filesystem/file.h>
-#include <ghoul/filesystem/filesystem.h>
 #include <ghoul/misc/assert.h>
-#include <filesystem>
 
 #include "missionmanager_lua.inl"
 
-namespace openspace {
+namespace {
+    struct MissionManagerException final : public ghoul::RuntimeError {
+        explicit MissionManagerException(std::string msg)
+            : ghoul::RuntimeError(std::move(msg), "MissionManager")
+        {}
+    };
+} // namespace
 
-MissionManager::MissionManagerException::MissionManagerException(std::string error)
-    : ghoul::RuntimeError(std::move(error), "MissionManager")
-{}
+namespace openspace {
 
 MissionManager::MissionManager() : _currentMission(_missionMap.end()) {}
 

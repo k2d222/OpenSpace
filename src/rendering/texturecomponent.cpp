@@ -25,7 +25,6 @@
 #include <openspace/rendering/texturecomponent.h>
 
 #include <ghoul/filesystem/file.h>
-#include <ghoul/filesystem/filesystem.h>
 #include <ghoul/io/texture/texturereader.h>
 #include <ghoul/logging/logmanager.h>
 
@@ -94,18 +93,12 @@ void TextureComponent::loadFromFile(const std::filesystem::path& path) {
     using namespace ghoul::io;
     using namespace ghoul::opengl;
 
-    std::filesystem::path absolutePath = absPath(path);
+    std::unique_ptr<Texture> tex = TextureReader::ref().loadTexture(path, _nDimensions);
+    if (tex) {
+        LDEBUG(std::format("Loaded texture from '{}'", path));
+        _texture = std::move(tex);
 
-    std::unique_ptr<Texture> texture = TextureReader::ref().loadTexture(
-        absolutePath,
-        _nDimensions
-    );
-
-    if (texture) {
-        LDEBUG(std::format("Loaded texture from '{}'", absolutePath));
-        _texture = std::move(texture);
-
-        _textureFile = std::make_unique<ghoul::filesystem::File>(absolutePath);
+        _textureFile = std::make_unique<ghoul::filesystem::File>(path);
         if (_shouldWatchFile) {
             _textureFile->setCallback([this]() { _fileIsDirty = true; });
         }

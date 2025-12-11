@@ -41,7 +41,7 @@
 namespace {
     constexpr openspace::properties::Property::PropertyInfo DistanceThresholdInfo = {
         "DistanceThreshold",
-        "Distance Threshold",
+        "Distance threshold",
         "Threshold in meters for when the switch happens between the two renderables.",
         openspace::properties::Property::Visibility::AdvancedUser
     };
@@ -88,7 +88,7 @@ RenderableSwitch::RenderableSwitch(const ghoul::Dictionary& dictionary)
     if (!p.renderableNear.has_value() && !p.renderableFar.has_value()) {
         throw ghoul::RuntimeError(
             "Either a RenderableNear or a RenderableFar (or both) has to be provided, "
-            "but omitting both is invalid."
+            "but omitting both is invalid"
         );
     }
 

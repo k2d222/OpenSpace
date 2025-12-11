@@ -36,7 +36,7 @@
 namespace {
     constexpr openspace::properties::Property::PropertyInfo FormatStringInfo = {
         "FormatString",
-        "Format String",
+        "Format string",
         "The format text describing how this dashboard item renders its text. This text "
         "must contain exactly one {} which is a placeholder that will be replaced "
         "with the values read from the file provided in `DataFile`",
@@ -45,7 +45,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo DataFileInfo = {
         "DataFile",
-        "Data File Path",
+        "Data file path",
         "The file path to the JSON data.",
         openspace::properties::Property::Visibility::User
     };
@@ -185,10 +185,8 @@ void DashboardItemTimeVaryingText::loadDataFromJson(const std::string& filePath)
     std::ifstream file = std::ifstream(filePath);
     if (!file.is_open()) {
         throw ghoul::RuntimeError(std::format(
-            "Time varying text, '{}' is not a valid JSON file",
-            filePath
+            "Time varying text, '{}' is not a valid JSON file", filePath
         ));
-        return;
     }
 
     nlohmann::json jsonData;

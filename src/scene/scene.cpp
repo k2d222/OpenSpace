@@ -34,6 +34,7 @@
 #include <openspace/scripting/scriptengine.h>
 #include <openspace/util/updatestructures.h>
 #include <ghoul/lua/lua_helper.h>
+#include <source_location>
 #include <stack>
 
 #include "scene_lua.inl"
@@ -523,10 +524,6 @@ void Scene::render(const RenderData& data, RendererTasks& tasks) {
     }
 }
 
-const std::unordered_map<std::string, SceneGraphNode*>& Scene::nodesByIdentifier() const {
-    return _nodesByIdentifier;
-}
-
 SceneGraphNode* Scene::root() {
     return &_rootNode;
 }
@@ -535,7 +532,7 @@ const SceneGraphNode* Scene::root() const {
     return &_rootNode;
 }
 
-SceneGraphNode* Scene::sceneGraphNode(const std::string& name) const {
+SceneGraphNode* Scene::sceneGraphNode(std::string_view name) const {
     const auto it = _nodesByIdentifier.find(name);
     if (it != _nodesByIdentifier.end()) {
         return it->second;
@@ -719,12 +716,10 @@ void Scene::updateInterpolations() {
             1.f
         );
 
-        // @FRAGILE(abock): This method might crash if someone deleted the property
-        //                  underneath us. We take care of removing entire PropertyOwners,
-        //                  but we assume that Propertys live as long as their
-        //                  SceneGraphNodes. This is true in general, but if Propertys are
-        //                  created and destroyed often by the SceneGraphNode, this might
-        //                  become a problem.
+        // This method might crash if someone deleted the property underneath us. We take
+        // care of removing entire PropertyOwners, but we assume that Propertys live as
+        // long as their SceneGraphNodes. This is true in general, but if Propertys are
+        // created and destroyed often by the SceneGraphNode, this might become a problem.
         i.prop->interpolateValue(t, i.easingFunction);
 
         i.isExpired = (t == 1.f);
@@ -911,7 +906,11 @@ in which the parameter is interpolated. Has to be one of "Linear", "QuadraticEas
 \\param postscript A Lua script that will be executed once the change of property value
 is completed. If a duration larger than 0 was provided, it is at the end of the
 interpolation. If 0 was provided, the script runs immediately.
-)"
+)",
+                {
+                    std::source_location::current().file_name(),
+                    std::source_location::current().line()
+                }
             },
             {
                 "setPropertyValueSingle",
@@ -950,7 +949,11 @@ in which the parameter is interpolated. Has to be one of "Linear", "QuadraticEas
 \\param postscript This parameter specifies a Lua script that will be executed once the
 change of property value is completed. If a duration larger than 0 was provided, it is
 at the end of the interpolation. If 0 was provided, the script runs immediately.
-)"
+)",
+                {
+                    std::source_location::current().file_name(),
+                    std::source_location::current().line()
+                }
             },
             {
                 "propertyValue",
@@ -961,10 +964,15 @@ at the end of the interpolation. If 0 was provided, the script runs immediately.
                 "String | Number | Boolean | Table",
                 "Returns the value of the property identified by the provided URI. This "
                 "function will provide an error message if no property matching the URI "
-                "is found."
+                "is found.",
+                {
+                    std::source_location::current().file_name(),
+                    std::source_location::current().line()
+                }
             },
             codegen::lua::HasProperty,
             codegen::lua::Property,
+            codegen::lua::PropertyOwner,
             codegen::lua::AddCustomProperty,
             codegen::lua::RemoveCustomProperty,
             codegen::lua::AddSceneGraphNode,

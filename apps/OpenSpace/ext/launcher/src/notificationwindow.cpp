@@ -31,11 +31,9 @@
 #include <ghoul/misc/assert.h>
 #include <ghoul/misc/stringhelper.h>
 #include <QGuiApplication>
-#include <QStyleHints>
 #include <QTimer>
 #include <scn/scan.h>
 #include <date/date.h>
-#include <string_view>
 #include <vector>
 
 using namespace openspace;
@@ -134,7 +132,7 @@ NotificationWindow::NotificationWindow(QWidget* parent)
     std::string URL = std::format(
         "https://raw.githubusercontent.com/OpenSpace/Notifications/refs/heads/master/"
         "{}.txt",
-        OPENSPACE_IS_RELEASE_BUILD ? OPENSPACE_VERSION_NUMBER : "master"
+        OPENSPACE_IS_RELEASE_BUILD ? OPENSPACE_VERSION : "master"
     );
 
     _request = std::make_unique<HttpMemoryDownload>(
@@ -156,8 +154,8 @@ NotificationWindow::NotificationWindow(QWidget* parent)
         }
 
         // 1. Get the downloaded data
-        const std::vector<char>& data = _request->downloadedData();
-        std::string notificationText = std::string(data.begin(), data.end());
+        const std::vector<char>& d = _request->downloadedData();
+        std::string notificationText = std::string(d.begin(), d.end());
 
         // 2. Parse the retrieved data into entries
         std::vector<Entry> entries = parseEntries(notificationText);

@@ -28,6 +28,8 @@
 #include <openspace/rendering/renderable.h>
 
 #include <openspace/properties/misc/optionproperty.h>
+#include <openspace/properties/vector/vec2property.h>
+#include <openspace/rendering/transferfunction.h>
 #include <ghoul/opengl/uniformcache.h>
 
 namespace ghoul::opengl { class ProgramObject; }
@@ -63,6 +65,7 @@ protected:
 
     properties::OptionProperty _orientation;
     properties::BoolProperty _mirrorTexture;
+    properties::OptionProperty _textureProjection;
 
     properties::BoolProperty _disableFadeInDistance;
     properties::FloatProperty _fadeInThreshold;
@@ -70,14 +73,19 @@ protected:
     properties::OptionProperty _blendingFuncOption;
     properties::BoolProperty _disableDepth;
 
-private:
+    glm::vec2 _dataMinMaxValues;
     ghoul::opengl::ProgramObject* _shader = nullptr;
+    properties::BoolProperty _useColorMap;
 
+private:
     std::unique_ptr<Sphere> _sphere;
     bool _sphereIsDirty = false;
 
+    properties::StringProperty _colorMap;
+    std::unique_ptr<TransferFunction> _transferFunction;
+
     UniformCache(opacity, modelViewProjection, modelViewTransform, modelViewRotation,
-        colorTexture, mirrorTexture) _uniformCache;
+        colorTexture, mirrorTexture, textureProjection) _uniformCache;
 };
 
 } // namespace openspace

@@ -28,8 +28,6 @@
 #include <openspace/properties/propertyowner.h>
 
 #include <openspace/properties/list/intlistproperty.h>
-#include <openspace/properties/misc/optionproperty.h>
-#include <openspace/properties/misc/triggerproperty.h>
 #include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/properties/scalar/intproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
@@ -40,14 +38,14 @@
 #include <filesystem>
 
 namespace ghoul {
-    namespace fontrendering { class Font; }
-    namespace opengl {
-        class ProgramObject;
-        class OpenGLStateCache;
-    } // namespace opengl
+namespace fontrendering { class Font; }
+namespace opengl {
+    class ProgramObject;
+    class OpenGLStateCache;
+} // namespace opengl
 
-    class Dictionary;
-    class SharedMemory;
+class Dictionary;
+class SharedMemory;
 } // ghoul
 
 namespace openspace {
@@ -206,7 +204,7 @@ private:
     std::chrono::high_resolution_clock::time_point _lastFrameTime;
 
     struct Window : properties::PropertyOwner {
-        Window(PropertyOwnerInfo info, int id);
+        Window(PropertyOwnerInfo info, size_t id);
 
         properties::FloatProperty horizFieldOfView;
     };

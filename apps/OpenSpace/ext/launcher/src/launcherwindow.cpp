@@ -31,17 +31,14 @@
 #include "splitcombobox.h"
 #include <openspace/openspace.h>
 #include <ghoul/filesystem/filesystem.h>
-#include <ghoul/logging/logmanager.h>
+#include <ghoul/misc/assert.h>
 #include <sgct/config.h>
 #include <QFile>
 #include <QKeyEvent>
-#include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
-#include <QStandardItemModel>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 
 using namespace openspace;
@@ -148,9 +145,18 @@ LauncherWindow::LauncherWindow(bool profileEnabled, const Configuration& globalC
 
     {
         QFile file(":/qss/launcher.qss");
-        file.open(QFile::ReadOnly);
-        const QString styleSheet = QLatin1String(file.readAll());
-        setStyleSheet(styleSheet);
+        const bool success = file.open(QFile::ReadOnly);
+        if (!success) {
+            QMessageBox::critical(
+                this,
+                "Missing QSS",
+                "Could not find launcher.qss"
+            );
+        }
+        else {
+            const QString styleSheet = QLatin1String(file.readAll());
+            setStyleSheet(styleSheet);
+        }
     }
 
     QWidget* centralWidget = new QWidget;
@@ -240,7 +246,9 @@ LauncherWindow::LauncherWindow(bool profileEnabled, const Configuration& globalC
     {
         // Set up the default value for the edit button
         std::string selection = std::get<1>(_profileBox->currentSelection());
-        _editProfileButton->setEnabled(std::filesystem::exists(selection));
+        const bool exists = std::filesystem::exists(selection);
+        const bool isUser = selection.starts_with(_userProfilePath.string());
+        _editProfileButton->setEnabled(isUser && exists);
     }
 
     {
@@ -382,9 +390,7 @@ LauncherWindow::LauncherWindow(bool profileEnabled, const Configuration& globalC
     {
         QLabel* versionLabel = new QLabel(centralWidget);
         versionLabel->setVisible(true);
-        versionLabel->setText(
-            QString::fromStdString(std::string(OPENSPACE_VERSION_STRING_FULL))
-        );
+        versionLabel->setText(QString::fromStdString(std::string(OPENSPACE_VERSION)));
         versionLabel->setObjectName("version-info");
         versionLabel->setGeometry(geometry::VersionString);
     }

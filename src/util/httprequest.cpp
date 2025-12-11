@@ -25,9 +25,7 @@
 #include <openspace/util/httprequest.h>
 
 #include <ghoul/filesystem/file.h>
-#include <ghoul/filesystem/filesystem.h>
 #include <ghoul/format.h>
-#include <ghoul/logging/logmanager.h>
 #include <curl/curl.h>
 #include <filesystem>
 
@@ -231,7 +229,10 @@ void HttpDownload::cancel() {
 bool HttpDownload::wait() {
     std::mutex conditionMutex;
     std::unique_lock lock(conditionMutex);
-    _downloadFinishCondition.wait(lock, [this]() { return _isFinished; });
+    _downloadFinishCondition.wait(
+        lock,
+        [this]() { return _isFinished || _shouldCancel; }
+    );
     if (_downloadThread.joinable()) {
         _downloadThread.join();
     }

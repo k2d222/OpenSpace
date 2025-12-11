@@ -28,15 +28,24 @@
 #include <openspace/engine/globals.h>
 #include <openspace/engine/settings.h>
 #include <openspace/engine/moduleengine.h>
-#include <openspace/json.h>
-#include <openspace/util/json_helper.h>
-#include <ghoul/filesystem/file.h>
 #include <ghoul/filesystem/filesystem.h>
-#include <ghoul/logging/logmanager.h>
+#include <ghoul/glm.h>
 #include <ghoul/lua/ghoul_lua.h>
 #include <ghoul/lua/lua_helper.h>
 #include <ghoul/misc/assert.h>
+#include <ghoul/misc/dictionary.h>
+#include <ghoul/misc/dictionaryjsonformatter.h>
+#include <ghoul/misc/exception.h>
+#include <filesystem>
+#include <format>
+#include <map>
+#include <memory>
+#include <new>
 #include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace {
     // We can't use ${SCRIPTS} here as that hasn't been defined by this point
@@ -75,6 +84,11 @@ namespace {
         // Determines the property visibility level that is selected when starting up
         // OpenSpace. If it is not provided, it defaults to 'User'
         std::optional<Visibility> propertyVisibility;
+
+        // Determines when the property confirmation modal should be shown when starting
+        // up OpenSpace. If it is not provided, it defaults to 'true', i.e., each
+        // individual property determines whether it requires a confirmation or not.
+        std::optional<bool> showPropertyConfirmation;
 
         // A list of paths that are automatically registered with the file system. If a
         // key X is used in the table, it is then useable by referencing ${X} in all other
@@ -343,6 +357,7 @@ ghoul::Dictionary Configuration::createDictionary() {
     res.setValue("Asset", asset);
     res.setValue("Profile", profile);
     res.setValue("PropertyVisibility", static_cast<int>(propertyVisibility));
+    res.setValue("ShowPropertyConfirmation", static_cast<int>(showPropertyConfirmation));
 
     ghoul::Dictionary globalCustomizationScriptsDict;
     for (size_t i = 0; i < globalCustomizationScripts.size(); i++) {
@@ -546,6 +561,8 @@ void parseLuaState(Configuration& configuration) {
             *p.propertyVisibility
         );
     }
+
+    c.showPropertyConfirmation = p.showPropertyConfirmation.value_or(true);
     c.pathTokens = p.paths;
     c.fonts = p.fonts.value_or(c.fonts);
     c.fontSize.frameInfo = p.fontSize.frameInfo;

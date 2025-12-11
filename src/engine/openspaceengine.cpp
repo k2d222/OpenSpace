@@ -29,10 +29,10 @@
 #include <openspace/documentation/core_registration.h>
 #include <openspace/documentation/documentationengine.h>
 #include <openspace/engine/configuration.h>
-#include <openspace/engine/downloadmanager.h>
 #include <openspace/engine/globals.h>
 #include <openspace/engine/logfactory.h>
 #include <openspace/engine/moduleengine.h>
+#include <openspace/engine/settings.h>
 #include <openspace/engine/syncengine.h>
 #include <openspace/engine/windowdelegate.h>
 #include <openspace/events/event.h>
@@ -46,12 +46,10 @@
 #include <openspace/navigation/orbitalnavigator.h>
 #include <openspace/navigation/waypoint.h>
 #include <openspace/network/parallelpeer.h>
-#include <openspace/rendering/dashboard.h>
 #include <openspace/rendering/helper.h>
 #include <openspace/rendering/loadingscreen.h>
 #include <openspace/rendering/luaconsole.h>
 #include <openspace/rendering/renderengine.h>
-#include <openspace/scene/asset.h>
 #include <openspace/scene/assetmanager.h>
 #include <openspace/scene/profile.h>
 #include <openspace/scene/scene.h>
@@ -61,13 +59,11 @@
 #include <openspace/scripting/scriptengine.h>
 #include <openspace/util/factorymanager.h>
 #include <openspace/util/memorymanager.h>
-#include <openspace/util/screenlog.h>
 #include <openspace/util/spicemanager.h>
 #include <openspace/util/task.h>
 #include <openspace/util/timemanager.h>
 #include <openspace/util/transformationmanager.h>
 #include <ghoul/ghoul.h>
-#include <ghoul/filesystem/cachemanager.h>
 #include <ghoul/filesystem/filesystem.h>
 #include <ghoul/font/fontmanager.h>
 #include <ghoul/font/fontrenderer.h>
@@ -81,9 +77,9 @@
 #include <ghoul/opengl/ghoul_gl.h>
 #include <ghoul/opengl/debugcontext.h>
 #include <ghoul/opengl/shaderpreprocessor.h>
-#include <ghoul/opengl/texture.h>
 #include <ghoul/systemcapabilities/generalcapabilitiescomponent.h>
 #include <ghoul/systemcapabilities/openglcapabilitiescomponent.h>
+#include <date/date.h>
 #include <glbinding/glbinding.h>
 #include <glbinding-aux/types_to_string.h>
 #include <filesystem>
@@ -128,7 +124,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo PrintEventsInfo = {
         "PrintEvents",
-        "Print Events",
+        "Print events",
         "If this is enabled, all events that are propagated through the system are "
         "printed to the log.",
         openspace::properties::Property::Visibility::AdvancedUser
@@ -136,7 +132,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo VisibilityInfo = {
         "PropertyVisibility",
-        "Property Visibility",
+        "Property visibility",
         "Hides or displays different settings in the GUI depending on how advanced they "
         "are.",
         openspace::properties::Property::Visibility::Always
@@ -144,7 +140,7 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo FadeDurationInfo = {
         "FadeDuration",
-        "Fade Duration (seconds)",
+        "Fade duration (seconds)",
         "Controls how long time the fading in/out takes when enabling/disabling an "
         "object through a checkbox in the UI. Holding SHIFT while clicking the "
         "checkbox will enable/disable the renderable without fading, as will setting "
@@ -154,10 +150,22 @@ namespace {
 
     constexpr openspace::properties::Property::PropertyInfo DisableMouseInputInfo = {
         "DisableMouseInputs",
-        "Disable All Mouse Inputs",
+        "Disable all mouse inputs",
         "Disables all mouse inputs. Useful when using touch interaction, to prevent "
         "double inputs on touch (from both touch input and inserted mouse inputs).",
-        openspace::properties::Property::Visibility::User
+        openspace::properties::Property::Visibility::User,
+        openspace::properties::Property::NeedsConfirmation::Yes
+    };
+
+    constexpr openspace::properties::Property::PropertyInfo
+        ShowPropertyConfirmationDialogInfo =
+    {
+        "ShowPropertyConfirmation",
+        "Show property confirmation",
+        "Controls whether confirmation dialogs are shown when making changes to certain "
+        "properties. If checked, the dialogs will be shown for properties that require "
+        "it. If unchecked, no dialogs will be shown.",
+        openspace::properties::Property::Visibility::AdvancedUser
     };
 
     void viewportChanged() {
@@ -210,6 +218,7 @@ OpenSpaceEngine::OpenSpaceEngine()
     : properties::PropertyOwner({ "OpenSpaceEngine", "OpenSpace Engine" })
     , _printEvents(PrintEventsInfo, false)
     , _visibility(VisibilityInfo)
+    , _showPropertyConfirmationDialog(ShowPropertyConfirmationDialogInfo, true)
     , _fadeOnEnableDuration(FadeDurationInfo, 1.f, 0.f, 5.f)
     , _disableAllMouseInputs(DisableMouseInputInfo, false)
 {
@@ -228,6 +237,8 @@ OpenSpaceEngine::OpenSpaceEngine()
         { static_cast<int>(Visibility::Hidden), "Everything" },
     });
     addProperty(_visibility);
+
+    addProperty(_showPropertyConfirmationDialog);
 
     addProperty(_fadeOnEnableDuration);
     addProperty(_disableAllMouseInputs);
@@ -296,6 +307,7 @@ void OpenSpaceEngine::initialize() {
 
     _printEvents = global::configuration->isPrintingEvents;
     _visibility = static_cast<int>(global::configuration->propertyVisibility);
+    _showPropertyConfirmationDialog = global::configuration->showPropertyConfirmation;
 
     std::filesystem::path cacheFolder = absPath("${CACHE}");
     if (global::configuration->usePerProfileCache) {
@@ -402,7 +414,7 @@ void OpenSpaceEngine::initialize() {
     }
 
 
-    LINFOC("OpenSpace Version", std::string(OPENSPACE_VERSION_STRING_FULL));
+    LINFOC("OpenSpace Version", std::string(OPENSPACE_VERSION));
     LINFOC("Commit", std::string(OPENSPACE_GIT_FULL));
 
     // Register modules
@@ -865,6 +877,27 @@ void OpenSpaceEngine::deinitialize() {
 
     LTRACE("OpenSpaceEngine::deinitialize(begin)");
 
+    {
+        // We are storing the `hasStartedBefore` setting here instead of in the
+        // intialization phase as otherwise we'd always think that OpenSpace had been
+        // started before
+        openspace::Settings settings = loadSettings();
+
+        settings.hasStartedBefore = true;
+        const date::year_month_day now = date::year_month_day(
+            floor<date::days>(std::chrono::system_clock::now())
+        );
+        settings.lastStartedDate = std::format(
+            "{}-{:0>2}-{:0>2}",
+            static_cast<int>(now.year()),
+            static_cast<unsigned>(now.month()),
+            static_cast<unsigned>(now.day())
+        );
+
+        saveSettings(settings, findSettings());
+    }
+
+
     for (const std::function<void()>& func : *global::callback::deinitialize) {
         func();
     }
@@ -1260,6 +1293,7 @@ void OpenSpaceEngine::drawOverlays() {
     if (isGuiWindow) {
         global::renderEngine->renderOverlays(_shutdown);
         global::sessionRecordingHandler->render();
+        global::navigationHandler->renderOverlay();
     }
 
     for (const std::function<void()>& func : *global::callback::draw2D) {
@@ -1350,15 +1384,15 @@ void OpenSpaceEngine::keyboardCallback(Key key, KeyModifier mod, KeyAction actio
         return;
     }
 
-    for (const global::callback::KeyboardCallback& func : *global::callback::keyboard) {
-        const bool isConsumed = func(key, mod, action, isGuiWindow);
+    if (!global::configuration->isConsoleDisabled) {
+        const bool isConsumed = global::luaConsole->keyboardCallback(key, mod, action);
         if (isConsumed) {
             return;
         }
     }
 
-    if (!global::configuration->isConsoleDisabled) {
-        const bool isConsumed = global::luaConsole->keyboardCallback(key, mod, action);
+    for (const global::callback::KeyboardCallback& func : *global::callback::keyboard) {
+        const bool isConsumed = func(key, mod, action, isGuiWindow);
         if (isConsumed) {
             return;
         }
@@ -1704,6 +1738,8 @@ scripting::LuaLibrary OpenSpaceEngine::luaLibrary() {
             codegen::lua::RemoveTag,
             codegen::lua::DownloadFile,
             codegen::lua::CreateSingleColorImage,
+            codegen::lua::ImageSize,
+            codegen::lua::SaveBase64File,
             codegen::lua::IsMaster,
             codegen::lua::Version,
             codegen::lua::ReadCSVFile,
@@ -1729,6 +1765,10 @@ void OpenSpaceEngine::invalidatePropertyCache() {
     _isAllPropertiesCacheDirty = true;
 }
 
+void OpenSpaceEngine::invalidatePropertyOwnerCache() {
+    _isAllPropertyOwnersCacheDirty = true;
+}
+
 const std::vector<properties::Property*>& OpenSpaceEngine::allProperties() const {
     if (_isAllPropertiesCacheDirty) {
         _allPropertiesCache = global::rootPropertyOwner->propertiesRecursive();
@@ -1736,6 +1776,16 @@ const std::vector<properties::Property*>& OpenSpaceEngine::allProperties() const
     }
 
     return _allPropertiesCache;
+}
+
+const std::vector<properties::PropertyOwner*>& OpenSpaceEngine::allPropertyOwners() const
+{
+    if (_isAllPropertyOwnersCacheDirty) {
+        _allPropertyOwnersCache = global::rootPropertyOwner->subownersRecursive();
+        _isAllPropertyOwnersCacheDirty = false;
+    }
+
+    return _allPropertyOwnersCache;
 }
 
 AssetManager& OpenSpaceEngine::assetManager() {
@@ -1754,7 +1804,7 @@ void setCameraFromProfile(const Profile& p) {
     }
 
     auto checkNodeExists = [](const std::string& node) {
-        if (global::renderEngine->scene()->sceneGraphNode(node) == nullptr) {
+        if (!global::renderEngine->scene()->sceneGraphNode(node)) {
             throw ghoul::RuntimeError(std::format(
                 "Error when setting camera from profile. Could not find node '{}'", node
             ));

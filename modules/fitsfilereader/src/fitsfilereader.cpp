@@ -138,7 +138,7 @@ std::shared_ptr<T> FitsFileReader::readHeaderValue(const std::string key) {
     return nullptr;
 }
 
-template<typename T>
+template <typename T>
 std::shared_ptr<TableData<T>> FitsFileReader::readTable(const std::filesystem::path& path,
                                               const std::vector<std::string>& columnNames,
                                                                              int startRow,
@@ -185,7 +185,7 @@ std::shared_ptr<TableData<T>> FitsFileReader::readTable(const std::filesystem::p
             return std::make_shared<TableData<T>>(std::move(loadedTable));
         }
     }
-    catch (FitsException& e) {
+    catch (const FitsException& e) {
         LERROR(std::format(
             "Could not read FITS table from file '{}'. Make sure it's not an image file",
             e.message()
@@ -342,7 +342,7 @@ std::vector<float> FitsFileReader::readFitsFile(std::filesystem::path filePath,
         values[idx++] = tycho_v_err[i % nStars];
 
         // Read extra columns, if any. This will slow down the sorting tremendously!
-        for (int col = defaultCols; col < nColumnsRead; ++col) {
+        for (int col = defaultCols; col < nColumnsRead; col++) {
             std::vector<float> vecData = std::move(tableContent[allColumnNames[col]]);
             values[idx++] = vecData[i];
         }
@@ -657,7 +657,7 @@ std::vector<float> FitsFileReader::readSpeckFile(const std::filesystem::path& fi
 
 // This is pretty annoying, the read method is not derived from the HDU class
 // in CCfits - need to explicitly cast to the sub classes to access read
-template<typename T>
+template <typename T>
 std::shared_ptr<ImageData<T>> FitsFileReader::readImageInternal(ExtHDU& image) {
    try {
         std::valarray<T> contents;
@@ -675,7 +675,7 @@ std::shared_ptr<ImageData<T>> FitsFileReader::readImageInternal(ExtHDU& image) {
     return nullptr;
 }
 
-template<typename T>
+template <typename T>
 std::shared_ptr<ImageData<T>> FitsFileReader::readImageInternal(PHDU& image) {
     try {
         std::valarray<T> contents;
@@ -692,5 +692,8 @@ std::shared_ptr<ImageData<T>> FitsFileReader::readImageInternal(PHDU& image) {
     }
     return nullptr;
 }
+
+template std::shared_ptr<TableData<float>> FitsFileReader::readTable(
+    const std::filesystem::path&, const std::vector<std::string>&, int, int, int, bool);
 
 } // namespace openspace

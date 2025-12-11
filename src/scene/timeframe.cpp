@@ -26,18 +26,14 @@
 
 #include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
-#include <openspace/engine/globals.h>
 #include <openspace/util/factorymanager.h>
-#include <openspace/util/memorymanager.h>
-#include <openspace/util/updatestructures.h>
-#include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/dictionary.h>
 #include <ghoul/misc/templatefactory.h>
 
 namespace {
     constexpr openspace::properties::Property::PropertyInfo IsInTimeFrameInfo = {
         "IsInTimeFrame",
-        "Is in Time Frame",
+        "Is in time frame",
         "This property indicates the current state of the TimeFrame time testing. If the "
         "current simulation time is determined to be a valid time, this property is set "
         "to true. Otherwise it will be false, meaning that the scene graph node this "
