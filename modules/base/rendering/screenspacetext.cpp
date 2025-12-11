@@ -95,7 +95,7 @@ documentation::Documentation ScreenSpaceText::Documentation() {
 }
 
 ScreenSpaceText::ScreenSpaceText(const ghoul::Dictionary& dictionary)
-    : ScreenSpaceFramebuffer(dictionary)
+    : ScreenSpaceRenderableFramebuffer(dictionary)
     , _padding(PaddingInfo, glm::uvec4(0), glm::uvec4(0), glm::uvec4(1000))
     , _color(ColorInfo, glm::vec3(1.f), glm::vec3(0.f), glm::vec3(1.f))
     , _fontSize(FontSizeInfo, 50.f, 1.f, 100.f)
@@ -181,8 +181,8 @@ void ScreenSpaceText::renderText() {
 }
 
 void ScreenSpaceText::initializeGL() {
-    ScreenSpaceFramebuffer::initializeGL();
-    
+    ScreenSpaceRenderableFramebuffer::initializeGL();
+
 
     if (_font == nullptr) {
         _font = global::fontManager->font(

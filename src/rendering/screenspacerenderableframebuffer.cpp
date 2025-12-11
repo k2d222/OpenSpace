@@ -22,12 +22,15 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
+#include "ghoul/opengl/openglstatecache.h"
+#include "openspace/rendering/renderengine.h"
 #include <openspace/rendering/screenspacerenderableframebuffer.h>
 
 #include <openspace/documentation/documentation.h>
 #include <openspace/engine/globals.h>
 #include <openspace/engine/windowdelegate.h>
 #include <ghoul/opengl/framebufferobject.h>
+#include <ghoul/opengl/texture.h>
 
 namespace {
     constexpr openspace::properties::Property::PropertyInfo ResolutionInfo = {
@@ -42,13 +45,13 @@ namespace {
         // [[codegen::verbatim(ResolutionInfo.description)]]
         std::optional<glm::ivec2> resolution;
     };
-#include "screenspaceframebuffer_codegen.cpp"
+#include "screenspacerenderableframebuffer_codegen.cpp"
 } // namespace
 
 namespace openspace {
 
-documentation::Documentation ScreenSpaceFramebuffer::Documentation() {
-    return codegen::doc<Parameters>("base_screenspace_framebuffer");
+documentation::Documentation ScreenSpaceRenderableFramebuffer::Documentation() {
+    return codegen::doc<Parameters>("screenspace_framebuffer");
 }
 
 ScreenSpaceRenderableFramebuffer::ScreenSpaceRenderableFramebuffer(
@@ -75,7 +78,7 @@ ScreenSpaceRenderableFramebuffer::ScreenSpaceRenderableFramebuffer(
 
     if (_guiName.empty()) {
         // Adding an extra space to the user-facing name as it looks nicer
-        setGuiName("ScreenSpaceFramebuffer " + std::to_string(iIdentifier));
+        setGuiName("ScreenSpaceFramebuffer " + _identifier);
     }
 
     const Parameters p = codegen::bake<Parameters>(dictionary);
@@ -112,7 +115,7 @@ void ScreenSpaceRenderableFramebuffer::deinitializeGL() {
     ScreenSpaceRenderable::deinitializeGL();
 }
 
-void ScreenSpaceFramebuffer::render(const RenderData& renderData) {
+void ScreenSpaceRenderableFramebuffer::render(const RenderData& renderData) {
     const glm::ivec2& resolution = _resolution.value();
 
     if (!_renderFunctions.empty()) {
@@ -157,6 +160,15 @@ void ScreenSpaceFramebuffer::render(const RenderData& renderData) {
 
 bool ScreenSpaceRenderableFramebuffer::isReady() const {
     return _shader && _texture;
+}
+
+void ScreenSpaceRenderableFramebuffer::setResolution(glm::uvec2 resolution) {
+    _resolution = std::move(resolution);
+    if (_texture) {
+        _texture->setDimensions(glm::uvec3(_resolution.value(), 1));
+        _texture->uploadTexture();
+        _texture->purgeFromRAM();
+    }
 }
 
 void ScreenSpaceRenderableFramebuffer::addRenderFunction(RenderFunction renderFunction) {

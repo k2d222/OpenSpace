@@ -25,23 +25,19 @@
 #ifndef __OPENSPACE_MODULE_BASE___SCREENSPACETEXT___H__
 #define __OPENSPACE_MODULE_BASE___SCREENSPACETEXT___H__
 
-#include "ghoul/font/fontrenderer.h"
-#include <modules/base/rendering/screenspaceframebuffer.h>
+#include <openspace/rendering/screenspacerenderableframebuffer.h>
 #include <openspace/rendering/screenspacerenderable.h>
 
 #include <openspace/properties/misc/stringproperty.h>
 #include <openspace/properties/vector/uvec4property.h>
 
+#include <ghoul/font/fontrenderer.h>
 #include <ghoul/opengl/ghoul_gl.h>
 #include <ghoul/opengl/uniformcache.h>
 
-namespace ghoul::fontrendering { class Font; }
-
 namespace openspace {
 
-namespace documentation { struct Documentation; }
-
-class ScreenSpaceText : public ScreenSpaceFramebuffer {
+class ScreenSpaceText : public ScreenSpaceRenderableFramebuffer {
 public:
     ScreenSpaceText(const ghoul::Dictionary& dictionary);
 

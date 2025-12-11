@@ -25,7 +25,6 @@
 #ifndef __OPENSPACE_MODULE_TOUCH___TOUCHMODULE___H__
 #define __OPENSPACE_MODULE_TOUCH___TOUCHMODULE___H__
 
-#include "openspace/properties/scalar/intproperty.h"
 #include <openspace/util/openspacemodule.h>
 
 #include <modules/touch/include/touchmarker.h>

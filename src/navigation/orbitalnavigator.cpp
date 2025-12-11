@@ -1490,11 +1490,11 @@ glm::dquat OrbitalNavigator::roll(double deltaTime,
                                   const glm::dquat& localCameraRotation) const
 {
     const glm::dquat mouseRollQuat = glm::angleAxis(
-        _mouseStates.localRollVelocity().x * deltaTime +
-        _joystickStates.localRollVelocity().x * deltaTime +
-        _websocketStates.localRollVelocity().x * deltaTime +
-        _scriptStates.localRollVelocity().x * deltaTime +
-        _touchStates.localRollVelocity().x * deltaTime,
+        _mouseStates.localRollVelocity() * deltaTime +
+        _joystickStates.localRollVelocity() * deltaTime +
+        _websocketStates.localRollVelocity() * deltaTime +
+        _scriptStates.localRollVelocity() * deltaTime +
+        _touchStates.localRollVelocity() * deltaTime,
         glm::dvec3(0.0, 0.0, 1.0)
     );
     return localCameraRotation * mouseRollQuat;
@@ -1804,11 +1804,11 @@ glm::dvec3 OrbitalNavigator::translateVertically(double deltaTime,
                                              centerToActualSurfaceModelSpace;
     const glm::dvec3 actualSurfaceToCamera = posDiff - centerToActualSurface;
 
-    const double totalVelocity = _joystickStates.truckMovementVelocity().y +
-                                 _mouseStates.truckMovementVelocity().y +
-                                 _websocketStates.truckMovementVelocity().y +
-                                 _scriptStates.truckMovementVelocity().y +
-                                 _touchStates.truckMovementVelocity().y;
+    const double totalVelocity = _joystickStates.truckMovementVelocity() +
+                                 _mouseStates.truckMovementVelocity() +
+                                 _websocketStates.truckMovementVelocity() +
+                                 _scriptStates.truckMovementVelocity() +
+                                 _touchStates.truckMovementVelocity();
 
     return cameraPosition - actualSurfaceToCamera * totalVelocity * deltaTime;
 }
@@ -1826,11 +1826,11 @@ glm::dquat OrbitalNavigator::rotateHorizontally(double deltaTime,
     );
 
     const glm::dquat mouseCameraRollRotation = glm::angleAxis(
-        _mouseStates.globalRollVelocity().x * deltaTime +
-        _joystickStates.globalRollVelocity().x * deltaTime +
-        _websocketStates.globalRollVelocity().x * deltaTime +
-        _scriptStates.globalRollVelocity().x * deltaTime +
-        _touchStates.globalRollVelocity().x * deltaTime,
+        _mouseStates.globalRollVelocity() * deltaTime +
+        _joystickStates.globalRollVelocity() * deltaTime +
+        _websocketStates.globalRollVelocity() * deltaTime +
+        _scriptStates.globalRollVelocity() * deltaTime +
+        _touchStates.globalRollVelocity() * deltaTime,
         directionFromSurfaceToCamera
     );
     return mouseCameraRollRotation * globalCameraRotation;

@@ -46,9 +46,6 @@
 using namespace TUIO;
 
 namespace {
-} // namespace
-
-namespace {
     constexpr std::string_view _loggerCat = "TouchModule";
 
     constexpr openspace::properties::Property::PropertyInfo TuioPortInfo = {

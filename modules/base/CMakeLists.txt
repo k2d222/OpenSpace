@@ -73,7 +73,6 @@ set(HEADER_FILES
   rendering/screenspacedashboard.h
   rendering/screenspacedate.h
   rendering/screenspaceimagelocal.h
-  rendering/screenspacetext.h
   rendering/screenspaceimageonline.h
   rendering/screenspaceinsetblackout.h
   rendering/screenspacerenderablerenderable.h
@@ -153,7 +152,6 @@ set(SOURCE_FILES
   rendering/screenspacedashboard_lua.inl
   rendering/screenspacedate.cpp
   rendering/screenspaceimagelocal.cpp
-  rendering/screenspacetext.cpp
   rendering/screenspaceimageonline.cpp
   rendering/screenspaceinsetblackout.cpp
   rendering/screenspacerenderablerenderable.cpp

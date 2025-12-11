@@ -48,9 +48,9 @@ public:
 
     void setGlobalRotationVelocity(glm::dvec2 velocity);
     void setLocalRotationVelocity(glm::dvec2 velocity);
-    void setTruckMovementVelocity(glm::dvec2 velocity);
-    void setLocalRollVelocity(glm::dvec2 velocity);
-    void setGlobalRollVelocity(glm::dvec2 velocity);
+    void setTruckMovementVelocity(double velocity);
+    void setLocalRollVelocity(double velocity);
+    void setGlobalRollVelocity(double velocity);
 
     glm::dvec2 globalRotationVelocity() const;
     glm::dvec2 localRotationVelocity() const;

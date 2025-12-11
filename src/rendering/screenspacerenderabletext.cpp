@@ -63,7 +63,7 @@ namespace {
 namespace openspace {
 
 documentation::Documentation ScreenSpaceRenderableText::Documentation() {
-    return codegen::doc<Parameters>("screenspace_text");
+    return codegen::doc<Parameters>("base_screenspace_text");
 }
 
 ScreenSpaceRenderableText::ScreenSpaceRenderableText(const ghoul::Dictionary& dictionary)

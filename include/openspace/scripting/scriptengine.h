@@ -49,8 +49,6 @@ namespace openspace::scripting {
  */
 class ScriptEngine : public Syncable {
 public:
-    BooleanType(ShouldBeSynchronized);
-    BooleanType(ShouldSendToRemote);
     struct Script {
         BooleanType(ShouldBeSynchronized);
         BooleanType(ShouldSendToRemote);

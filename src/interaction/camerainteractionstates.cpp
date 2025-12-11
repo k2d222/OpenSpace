@@ -111,15 +111,15 @@ void CameraInteractionStates::setLocalRotationVelocity(glm::dvec2 velocity) {
     _localRotationState.velocity.setHard(velocity);
 }
 
-void CameraInteractionStates::setTruckMovementVelocity(glm::dvec2 velocity) {
+void CameraInteractionStates::setTruckMovementVelocity(double velocity) {
     _truckMovementState.velocity.setHard(velocity);
 }
 
-void CameraInteractionStates::setLocalRollVelocity(glm::dvec2 velocity) {
+void CameraInteractionStates::setLocalRollVelocity(double velocity) {
     _localRollState.velocity.setHard(velocity);
 }
 
-void CameraInteractionStates::setGlobalRollVelocity(glm::dvec2 velocity) {
+void CameraInteractionStates::setGlobalRollVelocity(double velocity) {
     _globalRollState.velocity.setHard(velocity);
 }
 
@@ -131,15 +131,15 @@ glm::dvec2 CameraInteractionStates::localRotationVelocity() const {
     return _localRotationState.velocity.get();
 }
 
-glm::dvec2 CameraInteractionStates::truckMovementVelocity() const {
+double CameraInteractionStates::truckMovementVelocity() const {
     return _truckMovementState.velocity.get();
 }
 
-glm::dvec2 CameraInteractionStates::localRollVelocity() const {
+double CameraInteractionStates::localRollVelocity() const {
     return _localRollState.velocity.get();
 }
 
-glm::dvec2 CameraInteractionStates::globalRollVelocity() const {
+double CameraInteractionStates::globalRollVelocity() const {
     return _globalRollState.velocity.get();
 }
 
