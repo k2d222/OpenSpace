@@ -1,0 +1,50 @@
+
+local globe = asset.require("../earth")
+
+local Name = "Tellus - blue marble: seasonal"
+local Identifier = "tellus-blue_marble_seasonal"
+local Description = [[Changing appearance of the surface of the Earth throughout the year including green of vegetation and white of snow and ice
+Opposite seasons in the northern and southern hemispheres
+Vastness of the Sahara Desert
+Shading done in true color: gives Earth's appearance from space]]
+local Author = "NOAA SoS"
+local URL = "https://sos.noaa.gov/catalog/datasets/blue-marble-seasonal/"
+local License = "https://sos.noaa.gov/copyright/"
+
+
+local syncdir = asset.resource({
+  Name = Name,
+  Type = "UrlSynchronization",
+  Identifier = Identifier,
+  Url = "https://vlc.itn.liu.se/tellus-data/earth/blue_marble/seasonal/2048.webm"
+})
+
+
+local Layer = {
+  Identifier = Identifier,
+  Name = Name,
+  Enabled = false,
+  FilePath = syncdir .. "2048.webm",
+  Description = Description
+}
+
+
+asset.onInitialize(function()
+  openspace.globebrowsing.addLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.onDeinitialize(function()
+  openspace.globebrowsing.deleteLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.export(Layer)
+
+
+
+asset.meta = {
+  Name = Name,
+  Description = Description,
+  Author = Author,
+  URL = URL,
+  License = License
+}

@@ -1,0 +1,47 @@
+
+local globe = asset.require("../earth")
+
+local Name = "Tellus - agriculture: pastureland intensity"
+local Identifier = "tellus-agriculture_pastureland"
+local Description = [[Show the global land use intensity for cropland. Cropland is land devoted to growing plants for humans use for food, material, or fuel. Pastureland is land used for raising and grazing animals. Altogether, cropland covers about 16 million square kilometers, an area of land approximately the size of South America. Global pastureland occupies more than 30 million square kilometers, about the area of Africa.]]
+local Author = "NOAA SoS"
+local URL = "https://sos.noaa.gov/catalog/datasets/agriculture-pastureland-intensity/"
+local License = "https://sos.noaa.gov/copyright/"
+
+
+local syncdir = asset.resource({
+  Name = Name,
+  Type = "UrlSynchronization",
+  Identifier = Identifier,
+  Url = "https://vlc.itn.liu.se/tellus-data/earth/agriculture/pastureland/4096.png"
+})
+
+
+local Layer = {
+  Identifier = Identifier,
+  Name = Name,
+  Enabled = false,
+  FilePath = syncdir .. "4096.png",
+  Description = Description
+}
+
+
+asset.onInitialize(function()
+  openspace.globebrowsing.addLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.onDeinitialize(function()
+  openspace.globebrowsing.deleteLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.export(Layer)
+
+
+
+asset.meta = {
+  Name = Name,
+  Description = Description,
+  Author = Author,
+  URL = URL,
+  License = License
+}

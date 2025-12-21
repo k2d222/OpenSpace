@@ -1,0 +1,50 @@
+
+local globe = asset.require("../earth")
+
+local Name = "Tellus - bird migration patterns - western hemisphere"
+local Identifier = "tellus-bird_migration"
+local Description = [[Each dot represents the estimated location of the center of each species’ population for each day of the year for 118 terrestrial bird species in the Western Hemisphere.
+The bird data comes from a citizen science project called eBird, launched by Cornell Lab of Ornithology.
+The air temperature colored data represent the average daily air temperature at the surface, calculated from observations from 1981-2010.
+Seasonal migration patterns, typically leaving in the fall and returning is the spring, are distinctly noticeable.]]
+local Author = "NOAA SoS"
+local URL = "https://sos.noaa.gov/catalog/datasets/bird-migration-patterns-western-hemisphere/"
+local License = "https://sos.noaa.gov/copyright/"
+
+
+local syncdir = asset.resource({
+  Name = Name,
+  Type = "UrlSynchronization",
+  Identifier = Identifier,
+  Url = "https://vlc.itn.liu.se/tellus-data/earth/bird_migrations/2048.webm"
+})
+
+
+local Layer = {
+  Identifier = Identifier,
+  Name = Name,
+  Enabled = false,
+  FilePath = syncdir .. "2048.webm",
+  Description = Description
+}
+
+
+asset.onInitialize(function()
+  openspace.globebrowsing.addLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.onDeinitialize(function()
+  openspace.globebrowsing.deleteLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.export(Layer)
+
+
+
+asset.meta = {
+  Name = Name,
+  Description = Description,
+  Author = Author,
+  URL = URL,
+  License = License
+}

@@ -1,0 +1,47 @@
+
+local globe = asset.require("../earth")
+
+local Name = "Tellus - agriculture: cropland yield (gap)"
+local Identifier = "tellus-agriculture_yield_gap"
+local Description = [[Highlights the difference between current and potential yields. While some regions may have a very high potential yield, it may already be nearly equaled by their current yields. (See the American Midwest for areas that are producing very near to their full potential.) Regions with greater room for improvement, however, stand out in bright yellow on the yield gap map. Bright spots in Asia, West Africa, Eastern Europe and Central America, for instance, indicate locations where significantly more food can be produced.]]
+local Author = "NOAA SoS"
+local URL = "https://sos.noaa.gov/catalog/datasets/agriculture-cropland-yield-gap/"
+local License = "https://sos.noaa.gov/copyright/"
+
+
+local syncdir = asset.resource({
+  Name = Name,
+  Type = "UrlSynchronization",
+  Identifier = Identifier,
+  Url = "https://vlc.itn.liu.se/tellus-data/earth/agriculture/yield/gap/4096.png"
+})
+
+
+local Layer = {
+  Identifier = Identifier,
+  Name = Name,
+  Enabled = false,
+  FilePath = syncdir .. "4096.png",
+  Description = Description
+}
+
+
+asset.onInitialize(function()
+  openspace.globebrowsing.addLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.onDeinitialize(function()
+  openspace.globebrowsing.deleteLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.export(Layer)
+
+
+
+asset.meta = {
+  Name = Name,
+  Description = Description,
+  Author = Author,
+  URL = URL,
+  License = License
+}

@@ -1,0 +1,49 @@
+
+local globe = asset.require("../earth")
+
+local Name = "Tellus - earthquakes of the 20th century"
+local Identifier = "tellus-earthquakes_20th_century"
+local Description = [[The great majority of earthquakes occur at tectonic plate boundaries.
+The majority of great earthquakes (magnitude 8.0 or larger) are megathrust earthquakes that occur at convergent plate boundaries, also called destructive margins or subduction zones.
+For an earthquake to pose a tsunami hazard it needs to vertically move the seafloor; therefore, it needs to be large (typically 8.0 or larger), under or near the ocean, and shallow within the earth (less than 100 km).]]
+local Author = "NOAA SoS"
+local URL = "https://sos.noaa.gov/catalog/datasets/earthquakes-of-the-20th-century/"
+local License = "https://sos.noaa.gov/copyright/"
+
+
+local syncdir = asset.resource({
+  Name = Name,
+  Type = "UrlSynchronization",
+  Identifier = Identifier,
+  Url = "https://vlc.itn.liu.se/tellus-data/earth/earthquake/1901-2000/4096.webm"
+})
+
+
+local Layer = {
+  Identifier = Identifier,
+  Name = Name,
+  Enabled = false,
+  FilePath = syncdir .. "4096.webm",
+  Description = Description
+}
+
+
+asset.onInitialize(function()
+  openspace.globebrowsing.addLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.onDeinitialize(function()
+  openspace.globebrowsing.deleteLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.export(Layer)
+
+
+
+asset.meta = {
+  Name = Name,
+  Description = Description,
+  Author = Author,
+  URL = URL,
+  License = License
+}

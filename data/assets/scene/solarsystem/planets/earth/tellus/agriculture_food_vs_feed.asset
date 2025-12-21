@@ -1,0 +1,47 @@
+
+local globe = asset.require("../earth")
+
+local Name = "Tellus - agriculture: food vs. feed"
+local Identifier = "tellus-agriculture_food_vs_feed"
+local Description = [[Not all cropland is used for producing food directly for people. A lot of the food crops grown are actually used as feed for animals. This map shows which regions produce crops that are mostly consumed directly by humans (in green), which regions produce about the same amount of human food and animal feed (in orange), and where most of the crops are used as animal feed (in red).]]
+local Author = "NOAA SoS"
+local URL = "https://sos.noaa.gov/catalog/datasets/agriculture-food-vs-feed/"
+local License = "https://sos.noaa.gov/copyright/"
+
+
+local syncdir = asset.resource({
+  Name = Name,
+  Type = "UrlSynchronization",
+  Identifier = Identifier,
+  Url = "https://vlc.itn.liu.se/tellus-data/earth/agriculture/food_vs_feed/4096.png"
+})
+
+
+local Layer = {
+  Identifier = Identifier,
+  Name = Name,
+  Enabled = false,
+  FilePath = syncdir .. "4096.png",
+  Description = Description
+}
+
+
+asset.onInitialize(function()
+  openspace.globebrowsing.addLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.onDeinitialize(function()
+  openspace.globebrowsing.deleteLayer(globe.Earth.Identifier, "Overlays", Layer)
+end)
+
+asset.export(Layer)
+
+
+
+asset.meta = {
+  Name = Name,
+  Description = Description,
+  Author = Author,
+  URL = URL,
+  License = License
+}
