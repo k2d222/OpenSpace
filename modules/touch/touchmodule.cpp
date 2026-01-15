@@ -25,9 +25,11 @@
 #include <modules/touch/touchmodule.h>
 
 #include <ghoul/glm.h>
+#include <ghoul/logging/logmanager.h>
 #include <modules/touch/include/tuioear.h>
 #include <modules/touch/include/win32_touch.h>
 #include <openspace/camera/camera.h>
+#include <openspace/documentation/documentation.h>
 #include <openspace/engine/globals.h>
 #include <openspace/engine/globalscallbacks.h>
 #include <openspace/engine/openspaceengine.h>
