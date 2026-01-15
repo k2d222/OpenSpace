@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2025                                                               *
+ * Copyright (c) 2014-2026                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -25,18 +25,36 @@
 #include <openspace/navigation/path.h>
 
 #include <openspace/camera/camerapose.h>
+#include <openspace/documentation/documentation.h>
 #include <openspace/engine/globals.h>
 #include <openspace/navigation/navigationhandler.h>
-#include <openspace/navigation/pathcurve.h>
+#include <openspace/navigation/navigationstate.h>
 #include <openspace/navigation/pathcurves/avoidcollisioncurve.h>
+#include <openspace/navigation/pathcurves/orbitobjectcurve.h>
 #include <openspace/navigation/pathcurves/zoomoutoverviewcurve.h>
 #include <openspace/navigation/pathnavigator.h>
+#include <openspace/properties/property.h>
+#include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/rendering/renderable.h>
 #include <openspace/scene/scenegraphnode.h>
 #include <openspace/query/query.h>
 #include <openspace/util/universalhelpers.h>
+#include <openspace/util/updatestructures.h>
+#include <ghoul/format.h>
 #include <ghoul/logging/logmanager.h>
+#include <ghoul/misc/dictionary.h>
 #include <ghoul/misc/interpolator.h>
+#include <ghoul/glm.h>
+#include <ghoul/misc/assert.h>
+#include <ghoul/misc/dictionary.h>
+#include <ghoul/misc/easing.h>
+#include <ghoul/misc/exception.h>
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <limits>
+#include <string_view>
+#include <utility>
 
 namespace {
     constexpr std::string_view _loggerCat = "Path";
@@ -99,6 +117,7 @@ namespace {
         enum class [[codegen::map(openspace::interaction::Path::Type)]] PathType {
             AvoidCollision,
             ZoomOutOverview,
+            OrbitObject,
             Linear,
             AvoidCollisionWithLookAt
         };
@@ -130,6 +149,11 @@ Path::Path(Waypoint start, Waypoint end, Type type, std::optional<float> duratio
         case Type::ZoomOutOverview:
             _curve = std::make_unique<ZoomOutOverviewCurve>(_start, _end);
             break;
+        case Type::OrbitObject:
+            _curve = std::make_unique<OrbitObjectCurve>(_start, _end);
+            break;
+        default:
+            throw ghoul::MissingCaseException();
     }
 
     _prevPose = _start.pose();
@@ -141,6 +165,11 @@ Path::Path(Waypoint start, Waypoint end, Type type, std::optional<float> duratio
     }
     float estimatedDuration = _progressedTime;
     resetPlaybackVariables();
+
+    const float speedScale = static_cast<float>(
+        global::navigationHandler->pathNavigator().speedScale()
+    );
+    const float minimalDurationSeconds = 2.f / speedScale;
 
     // We now know how long it took to traverse the path. Use that to compute the
     // speed factor to match any given duration
@@ -155,6 +184,11 @@ Path::Path(Waypoint start, Waypoint end, Type type, std::optional<float> duratio
             _speedFactorFromDuration = std::numeric_limits<float>::infinity();
             estimatedDuration = 0.f;
         }
+    }
+    else if (estimatedDuration < minimalDurationSeconds) {
+        // If no duration was provided, add a minimal duration to avoid super fast motions
+        _speedFactorFromDuration = estimatedDuration / minimalDurationSeconds;
+        estimatedDuration = minimalDurationSeconds;
     }
     _expectedDuration = estimatedDuration;
 }
@@ -318,6 +352,7 @@ glm::dquat Path::interpolateRotation(double t) const {
             return linearPathRotation(t);
         case Type::ZoomOutOverview:
         case Type::AvoidCollisionWithLookAt:
+        case Type::OrbitObject:
             return lookAtTargetsRotation(t);
         default:
             throw ghoul::MissingCaseException();
@@ -452,8 +487,13 @@ double Path::speedAlongPath(double traveledDistance) const {
     const double distanceToStartNode = glm::distance(_prevPose.position, startNodePos);
     const bool isCloserToEnd = (distanceToEndNode < distanceToStartNode);
 
-    const glm::dvec3 closestPos = isCloserToEnd ? endNodePos : startNodePos;
-    const double distanceToClosestNode = glm::distance(closestPos, _prevPose.position);
+    const SceneGraphNode* closestNode = isCloserToEnd ? _end.node() : _start.node();
+
+    double distanceToClosestNode = glm::distance(closestNode->worldPosition(), _prevPose.position);
+
+    // Subtract the distance to the interaction sphere, to get more reasonable speeds closer
+    // to objects
+    distanceToClosestNode -= 0.8 * closestNode->interactionSphere();
 
     const double speed = distanceToClosestNode;
 

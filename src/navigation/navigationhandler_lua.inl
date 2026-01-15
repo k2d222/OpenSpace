@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2025                                                               *
+ * Copyright (c) 2014-2026                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -22,8 +22,25 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#include <ghoul/lua/lua_helper.h>
+#include <openspace/documentation/documentation.h>
+#include <openspace/engine/openspaceengine.h>
+#include <openspace/interaction/joystickinputstate.h>
 #include <openspace/util/geodetic.h>
+#include <openspace/util/time.h>
+#include <ghoul/lua/lua_helper.h>
+#include <ghoul/misc/dictionary.h>
+#include <ghoul/misc/exception.h>
+#include <ghoul/format.h>
+#include <ghoul/misc/dictionaryluaformatter.h>
+#include <ghoul/misc/stringconversion.h>
+#include <algorithm>
+#include <numeric>
+#include <tuple>
+#include <variant>
+#include <string>
+#include <optional>
+#include <utility>
+#include <vector>
 
 namespace {
 
@@ -623,7 +640,7 @@ struct [[codegen::Dictionary(JoystickAxis)]] JoystickAxis {
     try {
         global::navigationHandler->orbitalNavigator().triggerIdleBehavior(choice);
     }
-    catch (ghoul::RuntimeError& e) {
+    catch (const ghoul::RuntimeError& e) {
         throw ghoul::lua::LuaError(e.message);
     }
 }
@@ -646,8 +663,8 @@ struct [[codegen::Dictionary(JoystickAxis)]] JoystickAxis {
 [[codegen::luawrap]] double distanceToFocus() {
     using namespace openspace;
 
-    const SceneGraphNode * focus = global::navigationHandler->anchorNode();
-    Camera * camera = global::navigationHandler->camera();
+    const SceneGraphNode* focus = global::navigationHandler->anchorNode();
+    Camera* camera = global::navigationHandler->camera();
 
     return glm::distance(camera->positionVec3(), focus->worldPosition());
 }
@@ -776,7 +793,22 @@ void flyToGeoInternal(std::string node, double latitude, double longitude,
     instruction.setValue("TargetType", std::string("Node"));
     instruction.setValue("Target", n->identifier());
     instruction.setValue("Position", positionModelCoords);
-    instruction.setValue("PathType", std::string("ZoomOutOverview"));
+
+    const SceneGraphNode* anchor = global::navigationHandler->orbitalNavigator().anchorNode();
+    if (!anchor) {
+        throw ghoul::lua::LuaError("No anchor node is set");
+    }
+
+    // Is the current anchor the position we're flying from? Then use the orbit path.
+    // Otherwise, first fly to an overview position.
+    // @TODO (emmbr, 2025-01-14) This assumption is too simple for "real use".
+    // We might not want to just rotate if we're very close to the surface, for example.
+    if (anchor->identifier() == n->identifier()) {
+        instruction.setValue("PathType", std::string("OrbitObject"));
+    }
+    else {
+        instruction.setValue("PathType", std::string("ZoomOutOverview"));
+    }
 
     if (duration.has_value()) {
         if (*duration < 0) {

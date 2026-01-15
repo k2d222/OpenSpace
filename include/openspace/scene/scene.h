@@ -2,7 +2,7 @@
  *                                                                                       *
  * OpenSpace                                                                             *
  *                                                                                       *
- * Copyright (c) 2014-2025                                                               *
+ * Copyright (c) 2014-2026                                                               *
  *                                                                                       *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
  * software and associated documentation files (the "Software"), to deal in the Software *
@@ -28,25 +28,37 @@
 #include <openspace/properties/propertyowner.h>
 
 #include <openspace/scene/scenegraphnode.h>
+#include <ghoul/misc/boolean.h>
 #include <ghoul/misc/easing.h>
+#include <ghoul/misc/managedmemoryuniqueptr.h>
 #include <ghoul/misc/map.h>
+#include <chrono>
+#include <functional>
+#include <memory>
 #include <mutex>
 #include <set>
+#include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
 namespace ghoul {
-
-class Dictionary;
-namespace lua { class LuaState; }
-namespace opengl { class ProgramObject; }
-
+    namespace lua { class LuaState; }
+    namespace opengl { class ProgramObject; }
+    class Dictionary;
 } // namespace ghoul
 
 namespace openspace {
 
 namespace documentation { struct Documentation; }
+namespace properties { class Property; }
 namespace scripting { struct LuaLibrary; }
+class Camera;
+class Profile;
+struct RenderData;
+struct RendererTasks;
+class SceneInitializer;
+struct UpdateData;
 
 enum class PropertyValueType {
     Boolean = 0,
@@ -55,9 +67,6 @@ enum class PropertyValueType {
     Table,
     Nil
 };
-
-class Profile;
-class SceneInitializer;
 
 // Notifications:
 // SceneGraphFinishedLoading
